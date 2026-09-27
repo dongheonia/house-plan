@@ -62,6 +62,19 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .item.editing .rot{display:none}
 .item svg.arw{display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
 .item svg.arw path{fill:#000}
+/* 펜 낙서: 상자 전체가 아니라 선 위에서만 잡히게 (아래 이미지를 가리지 않도록) */
+.item.ink{pointer-events:none}
+.item.ink>.h,.item.ink>.rot,.item.ink>.del{pointer-events:auto}
+.item svg.ink{display:block;width:100%;height:100%;overflow:visible}
+.item svg.ink .ln{fill:none;stroke:#E0201B;stroke-linecap:round;stroke-linejoin:round}
+.item svg.ink .hit{fill:none;stroke:transparent;stroke-linecap:round;stroke-linejoin:round;pointer-events:stroke}
+.item.ink.sel{outline-style:dashed}
+.content.pen,.content.pen .item{cursor:crosshair}
+.live{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:2147483646}
+.tools button[aria-pressed="true"]{border-color:#E0201B;color:#E0201B;font-weight:600}
+.tools .pen-btn::before{content:"";width:8px;height:8px;border-radius:50%;background:#E0201B;margin-right:6px}
+.tools .mode-btn{font-weight:600}
+.ro .tools [data-edit]{display:none}
 .guide{position:absolute;background:#FF2D95;pointer-events:none;z-index:2147483647}
 .tools{position:absolute;left:12px;top:12px;display:flex;gap:6px;align-items:center;z-index:3;flex-wrap:wrap}
 .tools button,.tools label.b{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.82rem;cursor:pointer;display:inline-flex;align-items:center}
@@ -163,11 +176,13 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   <div class="world" id="world"></div>
   <div class="empty" id="empty">이미지를 붙여넣거나(⌘V / Ctrl+V)<br>파일을 끌어다 놓으세요<br>빈 곳을 더블클릭하면 글자를 넣을 수 있어요</div>
   <div class="tools">
+    <button type="button" id="modeBtn" class="mode-btn" aria-pressed="false" title="읽기 전용이면 보드·메모·지도 색을 바꿀 수 없어요">편집 중</button>
     <button type="button" id="fitBtn">전체 보기</button>
-    <button type="button" data-arw="180" aria-label="왼쪽 화살표 추가">←</button>
-    <button type="button" data-arw="270" aria-label="위쪽 화살표 추가">↑</button>
-    <button type="button" data-arw="0" aria-label="오른쪽 화살표 추가">→</button>
-    <button type="button" data-arw="90" aria-label="아래쪽 화살표 추가">↓</button>
+    <button type="button" id="penBtn" class="pen-btn" data-edit aria-pressed="false" title="빨간 펜 (P)">펜</button>
+    <button type="button" data-edit data-arw="180" aria-label="왼쪽 화살표 추가">←</button>
+    <button type="button" data-edit data-arw="270" aria-label="위쪽 화살표 추가">↑</button>
+    <button type="button" data-edit data-arw="0" aria-label="오른쪽 화살표 추가">→</button>
+    <button type="button" data-edit data-arw="90" aria-label="아래쪽 화살표 추가">↓</button>
     <span class="zv" id="zv">100%</span>
     <button type="button" id="exportBtn" hidden>내보내기</button>
     <label class="b" id="importLbl" hidden>가져오기<input type="file" id="importIn" accept="application/json,.json" hidden></label>
@@ -332,13 +347,13 @@ svg.addEventListener("pointermove",ev=>{
 svg.addEventListener("pointerup",ev=>{
   if(ptrs.size===1&&moved<=6){
     const id=hitMuni(ev);
-    if(id&&id===downId)openPop(id,ev.clientX,ev.clientY);else closePop();
+    if(id&&id===downId&&!readOnly)openPop(id,ev.clientX,ev.clientY);else closePop();
   }
   ptrs.delete(ev.pointerId);if(ptrs.size<2)startDist=0;
   if(ptrs.size===1)last={...[...ptrs.values()][0]};
 });
 svg.addEventListener("pointercancel",ev=>{ptrs.delete(ev.pointerId);startDist=0});
-svg.addEventListener("keydown",ev=>{if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset.id){ev.preventDefault();
+svg.addEventListener("keydown",ev=>{if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset.id&&!readOnly){ev.preventDefault();
   const b=ev.target.getBoundingClientRect();openPop(ev.target.dataset.id,b.left+b.width/2,b.top+b.height/2)}});
 
 vb={x:0,y:0,w:W,h:H};setVB();
@@ -366,6 +381,7 @@ const board=document.getElementById("board"),world=document.getElementById("worl
 const zv=document.getElementById("zv");
 let cam={x:40,y:60,z:1};
 let items=[];// 이미지 {id,x,y,w,h,z,rot} · 글자 {id,type:"text",x,y,w,h,z,text,fs,rot} · 화살표 {id,type:"arrow",x,y,w,h,z,rot}
+// · 펜 {id,type:"ink",x,y,w,h,z,rot,pts:[[x,y]…] (그릴 때 상자 기준 좌표),vw,vh (그릴 때 상자 크기),sw (선 굵기)}
 // rot: 0/90/180/270 (가운데 기준 회전). 화살표는 오른쪽이 기본 방향이고 rot로 상하좌우를 정함
 let selId=null,topZ=1;
 const urls={};
@@ -398,6 +414,10 @@ function render(it){
       c.addEventListener("keydown",ev=>{if(ev.key==="Escape"){ev.preventDefault();c.blur();board.focus({preventScroll:true});}});}
     else if(it.type==="arrow"){c=document.createElementNS("http://www.w3.org/2000/svg","svg");c.setAttribute("class","arw");
       c.append(document.createElementNS("http://www.w3.org/2000/svg","path"));}
+    else if(it.type==="ink"){el.classList.add("ink");c=document.createElementNS(NS,"svg");c.setAttribute("class","ink");
+      c.setAttribute("viewBox",`0 0 ${it.vw} ${it.vh}`);c.setAttribute("preserveAspectRatio","none");
+      const d=inkPath(it.pts);
+      for(const [cls,k] of [["hit",5],["ln",1]]){const p=document.createElementNS(NS,"path");p.setAttribute("class",cls);p.setAttribute("d",d);p.setAttribute("stroke-width",it.sw*k);c.append(p);}}
     else{c=document.createElement("img");c.alt="";c.draggable=false;c.src=urls[it.id]||"";}
     const h=document.createElement("div");h.className="h";
     const ro=document.createElement("div");ro.className="rot";ro.textContent="↻";ro.title="90° 회전 (R)";
@@ -412,6 +432,7 @@ function render(it){
     el.firstChild.firstChild.setAttribute("d",`M0 ${a}H${w-hl}V0L${w} ${h/2}L${w-hl} ${h}V${b}H0Z`);}
   el.classList.toggle("sel",it.id===selId);
 }
+const inkPath=pts=>"M"+pts.map(p=>p.join(" ")).join("L");
 // 회전을 반영한 화면상 상자 (90°/270°면 가로세로가 바뀜)
 function vbox(it){if(!((it.rot||0)%180))return{x:it.x,y:it.y,w:it.w,h:it.h};
   return{x:it.x+(it.w-it.h)/2,y:it.y+(it.h-it.w)/2,w:it.h,h:it.w};}
@@ -436,6 +457,34 @@ function addArrow(rot){const r=board.getBoundingClientRect(),c=boardPoint(r.left
   const w=160/cam.z,h=56/cam.z,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   items.push({id,type:"arrow",x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,rot});selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
 document.querySelectorAll("[data-arw]").forEach(b=>b.onclick=()=>addArrow(+b.dataset.arw));
+
+// ===== 펜 (빨간 낙서) =====
+const penBtn=document.getElementById("penBtn");let penOn=false,stroke=null;
+function setPen(on){penOn=on&&!readOnly;penBtn.setAttribute("aria-pressed",penOn);board.classList.toggle("pen",penOn);if(penOn)select(null);}
+penBtn.onclick=()=>{setPen(!penOn);board.focus({preventScroll:true});};
+function penStart(ev){const p=boardPoint(ev.clientX,ev.clientY),sw=4/cam.z;
+  const svgEl=document.createElementNS(NS,"svg");svgEl.setAttribute("class","live");svgEl.setAttribute("width",1);svgEl.setAttribute("height",1);
+  const path=document.createElementNS(NS,"path");path.setAttribute("fill","none");path.setAttribute("stroke","#E0201B");
+  path.setAttribute("stroke-width",sw);path.setAttribute("stroke-linecap","round");path.setAttribute("stroke-linejoin","round");
+  svgEl.append(path);world.append(svgEl);stroke={pts:[[p.x,p.y]],sw,svgEl,path};path.setAttribute("d",inkPath(stroke.pts));}
+function penMove(ev){const p=boardPoint(ev.clientX,ev.clientY),l=stroke.pts[stroke.pts.length-1];
+  if(Math.hypot(p.x-l[0],p.y-l[1])<1.5/cam.z)return;// 화면에서 1.5px 미만 움직임은 건너뜀
+  stroke.pts.push([p.x,p.y]);stroke.path.setAttribute("d",inkPath(stroke.pts));}
+function penEnd(cancel){if(!stroke)return;const st=stroke;stroke=null;st.svgEl.remove();if(cancel)return;
+  let pts=st.pts;if(pts.length===1)pts=[pts[0],[pts[0][0]+.01,pts[0][1]]];// 톡 찍은 점
+  const pad=st.sw,xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x=Math.min(...xs)-pad,y=Math.min(...ys)-pad;
+  const w=Math.max(...xs)+pad-x,h=Math.max(...ys)+pad-y,r=v=>Math.round(v*10)/10;
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  const it={id,type:"ink",x,y,w,h,z:++topZ,vw:r(w),vh:r(h),sw:r(st.sw*10)/10||st.sw,pts:pts.map(p=>[r(p[0]-x),r(p[1]-y)])};
+  items.push(it);undoStack.push({added:id});renderAll();saveMeta();}
+
+// ===== 읽기 전용 / 편집 =====
+const modeBtn=document.getElementById("modeBtn");let readOnly=false;
+function setReadOnly(on){readOnly=on;document.body.classList.toggle("ro",on);
+  modeBtn.textContent=on?"읽기 전용":"편집 중";modeBtn.setAttribute("aria-pressed",on);
+  memo.readOnly=on;if(on){setPen(false);if(editingId){const it=items.find(i=>i.id===editingId);if(it)endEdit(it);}select(null);closePop();}
+  try{localStorage.setItem("kr-readonly",on?"1":"")}catch(e){}}
+modeBtn.onclick=()=>setReadOnly(!readOnly);
 const isTyping=t=>!!t.closest?.("textarea,input,[contenteditable=true]");
 function renderAll(){items.forEach(render);emptyEl.hidden=items.length>0}
 function select(id){selId=id;const it=items.find(i=>i.id===id);if(it){it.z=++topZ;}
@@ -482,6 +531,7 @@ async function delSel(){if(!selId)return;const id=selId,it=items.find(i=>i.id===
     idb("blobs","readwrite",s=>s.delete(id));}
   if(undoStack.length>50)undoStack.shift();}
 async function undoDel(){const u=undoStack.pop();if(!u)return;
+  if(u.added){const it=items.find(i=>i.id===u.added);if(it){items=items.filter(i=>i!==it);world.querySelector(`[data-iid="${it.id}"]`)?.remove();if(selId===it.id)selId=null;renderAll();saveMeta();}return;}// 방금 그린 선 지우기
   const it=u.it;it.z=++topZ;
   if(u.blob){urls[it.id]=URL.createObjectURL(u.blob);await idb("blobs","readwrite",s=>s.put(u.blob,it.id));}
   else if(!it.type&&it.asset&&!urls[it.id])setAssetUrl(it.id,it.asset);
@@ -489,6 +539,7 @@ async function undoDel(){const u=undoStack.pop();if(!u)return;
 
 // 붙여넣기: 이미지가 있으면 보드에 추가
 document.addEventListener("paste",ev=>{
+  if(readOnly&&!isTyping(ev.target))return;
   const typing=isTyping(ev.target),at=lastPt?boardPoint(lastPt.x,lastPt.y):null;
   const files=[...(ev.clipboardData?.items||[])].filter(i=>i.kind==="file"&&i.type.startsWith("image/")).map(i=>i.getAsFile()).filter(Boolean);
   const text=(ev.clipboardData?.getData("text/plain")||"").replace(/\s+$/,"");
@@ -505,7 +556,7 @@ world.addEventListener("paste",ev=>{if(!isTyping(ev.target))return;ev.preventDef
   document.execCommand("insertText",false,ev.clipboardData?.getData("text/plain")||"");});
 // 더블클릭: 빈 곳 → 새 글자, 글자 → 편집
 // 드래그용 포인터 캡처 때문에 ev.target이 보드로 잡히므로 실제 커서 아래 요소로 판단
-function onDouble(x,y){
+function onDouble(x,y){if(readOnly||penOn)return;
   const t=document.elementFromPoint(x,y);if(!t||!board.contains(t))return;
   if(isTyping(t)||t.closest(".tools")||t.closest(".note")||["rot","h","del"].some(c=>t.classList.contains(c)))return;
   const itEl=t.closest(".item");
@@ -516,7 +567,7 @@ board.addEventListener("dblclick",ev=>{if(Date.now()-touchDbl<700)return;onDoubl
 // 끌어다 놓기
 board.addEventListener("dragover",ev=>{ev.preventDefault();board.classList.add("drop")});
 board.addEventListener("dragleave",ev=>{if(ev.target===board)board.classList.remove("drop")});
-board.addEventListener("drop",ev=>{ev.preventDefault();board.classList.remove("drop");
+board.addEventListener("drop",ev=>{ev.preventDefault();board.classList.remove("drop");if(readOnly)return;
   addFiles(ev.dataTransfer.files,boardPoint(ev.clientX,ev.clientY))});
 
 // 이동 · 크기 조절 · 화면 이동
@@ -525,9 +576,10 @@ board.addEventListener("pointerdown",ev=>{
   if(ev.target.closest(".tools")||ev.target.closest(".note")||isTyping(ev.target))return;
   bp.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
   tap=bp.size===1?{x:ev.clientX,y:ev.clientY,t:Date.now()}:null;
-  if(bp.size===2){const [a,b]=[...bp.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)};act=null;return;}
+  if(bp.size===2){const [a,b]=[...bp.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)};act=null;penEnd(true);return;}
   board.focus({preventScroll:true});
-  const itEl=ev.target.closest(".item");
+  if(penOn){penStart(ev);board.setPointerCapture(ev.pointerId);return;}
+  const itEl=readOnly?null:ev.target.closest(".item");
   if(itEl){const it=items.find(i=>i.id===itEl.dataset.iid);select(it.id);
     if(ev.target.classList.contains("rot")){rotate(it,90);bp.delete(ev.pointerId);return;}
     if(ev.target.classList.contains("del")){delSel();bp.delete(ev.pointerId);return;}
@@ -538,6 +590,7 @@ board.addEventListener("pointerdown",ev=>{
 board.addEventListener("pointermove",ev=>{
   if(!bp.has(ev.pointerId))return;bp.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
   if(pinch&&bp.size===2){const [a,b]=[...bp.values()],d=Math.hypot(a.x-b.x,a.y-b.y);zoomBoard(d/pinch.d,(a.x+b.x)/2,(a.y+b.y)/2);pinch.d=d;return;}
+  if(stroke){penMove(ev);return;}
   if(!act)return;let dx=ev.clientX-act.sx,dy=ev.clientY-act.sy;
   if(act.type==="resize"&&act.it.rot){const a=act.it.rot*Math.PI/180,c=Math.cos(a),s=Math.sin(a);[dx,dy]=[dx*c+dy*s,-dx*s+dy*c];}
   if(act.type==="pan"){cam.x=act.ox+dx;cam.y=act.oy+dy;applyCam();}
@@ -578,6 +631,7 @@ function snapResize(it,ratio){
   render(it);showGuides(v,h);}
 let tap=null,lastTap=null;
 function endPtr(ev){bp.delete(ev.pointerId);if(bp.size<2)pinch=null;guide.hidden=hGuide.hidden=true;
+  if(stroke){penEnd(ev.type==="pointercancel");tap=null;return;}
   if(act){saveMeta();act=null;board.classList.remove("panning");}
   // 터치: 짧게 두 번 탭 = 더블클릭
   if(ev.type==="pointerup"&&ev.pointerType!=="mouse"&&tap&&Date.now()-tap.t<300&&Math.hypot(ev.clientX-tap.x,ev.clientY-tap.y)<10){
@@ -599,6 +653,9 @@ function fit(){const r=board.getBoundingClientRect();
 document.getElementById("fitBtn").onclick=fit;
 board.addEventListener("keydown",ev=>{
   if(isTyping(ev.target))return;
+  if(ev.key==="Escape"&&penOn){setPen(false);return;}
+  if(readOnly)return;
+  if(ev.code==="KeyP"&&!ev.metaKey&&!ev.ctrlKey&&!ev.altKey){ev.preventDefault();setPen(!penOn);return;}
   if(ev.code==="KeyR"&&selId&&!ev.metaKey&&!ev.ctrlKey&&!ev.altKey){const it=items.find(i=>i.id===selId);if(it){ev.preventDefault();rotate(it,ev.shiftKey?-90:90);}return;}
   if(ev.key==="Enter"&&selId){const it=items.find(i=>i.id===selId);if(it&&it.type==="text"){ev.preventDefault();startEdit(it,true);}return;}
   if((ev.key==="Delete"||ev.key==="Backspace")&&selId){ev.preventDefault();delSel();}
@@ -630,7 +687,7 @@ async function pasteClip(at){const src=clip.it,id=Date.now().toString(36)+Math.r
 document.addEventListener("keydown",ev=>{
   if((ev.metaKey||ev.ctrlKey)&&ev.code==="KeyC"&&selId&&!isTyping(ev.target)&&!String(getSelection()))
     {if(copySel())ev.preventDefault();return;}
-  if((ev.metaKey||ev.ctrlKey)&&!ev.shiftKey&&ev.code==="KeyZ"&&!isTyping(ev.target)&&undoStack.length){
+  if((ev.metaKey||ev.ctrlKey)&&!ev.shiftKey&&ev.code==="KeyZ"&&!isTyping(ev.target)&&!readOnly&&undoStack.length){
     ev.preventDefault();undoDel();}
 });
 
@@ -646,6 +703,8 @@ document.addEventListener("keydown",ev=>{
   applyCam();renderAll();
 })();
 applyCam();renderAll();
+
+try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 휴대폰 탭 (지도 · 메모 · 보드) =====
 const tabBtns=[...document.querySelectorAll("[data-tab]")];
