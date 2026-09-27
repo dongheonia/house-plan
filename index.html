@@ -54,7 +54,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .item .h{position:absolute;right:-9px;bottom:-9px;width:16px;height:16px;border-radius:50%;background:var(--panel);border:2px solid var(--focus);cursor:nwse-resize;display:none}
 .item.sel .h{display:block}
 .item.txt{width:auto!important;height:auto!important}
-.item .tx{color:#000;font-weight:700;text-shadow:.04em 0 0 #fff,-.04em 0 0 #fff,0 .04em 0 #fff,0 -.04em 0 #fff,.04em .04em 0 #fff,-.04em .04em 0 #fff,.04em -.04em 0 #fff,-.04em -.04em 0 #fff;line-height:1.25;white-space:pre;padding:.05em .15em;outline:none;min-width:.5em;cursor:inherit}
+.item .tx{color:#000;font-weight:700;line-height:1.25;white-space:pre;padding:.05em .15em;outline:none;min-width:.5em;cursor:inherit}
 .item .tx[contenteditable="true"]{cursor:text;user-select:text;-webkit-user-select:text;background:rgba(255,255,255,.35)}
 .item.editing .h{display:none}
 .item .rot{position:absolute;right:-11px;top:-11px;width:20px;height:20px;border-radius:50%;background:var(--panel);border:2px solid var(--focus);color:var(--focus);font-size:13px;line-height:1;cursor:pointer;display:none;place-items:center;user-select:none}
@@ -180,7 +180,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   <div class="world" id="world"></div>
   <div class="empty" id="empty">이미지를 붙여넣거나(⌘V / Ctrl+V)<br>파일을 끌어다 놓으세요<br>빈 곳을 더블클릭하면 글자를 넣을 수 있어요</div>
   <div class="tools">
-    <button type="button" id="modeBtn" class="mode-btn" aria-pressed="false" title="읽기 전용이면 보드·메모·지도 색을 바꿀 수 없어요">편집 중</button>
+    <button type="button" id="modeBtn" class="mode-btn" aria-pressed="false" title="읽기 전용이면 보드를 바꿀 수 없어요">편집 중</button>
     <button type="button" id="fitBtn">전체 보기</button>
     <button type="button" id="penBtn" class="pen-btn" data-edit aria-pressed="false" title="펜 (P)">펜</button>
     <button type="button" id="eraserBtn" class="eraser-btn" data-edit aria-pressed="false" title="지우개: 문지른 펜 선을 지워요 (E)">지우개</button>
@@ -352,13 +352,13 @@ svg.addEventListener("pointermove",ev=>{
 svg.addEventListener("pointerup",ev=>{
   if(ptrs.size===1&&moved<=6){
     const id=hitMuni(ev);
-    if(id&&id===downId&&!readOnly)openPop(id,ev.clientX,ev.clientY);else closePop();
+    if(id&&id===downId)openPop(id,ev.clientX,ev.clientY);else closePop();
   }
   ptrs.delete(ev.pointerId);if(ptrs.size<2)startDist=0;
   if(ptrs.size===1)last={...[...ptrs.values()][0]};
 });
 svg.addEventListener("pointercancel",ev=>{ptrs.delete(ev.pointerId);startDist=0});
-svg.addEventListener("keydown",ev=>{if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset.id&&!readOnly){ev.preventDefault();
+svg.addEventListener("keydown",ev=>{if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset.id){ev.preventDefault();
   const b=ev.target.getBoundingClientRect();openPop(ev.target.dataset.id,b.left+b.width/2,b.top+b.height/2)}});
 
 vb={x:0,y:0,w:W,h:H};setVB();
@@ -501,11 +501,11 @@ function eraseAt(ev){const p=boardPoint(ev.clientX,ev.clientY);let hit=false;
     items=items.filter(i=>i!==it);world.querySelector(`[data-iid="${it.id}"]`)?.remove();undoStack.push({it:{...it}});hit=true;}
   if(hit){if(undoStack.length>50)undoStack.shift();renderAll();}}
 
-// ===== 읽기 전용 / 편집 =====
+// ===== 읽기 전용 / 편집 (프리폼 보드만 잠금 — 메모·지도 색은 그대로 수정 가능) =====
 const modeBtn=document.getElementById("modeBtn");let readOnly=false;
 function setReadOnly(on){readOnly=on;document.body.classList.toggle("ro",on);
   modeBtn.textContent=on?"읽기 전용":"편집 중";modeBtn.setAttribute("aria-pressed",on);
-  memo.readOnly=on;if(on){setPen(false);setEraser(false);if(editingId){const it=items.find(i=>i.id===editingId);if(it)endEdit(it);}select(null);closePop();}
+  if(on){setPen(false);setEraser(false);if(editingId){const it=items.find(i=>i.id===editingId);if(it)endEdit(it);}select(null);closePop();}
   try{localStorage.setItem("kr-readonly",on?"1":"")}catch(e){}}
 modeBtn.onclick=()=>setReadOnly(!readOnly);
 const isTyping=t=>!!t.closest?.("textarea,input,[contenteditable=true]");
