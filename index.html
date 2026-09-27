@@ -66,15 +66,15 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .item.ink{pointer-events:none}
 .item.ink>.h,.item.ink>.rot,.item.ink>.del{pointer-events:auto}
 .item svg.ink{display:block;width:100%;height:100%;overflow:visible}
-.item svg.ink .ln{fill:none;stroke:#E0201B;stroke-linecap:round;stroke-linejoin:round}
+.item svg.ink .ln{fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round}
 .item svg.ink .hit{fill:none;stroke:transparent;stroke-linecap:round;stroke-linejoin:round;pointer-events:stroke}
 .item.ink.sel{outline-style:dashed}
 .content.pen,.content.pen .item{cursor:crosshair}
 .live{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:2147483646}
-.tools button[aria-pressed="true"]{border-color:#E0201B;color:#E0201B;font-weight:600}
+.tools button[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:600}
 .tools .eraser-btn::before{content:"";width:10px;height:7px;border-radius:2px;border:1.5px solid currentColor;margin-right:6px;transform:rotate(-30deg)}
 .content.eraser,.content.eraser .item{cursor:cell}
-.tools .pen-btn::before{content:"";width:8px;height:8px;border-radius:50%;background:#E0201B;margin-right:6px}
+.tools .pen-btn::before{content:"";width:8px;height:8px;border-radius:50%;background:#000;margin-right:6px}
 .tools .mode-btn{font-weight:600}
 .ro .tools [data-edit]{display:none}
 .guide{position:absolute;background:#FF2D95;pointer-events:none;z-index:2147483647}
@@ -180,7 +180,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   <div class="tools">
     <button type="button" id="modeBtn" class="mode-btn" aria-pressed="false" title="읽기 전용이면 보드·메모·지도 색을 바꿀 수 없어요">편집 중</button>
     <button type="button" id="fitBtn">전체 보기</button>
-    <button type="button" id="penBtn" class="pen-btn" data-edit aria-pressed="false" title="빨간 펜 (P)">펜</button>
+    <button type="button" id="penBtn" class="pen-btn" data-edit aria-pressed="false" title="펜 (P)">펜</button>
     <button type="button" id="eraserBtn" class="eraser-btn" data-edit aria-pressed="false" title="지우개: 문지른 펜 선을 지워요 (E)">지우개</button>
     <button type="button" data-edit data-arw="180" aria-label="왼쪽 화살표 추가">←</button>
     <button type="button" data-edit data-arw="270" aria-label="위쪽 화살표 추가">↑</button>
@@ -461,13 +461,13 @@ function addArrow(rot){const r=board.getBoundingClientRect(),c=boardPoint(r.left
   items.push({id,type:"arrow",x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,rot});selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
 document.querySelectorAll("[data-arw]").forEach(b=>b.onclick=()=>addArrow(+b.dataset.arw));
 
-// ===== 펜 (빨간 낙서) =====
+// ===== 펜 (검은 낙서) =====
 const penBtn=document.getElementById("penBtn");let penOn=false,stroke=null;
 function setPen(on){penOn=on&&!readOnly;penBtn.setAttribute("aria-pressed",penOn);board.classList.toggle("pen",penOn);if(penOn){setEraser(false);select(null);}}
 penBtn.onclick=()=>{setPen(!penOn);board.focus({preventScroll:true});};
 function penStart(ev){const p=boardPoint(ev.clientX,ev.clientY),sw=4/cam.z;
   const svgEl=document.createElementNS(NS,"svg");svgEl.setAttribute("class","live");svgEl.setAttribute("width",1);svgEl.setAttribute("height",1);
-  const path=document.createElementNS(NS,"path");path.setAttribute("fill","none");path.setAttribute("stroke","#E0201B");
+  const path=document.createElementNS(NS,"path");path.setAttribute("fill","none");path.setAttribute("stroke","#000");
   path.setAttribute("stroke-width",sw);path.setAttribute("stroke-linecap","round");path.setAttribute("stroke-linejoin","round");
   svgEl.append(path);world.append(svgEl);stroke={pts:[[p.x,p.y]],sw,svgEl,path};path.setAttribute("d",inkPath(stroke.pts));}
 function penMove(ev){const p=boardPoint(ev.clientX,ev.clientY),l=stroke.pts[stroke.pts.length-1];
