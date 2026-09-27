@@ -738,6 +738,17 @@ applyCam();renderAll();
 
 try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
+// ===== 새 버전 자동 반영 =====
+// GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
+const BUILD="20260927162914";// 배포할 때 바뀜
+async function checkUpdate(){
+  if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
+  if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
+  try{const t=await (await fetch(location.pathname+"?check="+Date.now(),{cache:"no-store"})).text();
+    const m=t.match(/const BUILD="([^"]+)"/);
+    if(m&&m[1]!==BUILD&&m[1]!=="dev")location.replace(location.pathname+"?v="+m[1]);}catch(e){}}
+document.addEventListener("visibilitychange",checkUpdate);checkUpdate();
+
 // ===== 휴대폰 탭 (지도 · 메모 · 보드) =====
 const tabBtns=[...document.querySelectorAll("[data-tab]")];
 function showTab(name){tabBtns.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===name));
