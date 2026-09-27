@@ -40,7 +40,13 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .fs button:disabled{opacity:.4;cursor:default}
 .fs button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .fs span{min-width:34px;text-align:center;font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
-.memo textarea{flex:1;min-height:0;width:100%;resize:none;border:0;outline:none;background:transparent;color:var(--ink);font:inherit;font-size:15px;line-height:1.65;padding:10px 16px 16px}
+.memo .text{flex:1;min-height:0;width:100%;overflow-y:auto;border:0;outline:none;background:transparent;color:var(--ink);font:inherit;font-size:15px;line-height:1.65;padding:10px 16px 16px;white-space:pre-wrap;overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
+.memo .text:empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none}
+.memo .text mark{background:#FFE45C;color:#1D2524;border-radius:2px;padding:0 1px}
+.memo .text:focus-visible{outline:none}
+.hl-btn{height:28px;padding:0 10px 0 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-right:6px}
+.hl-btn::before{content:"";width:12px;height:12px;border-radius:3px;background:#FFE45C;border:1px solid rgba(0,0,0,.15)}
+.hl-btn:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .memo .saved{font-size:.72rem;color:var(--muted);padding:0 16px 10px;min-height:1.6em}
 .mapbox{position:relative;width:100%;height:100%;min-height:0;background:rgb(7,23,51);touch-action:none;border-right:1px solid var(--line)}
 .content{min-width:0;height:100%;position:relative;overflow:hidden;background:rgb(138,118,96);
@@ -166,14 +172,15 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
 </div>
 <section class="memo" data-pane="memo">
   <div class="head">
-    <label for="memo">메모</label>
+    <label id="memoLbl">메모</label>
     <div class="fs" role="group" aria-label="글자 크기">
+      <button type="button" class="hl-btn" id="hlBtn" title="고른 글자에 노란 형광펜 칠하기·지우기 (⌘⇧H)">형광펜</button>
       <button type="button" id="fsDown" aria-label="글자 작게">A−</button>
       <span id="fsVal">15px</span>
       <button type="button" id="fsUp" aria-label="글자 크게">A+</button>
     </div>
   </div>
-  <textarea id="memo" placeholder="여기에 메모를 적으세요" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+  <div id="memo" class="text" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="memoLbl" data-placeholder="여기에 메모를 적으세요" spellcheck="false" autocorrect="off" autocapitalize="off"></div>
   <div class="saved" id="saved"></div>
 </section>
 <main class="content" id="board" tabindex="0" aria-label="설계도 보드" data-pane="board">
@@ -365,7 +372,40 @@ vb={x:0,y:0,w:W,h:H};setVB();
 
 // memo (자동 저장)
 const memo=document.getElementById("memo"),saved=document.getElementById("saved");
-try{memo.value=localStorage.getItem("kr-map-memo")||""}catch(e){}
+// 메모: 글자 + 노란 형광펜(<mark>)만 담는 편집 영역. 저장은 정리한 HTML(html)과 글자만(text) 둘 다
+const esc=t=>t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const noBg=/^(transparent|rgba\(0, 0, 0, 0\)|initial|inherit)?$/;
+function memoHTML(){let out="";
+  const walk=(n,hl)=>{for(const c of n.childNodes){
+    if(c.nodeType===3){if(c.data)out+=hl?`<mark>${esc(c.data)}</mark>`:esc(c.data);}
+    else if(c.nodeName==="BR")out+="<br>";
+    else if(c.nodeType===1){
+      if(/^(DIV|P|LI)$/.test(c.nodeName)&&out&&!out.endsWith("<br>"))out+="<br>";// 줄 나눔
+      const bg=c.style&&c.style.backgroundColor;
+      walk(c,c.nodeName==="MARK"?!(bg&&noBg.test(bg)&&bg!==""):bg?!noBg.test(bg):hl);}}};
+  walk(memo,false);return out.replace(/<\/mark><mark>/g,"");}
+function setMemoHTML(h){memo.innerHTML=h;}
+Object.defineProperty(memo,"value",{get(){return memo.innerText.replace(/\n$/,"")},set(v){setMemoHTML(esc(v||"").replace(/\n/g,"<br>"))}});
+try{const h=localStorage.getItem("kr-map-memo-html");if(h!==null)setMemoHTML(h);else memo.value=localStorage.getItem("kr-map-memo")||"";}catch(e){}
+// 줄바꿈은 <br>로, 붙여넣기는 서식 없는 글자로
+memo.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&!ev.isComposing){ev.preventDefault();document.execCommand("insertLineBreak");}
+  if((ev.metaKey||ev.ctrlKey)&&ev.shiftKey&&ev.code==="KeyH"){ev.preventDefault();toggleHL();}});
+memo.addEventListener("paste",ev=>{const t=ev.clipboardData?.getData("text/plain");if(t==null||ev.clipboardData.files?.length)return;
+  ev.preventDefault();ev.stopPropagation();document.execCommand("insertText",false,t);});
+// 형광펜: 고른 부분이 이미 칠해져 있으면 지우고, 아니면 칠함
+function toggleHL(){const sel=getSelection();
+  if(!sel.rangeCount||sel.isCollapsed||!memo.contains(sel.getRangeAt(0).commonAncestorContainer)){note("메모에서 칠할 글자를 먼저 고르세요.");return;}
+  document.execCommand("styleWithCSS",false,true);
+  // 선택 양 끝이 모두 형광펜 안에 있으면 '지우기' (바탕색으로 판단하면 메모 배경색에 속음)
+  const isHL=n=>{for(;n&&n!==memo;n=n.parentNode)if(n.nodeType===1){const bg=n.style.backgroundColor;
+      if(bg)return !noBg.test(bg);if(n.nodeName==="MARK")return true;}return false;};
+  const r=sel.getRangeAt(0),on=isHL(r.startContainer)&&isHL(r.endContainer);
+  document.execCommand("hiliteColor",false,on?"transparent":"#FFE45C");
+  memo.dispatchEvent(new Event("input"));}
+const hlBtn=document.getElementById("hlBtn");
+hlBtn.addEventListener("pointerdown",ev=>ev.preventDefault());// 버튼을 눌러도 메모의 선택이 풀리지 않게
+hlBtn.addEventListener("mousedown",ev=>ev.preventDefault());
+hlBtn.onclick=toggleHL;
 let memoT;
 // 글자 크기
 const fsDown=document.getElementById("fsDown"),fsUp=document.getElementById("fsUp"),fsVal=document.getElementById("fsVal");
@@ -374,12 +414,12 @@ let fsz=15;try{fsz=+localStorage.getItem("kr-map-memo-fs")||15}catch(e){}
 const coarse=matchMedia("(pointer:coarse)").matches;
 function setFs(v,remote){fsz=Math.max(10,Math.min(40,v));memo.style.fontSize=Math.max(fsz,coarse?16:0)+"px";fsVal.textContent=fsz+"px";
   fsDown.disabled=fsz<=10;fsUp.disabled=fsz>=40;try{localStorage.setItem("kr-map-memo-fs",fsz)}catch(e){}
-  if(cloud.db&&!remote)put("app/memo",{text:memo.value,fs:fsz});}
+  if(cloud.db&&!remote)put("app/memo",{text:memo.value,html:memoHTML(),fs:fsz});}
 fsDown.onclick=()=>setFs(fsz-1);fsUp.onclick=()=>setFs(fsz+1);
 setFs(fsz);
 memo.addEventListener("input",()=>{clearTimeout(memoT);saved.textContent="";memoT=setTimeout(saveMemo,cloud.db?600:400)});
-function saveMemo(){if(cloud.db){put("app/memo",{text:memo.value,fs:fsz});saved.textContent="저장됨 · 모든 기기";return;}
-  try{localStorage.setItem("kr-map-memo",memo.value);saved.textContent="저장됨"}catch(e){saved.textContent="저장 안 됨"}}
+function saveMemo(){if(cloud.db){put("app/memo",{text:memo.value,html:memoHTML(),fs:fsz});saved.textContent="저장됨 · 모든 기기";return;}
+  try{localStorage.setItem("kr-map-memo",memo.value);localStorage.setItem("kr-map-memo-html",memoHTML());saved.textContent="저장됨"}catch(e){saved.textContent="저장 안 됨"}}
 
 // ===== 설계도 보드 (프리폼) =====
 const board=document.getElementById("board"),world=document.getElementById("world"),emptyEl=document.getElementById("empty");
@@ -740,7 +780,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20260927171216";// 배포할 때 바뀜
+const BUILD="20260927181136";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -860,7 +900,9 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
   subscribe("app/colors",snap=>{state={...(snap.exists?snap.data().map||{}:{})};Object.keys(els).forEach(paint);
     if(cur)popBtns.forEach(b=>b.setAttribute("aria-current",(state[cur]||"none")===b.dataset.c));arrived("c");});
   subscribe("app/memo",snap=>{const d=snap.exists?snap.data():{text:"",fs:15};
-    if(document.activeElement!==memo&&typeof d.text==="string"&&d.text!==memo.value)memo.value=d.text;
+    if(document.activeElement!==memo){// 입력 중이 아닐 때만 다른 기기의 내용 반영
+      if(typeof d.html==="string"){if(d.html!==memoHTML())setMemoHTML(d.html);}
+      else if(typeof d.text==="string"&&d.text!==memo.value)memo.value=d.text;}
     if(d.fs&&d.fs!==fsz)setFs(d.fs,true);arrived("m");});
   // 이 기기에서 처음 열면 보드 전체가 보이게 (보드 칸이 숨겨진 휴대폰 탭이면 보드 탭을 처음 열 때)
   let fitted=hasCam;const fitOnce=()=>{if(fitted||!items.length||!board.getBoundingClientRect().width)return;fitted=true;fit();};
@@ -873,7 +915,7 @@ const readAsDataURL=b=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r
 document.getElementById("exportBtn").onclick=async()=>{
   const images={};
   for(const it of items)if(!it.type){const b=await idb("blobs","readonly",s=>s.get(it.id));if(b)images[it.id]=await readAsDataURL(b);}
-  const out={v:1,colors:state,memo:memo.value,memoFs:fsz,cam,items,images};
+  const out={v:1,colors:state,memo:memo.value,memoHtml:memoHTML(),memoFs:fsz,cam,items,images};
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"}));
   a.download="주택설계-옮기기.json";document.body.append(a);a.click();a.remove();
   note("‘주택설계-옮기기.json’ 파일을 받았어요. claude.ai 페이지의 보드에서 ‘가져오기’로 넣어 주세요.");};
@@ -884,7 +926,7 @@ document.getElementById("importIn").addEventListener("change",async ev=>{
   let d;try{d=JSON.parse(await f.text());}catch(e){note("이 파일은 읽을 수 없어요. 컴퓨터에서 ‘내보내기’로 받은 파일을 골라 주세요.");return;}
   document.getElementById("importLbl").hidden=true;note("가져오는 중…");
   if(d.colors){state={...d.colors};Object.keys(els).forEach(paint);save();}
-  if(typeof d.memo==="string"){memo.value=d.memo;if(d.memoFs)setFs(d.memoFs,true);saveMemo();}
+  if(typeof d.memo==="string"){if(typeof d.memoHtml==="string")setMemoHTML(d.memoHtml);else memo.value=d.memo;if(d.memoFs)setFs(d.memoFs,true);saveMemo();}
   if(d.cam&&d.cam.z){cam=d.cam;applyCam();}
   let n=0,fail=0;
   for(const src of d.items||[]){const it={...src};
