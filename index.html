@@ -393,20 +393,43 @@ memo.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&!ev.isComposing){ev.pr
   if((ev.metaKey||ev.ctrlKey)&&ev.shiftKey&&ev.code==="KeyH"){ev.preventDefault();toggleHL();}});
 memo.addEventListener("paste",ev=>{const t=ev.clipboardData?.getData("text/plain");if(t==null||ev.clipboardData.files?.length)return;
   ev.preventDefault();ev.stopPropagation();document.execCommand("insertText",false,t);});
-// 형광펜: 고른 부분이 이미 칠해져 있으면 지우고, 아니면 칠함
+// 형광펜: 고른 부분이 모두 칠해져 있으면 지우고, 아니면 칠함.
+// 브라우저 기본 명령(hiliteColor)은 줄을 넘는 선택·Safari에서 들쭉날쭉해서, 글자마다 칠함 여부를 직접 바꾼 뒤 다시 그림
+const isHLn=n=>{for(;n&&n!==memo;n=n.parentNode)if(n.nodeType===1){const bg=n.style.backgroundColor;
+    if(bg)return !noBg.test(bg);if(n.nodeName==="MARK")return true;}return false;};
+function memoModel(){const ch=[];memoWalk(n=>{if(n.nodeType===3){const h=isHLn(n);for(let i=0;i<n.data.length;i++)ch.push([n.data[i],h]);}else ch.push(["\n",false]);});return ch;}
+function modelHTML(ch){let out="",open=false;
+  for(const [c,h] of ch){if(c==="\n"){if(open){out+="</mark>";open=false;}out+="<br>";continue;}
+    if(h!==open){out+=h?"<mark>":"</mark>";open=h;}out+=esc(c);}
+  return out+(open?"</mark>":"");}
 function toggleHL(){const sel=getSelection();
   if(!sel.rangeCount||sel.isCollapsed||!memo.contains(sel.getRangeAt(0).commonAncestorContainer)){note("메모에서 칠할 글자를 먼저 고르세요.");return;}
-  document.execCommand("styleWithCSS",false,true);
-  // 선택 양 끝이 모두 형광펜 안에 있으면 '지우기' (바탕색으로 판단하면 메모 배경색에 속음)
-  const isHL=n=>{for(;n&&n!==memo;n=n.parentNode)if(n.nodeType===1){const bg=n.style.backgroundColor;
-      if(bg)return !noBg.test(bg);if(n.nodeName==="MARK")return true;}return false;};
-  const r=sel.getRangeAt(0),on=isHL(r.startContainer)&&isHL(r.endContainer);
-  document.execCommand("hiliteColor",false,on?"transparent":"#FFE45C");
+  const o=memoOffsets(),ch=memoModel(),part=ch.slice(o[0],o[1]).filter(([c])=>c!=="\n");
+  const on=part.length&&part.every(([,h])=>h);
+  for(let i=o[0];i<o[1]&&i<ch.length;i++)if(ch[i][0]!=="\n")ch[i][1]=!on;
+  setMemoHTML(modelHTML(ch));memoSelect(o);
   memo.dispatchEvent(new Event("input"));}
 const hlBtn=document.getElementById("hlBtn");
 hlBtn.addEventListener("pointerdown",ev=>ev.preventDefault());// 버튼을 눌러도 메모의 선택이 풀리지 않게
 hlBtn.addEventListener("mousedown",ev=>ev.preventDefault());
 hlBtn.onclick=toggleHL;
+// 메모 안 선택 위치를 글자 수로 기억했다가 다시 고르기 (줄바꿈 <br>은 한 글자로 셈)
+function memoWalk(fn){const w=document.createTreeWalker(memo,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);let n,pos=0;
+  while(n=w.nextNode()){const len=n.nodeType===3?n.data.length:n.nodeName==="BR"?1:0;if(len&&fn(n,pos,len))return;pos+=len;}}
+function memoOffsets(){const sel=getSelection();if(!sel.rangeCount)return null;const r=sel.getRangeAt(0),out=[0,0];
+  [[r.startContainer,r.startOffset,0],[r.endContainer,r.endOffset,1]].forEach(([c,off,k])=>{
+    if(c.nodeType===3){memoWalk((n,pos)=>{if(n===c){out[k]=pos+off;return true;}});}
+    else{const pre=document.createRange();pre.selectNodeContents(memo);pre.setEnd(c,off);
+      const f=pre.cloneContents(),t=document.createTreeWalker(f,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);let n,p=0;
+      while(n=t.nextNode())p+=n.nodeType===3?n.data.length:n.nodeName==="BR"?1:0;out[k]=p;}});
+  return out;}
+function memoSelect(o){if(!o)return;const r=document.createRange();let set=[false,false];
+  memoWalk((n,pos,len)=>{for(const k of [0,1])if(!set[k]&&o[k]<=pos+len){
+      if(n.nodeType===3)(k?r.setEnd:r.setStart).call(r,n,o[k]-pos);
+      else(k?r.setEndAfter:r.setStartAfter).call(r,n);set[k]=true;}
+    return set[0]&&set[1];});
+  if(!set[0])r.setStart(memo,memo.childNodes.length);if(!set[1])r.setEnd(memo,memo.childNodes.length);
+  const sel=getSelection();sel.removeAllRanges();sel.addRange(r);}
 let memoT;
 // 글자 크기
 const fsDown=document.getElementById("fsDown"),fsUp=document.getElementById("fsUp"),fsVal=document.getElementById("fsVal");
@@ -781,7 +804,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20260927182503";// 배포할 때 바뀜
+const BUILD="20260927182952";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
