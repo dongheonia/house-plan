@@ -69,6 +69,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .item.editing .rot{display:none}
 .item svg.arw{display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
 .item svg.arw path{fill:#000}
+.item .box{width:100%;height:100%;background:rgb(115,98,79);border-radius:2px}/* 보드 배경(138,118,96)보다 조금 어둡게 */
 /* 펜 낙서: 상자 전체가 아니라 선 위에서만 잡히게 (아래 이미지를 가리지 않도록) */
 .item.ink{pointer-events:none}
 .item.ink>.h,.item.ink>.rot,.item.ink>.del{pointer-events:auto}
@@ -192,6 +193,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" id="fitBtn">전체 보기</button>
     <button type="button" id="penBtn" class="pen-btn" data-edit aria-pressed="false" title="펜 (P)">펜</button>
     <button type="button" id="eraserBtn" class="eraser-btn" data-edit aria-pressed="false" title="지우개: 문지른 펜 선을 지워요 (E)">지우개</button>
+    <button type="button" data-edit id="rectBtn" aria-label="네모 추가" title="네모 (맨 뒤에 놓여요)">□</button>
     <button type="button" data-edit data-arw="180" aria-label="왼쪽 화살표 추가">←</button>
     <button type="button" data-edit data-arw="270" aria-label="위쪽 화살표 추가">↑</button>
     <button type="button" data-edit data-arw="0" aria-label="오른쪽 화살표 추가">→</button>
@@ -450,6 +452,7 @@ const board=document.getElementById("board"),world=document.getElementById("worl
 const zv=document.getElementById("zv");
 let cam={x:40,y:60,z:1};
 let items=[];// 이미지 {id,x,y,w,h,z,rot} · 글자 {id,type:"text",x,y,w,h,z,text,fs,rot} · 화살표 {id,type:"arrow",x,y,w,h,z,rot}
+// · 네모 {id,type:"rect",x,y,w,h,z,rot} — 항상 다른 항목보다 뒤(z가 가장 작게)
 // · 펜 {id,type:"ink",x,y,w,h,z,rot,pts:[[x,y]…] (그릴 때 상자 기준 좌표),vw,vh (그릴 때 상자 크기),sw (선 굵기)}
 // rot: 0/90/180/270 (가운데 기준 회전). 화살표는 오른쪽이 기본 방향이고 rot로 상하좌우를 정함
 let selId=null,topZ=1;
@@ -483,6 +486,7 @@ function render(it){
       c.addEventListener("keydown",ev=>{if(ev.key==="Escape"){ev.preventDefault();c.blur();board.focus({preventScroll:true});}});}
     else if(it.type==="arrow"){c=document.createElementNS("http://www.w3.org/2000/svg","svg");c.setAttribute("class","arw");
       c.append(document.createElementNS("http://www.w3.org/2000/svg","path"));}
+    else if(it.type==="rect"){c=document.createElement("div");c.className="box";}
     else if(it.type==="ink"){el.classList.add("ink");c=document.createElementNS(NS,"svg");c.setAttribute("class","ink");
       c.setAttribute("viewBox",`0 0 ${it.vw} ${it.vh}`);c.setAttribute("preserveAspectRatio","none");
       const d=inkPath(it.pts);
@@ -531,6 +535,12 @@ function addArrow(rot){const r=board.getBoundingClientRect(),c=boardPoint(r.left
   const w=160/cam.z,h=56/cam.z,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   items.push({id,type:"arrow",x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,rot});selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
 document.querySelectorAll("[data-arw]").forEach(b=>b.onclick=()=>addArrow(+b.dataset.arw));
+// 네모: 맨 뒤에 깔림 — 지금 있는 항목들 중 가장 작은 z보다 하나 작게
+const backZ=()=>Math.min(0,...items.map(i=>i.z||0))-1;
+function addRect(){const r=board.getBoundingClientRect(),c=boardPoint(r.left+r.width/2,r.top+r.height/2);
+  const w=240/cam.z,h=160/cam.z,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  items.push({id,type:"rect",x:c.x-w/2,y:c.y-h/2,w,h,z:backZ(),rot:0});selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
+document.getElementById("rectBtn").onclick=addRect;
 
 // ===== 펜 (검은 낙서) =====
 const penBtn=document.getElementById("penBtn");let penOn=false,stroke=null;
@@ -579,7 +589,7 @@ function setReadOnly(on){readOnly=on;document.body.classList.toggle("ro",on);
 modeBtn.onclick=()=>setReadOnly(!readOnly);
 const isTyping=t=>!!t.closest?.("textarea,input,[contenteditable=true]");
 function renderAll(){items.forEach(render);emptyEl.hidden=items.length>0}
-function select(id){selId=id;const it=items.find(i=>i.id===id);if(it){it.z=++topZ;}
+function select(id){selId=id;const it=items.find(i=>i.id===id);if(it&&it.type!=="rect"){it.z=++topZ;}// 네모는 눌러도 앞으로 안 나옴
   world.querySelectorAll(".item").forEach(e=>e.classList.toggle("sel",e.dataset.iid===id));renderAll();}
 
 function boardPoint(cx,cy){const r=board.getBoundingClientRect();return{x:(cx-r.left-cam.x)/cam.z,y:(cy-r.top-cam.y)/cam.z}}
@@ -624,7 +634,7 @@ async function delSel(){if(!selId)return;const id=selId,it=items.find(i=>i.id===
   if(undoStack.length>50)undoStack.shift();}
 async function undoDel(){const u=undoStack.pop();if(!u)return;
   if(u.added){const it=items.find(i=>i.id===u.added);if(it){items=items.filter(i=>i!==it);world.querySelector(`[data-iid="${it.id}"]`)?.remove();if(selId===it.id)selId=null;renderAll();saveMeta();}return;}// 방금 그린 선 지우기
-  const it=u.it;it.z=++topZ;
+  const it=u.it;it.z=it.type==="rect"?backZ():++topZ;
   if(u.blob){urls[it.id]=URL.createObjectURL(u.blob);await idb("blobs","readwrite",s=>s.put(u.blob,it.id));}
   else if(!it.type&&it.asset&&!urls[it.id])setAssetUrl(it.id,it.asset);
   items.push(it);select(it.id);saveMeta();}
@@ -690,7 +700,7 @@ board.addEventListener("pointermove",ev=>{
   if(act.type==="pan"){cam.x=act.ox+dx;cam.y=act.oy+dy;applyCam();}
   else if(act.type==="move"){act.it.x=act.ox+dx/cam.z;act.it.y=act.oy+dy/cam.z;snapMove(act.it);render(act.it);}
   else if(act.it.type==="text"){act.it.fs=Math.max(6,act.ofs*Math.max(.05,(act.ow+dx/cam.z)/act.ow));render(act.it);snapResize(act.it);}
-  else if(act.it.type==="arrow"){act.it.w=Math.max(20,act.ow+dx/cam.z);act.it.h=Math.max(8,act.oh+dy/cam.z);render(act.it);snapResize(act.it);}
+  else if(act.it.type==="arrow"||act.it.type==="rect"){act.it.w=Math.max(20,act.ow+dx/cam.z);act.it.h=Math.max(8,act.oh+dy/cam.z);render(act.it);snapResize(act.it);}
   else{const ratio=act.oh/act.ow;let w=Math.max(30,act.ow+dx/cam.z);
     act.it.w=w;act.it.h=ev.shiftKey?Math.max(30,act.oh+dy/cam.z):w*ratio;render(act.it);snapResize(act.it,ev.shiftKey?0:ratio);}
 });
@@ -774,7 +784,7 @@ function copySel(){const it=items.find(i=>i.id===selId);if(!it)return false;
   else cb.write([new ClipboardItem({"image/png":toPng(urls[it.id])})]).catch(()=>cb.writeText(tag).catch(()=>{}));
   return true}
 async function pasteClip(at){const src=clip.it,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-  const it={...src,id,z:++topZ},b=vbox(src);
+  const it={...src,id,z:src.type==="rect"?backZ():++topZ},b=vbox(src);
   if(at){it.x+=at.x-(b.x+b.w/2);it.y+=at.y-(b.y+b.h/2);}else{it.x+=24/cam.z;it.y+=24/cam.z;}
   if(!src.type&&cloud.db&&src.asset)setAssetUrl(id,src.asset);// 같은 파일을 가리키기만 하면 됨
   else if(!src.type){const blob=await clip.blob;if(!blob)return;urls[id]=URL.createObjectURL(blob);
@@ -804,7 +814,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20260927182952";// 배포할 때 바뀜
+const BUILD="20260927185027";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
