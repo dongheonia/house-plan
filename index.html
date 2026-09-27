@@ -445,12 +445,17 @@ function rotate(it,deg){it.rot=(((it.rot||0)+deg)%360+360)%360;render(it);saveMe
 // 글자: 크기(w,h)는 내용에 맞춰 자동 — 전체 보기 계산용으로 기록
 function measure(it,el){it.w=el.offsetWidth;it.h=el.offsetHeight;}
 let editingId=null;
-function startEdit(it,selectAll){const el=world.querySelector(`[data-iid="${it.id}"]`),c=el.firstChild;editingId=it.id;
+// 편집 중인 글자 상자는 한 번에 하나만 — 새로 열거나 다른 곳을 누르면 기존 상자를 직접 닫음
+// (아이폰·아이패드에서는 포커스 이동만으로 기존 상자가 닫히지 않을 때가 있음)
+function stopEditing(){if(!editingId)return;const it=items.find(i=>i.id===editingId);
+  if(!it){editingId=null;return;}const el=world.querySelector(`[data-iid="${it.id}"]`);endEdit(it);el?.firstChild?.blur?.();}
+function startEdit(it,selectAll){if(editingId&&editingId!==it.id)stopEditing();
+  const el=world.querySelector(`[data-iid="${it.id}"]`),c=el.firstChild;editingId=it.id;
   el.classList.add("editing");c.contentEditable="true";c.focus({preventScroll:true});
   const r=document.createRange();r.selectNodeContents(c);if(!selectAll)r.collapse(false);
   const sel=getSelection();sel.removeAllRanges();sel.addRange(r);}
 function endEdit(it){const el=world.querySelector(`[data-iid="${it.id}"]`);if(!el||el.firstChild.contentEditable!=="true")return;
-  el.classList.remove("editing");el.firstChild.contentEditable="false";getSelection().removeAllRanges();editingId=null;
+  el.classList.remove("editing");el.firstChild.contentEditable="false";getSelection().removeAllRanges();if(editingId===it.id)editingId=null;
   if(!it.text.trim()){items=items.filter(i=>i!==it);el.remove();if(selId===it.id)selId=null;renderAll();}
   saveMeta();}
 function addText(p,text=""){
@@ -600,7 +605,7 @@ board.addEventListener("pointerdown",ev=>{
   bp.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
   tap=bp.size===1?{x:ev.clientX,y:ev.clientY,t:Date.now()}:null;
   if(bp.size===2){const [a,b]=[...bp.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)};act=null;penEnd(true);erasing=false;return;}
-  board.focus({preventScroll:true});
+  stopEditing();board.focus({preventScroll:true});
   if(penOn){penStart(ev);board.setPointerCapture(ev.pointerId);return;}
   if(eraserOn){erasing=true;eraseAt(ev);board.setPointerCapture(ev.pointerId);return;}
   const itEl=readOnly?null:ev.target.closest(".item");
