@@ -30,7 +30,8 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;overflow:hidden}
 .app{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-inset-top,0px)}
-.layout{display:grid;grid-template-columns:3fr 2fr 5fr;flex:1;min-height:0}
+.layout{display:grid;grid-template-columns:3fr 2fr 5fr;grid-template-rows:minmax(0,1fr);flex:1;min-height:0}
+.layout>*{min-height:0}/* 긴 메모가 칸을 늘리지 않고 칸 안에서 스크롤되게 */
 .tabs{display:none}
 .memo{min-width:0;height:100%;display:flex;flex-direction:column;background:var(--page);border-right:1px solid var(--line)}
 .memo .head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px 0 16px}
@@ -780,7 +781,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20260927181136";// 배포할 때 바뀜
+const BUILD="20260927181446";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
