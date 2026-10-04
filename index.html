@@ -94,6 +94,12 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 /* 네모 안 글자: 두 번 눌러 쓰기, 가운데 정렬 */
 .item .bt{color:#fff;font-weight:700;line-height:1.25;text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;padding:0 .2em;outline:none;cursor:inherit}
 .item .bt:empty{display:none}
+/* 네모 색 (연한 색이면 테두리와 진한 글자) */
+.item .box.light{border:1px solid rgba(0,0,0,.28)}
+.item .box.light .bt{color:#1D2524}
+.tools .swatches{display:inline-flex;gap:4px;align-items:center;height:32px;padding:0 6px;border-radius:8px;border:1px solid var(--line);background:var(--panel)}
+.tools .swatches button{width:22px;height:22px;padding:0;border-radius:50%;border:1px solid rgba(0,0,0,.3);background:var(--c)}
+.tools .swatches button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--focus);border-color:transparent;font-weight:400}
 .item .bt[contenteditable="true"]{display:block;min-width:1em;cursor:text;user-select:text;-webkit-user-select:text;background:rgba(0,0,0,.25)}
 /* 펜 낙서: 상자 전체가 아니라 선 위에서만 잡히게 (아래 이미지를 가리지 않도록) */
 .item.ink{pointer-events:none}
@@ -229,6 +235,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" data-edit data-arw="270" aria-label="위쪽 화살표 추가">↑</button>
     <button type="button" data-edit data-arw="0" aria-label="오른쪽 화살표 추가">→</button>
     <button type="button" data-edit data-arw="90" aria-label="아래쪽 화살표 추가">↓</button>
+    <span class="swatches" id="rectColors" data-edit role="group" aria-label="네모 색" hidden></span>
     <span class="zv" id="zv">100%</span>
     <button type="button" id="exportBtn" hidden>내보내기</button>
     <label class="b" id="importLbl" hidden>가져오기<input type="file" id="importIn" accept="application/json,.json" hidden></label>
@@ -540,7 +547,9 @@ function render(it){
   Object.assign(el.style,{left:it.x+"px",top:it.y+"px",width:it.w+"px",height:it.h+"px",zIndex:it.z,transform:it.rot?`rotate(${it.rot}deg)`:""});
   if(it.type==="text"){const c=el.firstChild;if(editingId!==it.id&&c.textContent!==it.text)c.textContent=it.text;// 다른 기기에서 고친 글자 반영
     c.style.fontSize=it.fs+"px";measure(it,el);}
-  if(it.type==="rect"){const t=el.querySelector(".bt");if(editingId!==it.id&&t.textContent!==(it.text||""))t.textContent=it.text||"";
+  if(it.type==="rect"){const col=RECT_COLORS.find(c=>c[0]===it.color),bx=el.querySelector(".box");
+    bx.style.background=col?col[2]:"";bx.classList.toggle("light",!!col);
+    const t=el.querySelector(".bt");if(editingId!==it.id&&t.textContent!==(it.text||""))t.textContent=it.text||"";
     t.style.fontSize=(it.fs||24)+"px";}
   if(it.type==="arrow"){const {w,h}=it,t=h*.38,hl=Math.min(w*.5,h*.9),a=(h-t)/2,b=(h+t)/2;
     el.firstChild.setAttribute("viewBox",`0 0 ${w} ${h}`);
@@ -633,7 +642,16 @@ function setReadOnly(on){readOnly=on;document.body.classList.toggle("ro",on);
   try{localStorage.setItem("kr-readonly",on?"1":"")}catch(e){}}
 modeBtn.onclick=()=>setReadOnly(!readOnly);
 const isTyping=t=>!!t.closest?.("textarea,input,[contenteditable=true]");
-function renderAll(){items.forEach(render);emptyEl.hidden=vis().length>0}
+function renderAll(){items.forEach(render);emptyEl.hidden=vis().length>0;updateRectColors();}
+// 네모 색: 고른 네모가 있을 때만 도구 막대에 색 버튼 (color 칸이 없으면 기본 갈색)
+const RECT_COLORS=[["green","연초록","#C9E7C3"],["blue","연파랑","#C3DDF5"],["gray","연회색","#DEE1E0"],["purple","연보라","#DACDEE"],["brown","연갈색","#DCC9B3"],["ivory","연아이보리","#FBF4DC"]];
+const rectColors=document.getElementById("rectColors");
+RECT_COLORS.forEach(([k,n,c])=>{const b=document.createElement("button");b.type="button";b.dataset.rc=k;b.title=b.ariaLabel=n;
+  b.style.setProperty("--c",c);b.onclick=()=>{const it=items.find(i=>i.id===selId);if(!it||it.type!=="rect")return;
+    if(it.color===k)delete it.color;else it.color=k;// 같은 색을 다시 누르면 기본 갈색으로
+    render(it);updateRectColors();saveMeta();board.focus({preventScroll:true});};rectColors.append(b);});
+function updateRectColors(){const it=items.find(i=>i.id===selId),on=!!it&&it.type==="rect"&&!readOnly;rectColors.hidden=!on;
+  if(on)rectColors.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.rc===it.color));}
 function select(id){selId=id;const it=items.find(i=>i.id===id);if(it&&it.type!=="rect"){it.z=++topZ;}// 네모는 눌러도 앞으로 안 나옴
   world.querySelectorAll(".item").forEach(e=>e.classList.toggle("sel",e.dataset.iid===id));renderAll();}
 
@@ -886,7 +904,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005001853";// 배포할 때 바뀜
+const BUILD="20261005002335";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
