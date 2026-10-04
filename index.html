@@ -33,19 +33,25 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .layout{display:grid;grid-template-columns:2fr 8fr;grid-template-rows:auto minmax(0,1fr);flex:1;min-height:0}
 /* 메모는 왼쪽에 고정, 오른쪽은 위쪽 막대로 고른 위치(지도)·프리폼(보드)·설계도 중 하나만 */
 .layout>.memo{grid-column:1;grid-row:1/3}
-.layout>.mapbox,.layout>.content,.layout>.plan{grid-column:2;grid-row:2;min-width:0}
+.layout>.mapbox,.layout>.content{grid-column:2;grid-row:2;min-width:0}
 .viewbar{grid-column:2;grid-row:1;display:flex;background:var(--panel);border-bottom:1px solid var(--line)}
 .viewbar button{flex:1 1 0;height:40px;border:0;background:none;color:var(--muted);font:inherit;font-size:.88rem;font-weight:600;cursor:pointer}
 .viewbar button+button{border-left:1px solid var(--line)}
 .viewbar button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--focus)}
 .viewbar button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
-@media (min-width:761px){.layout:not([data-view="map"])>.mapbox,.layout:not([data-view="board"])>.content,.layout:not([data-view="plan"])>.plan{display:none}}
-/* 설계도: 칸에 맞춘 정사각형 10×10 모눈종이 */
-.plan{height:100%;padding:24px;background:var(--page);display:grid;place-items:center;container-type:size}
-.paper{width:min(100cqw,100cqh);aspect-ratio:1;background:#fff}
-.paper svg{display:block;width:100%;height:100%}
+@media (min-width:761px){.layout:not([data-view="map"])>.mapbox,.layout[data-view="map"]>.content{display:none}}
+/* 설계도: 프리폼과 같은 보드에 10×10 모눈종이(100평 정사각형)를 깔고 항목은 시트별로 따로 */
+.content.plan-mode{background:#DDE2E0}
+.content.plan-mode .item .tx{color:#000}
+.content.plan-mode .empty{display:none}
+.paper{position:absolute;pointer-events:none;overflow:visible;z-index:-1000000}
+.paper .sheet{fill:#fff;stroke:none}
 .paper .g{stroke:#9CC3D5;stroke-width:1;vector-effect:non-scaling-stroke;fill:none}
-.paper .b{stroke:#5A8FA8;stroke-width:2;vector-effect:non-scaling-stroke;fill:none}
+.paper .b{stroke:#4F86A0;stroke-width:2;vector-effect:non-scaling-stroke;fill:none}
+.paper .dl{stroke:#3D4A48;stroke-width:1.2;vector-effect:non-scaling-stroke;fill:none}
+.paper text{fill:#3D4A48;font-family:inherit;text-anchor:middle}
+.paper .t1{font-size:20px}
+.paper .t2{font-size:30px;font-weight:700}
 .layout>*{min-height:0}/* 긴 메모가 칸을 늘리지 않고 칸 안에서 스크롤되게 */
 .tabs{display:none}
 .memo{min-width:0;height:100%;display:flex;flex-direction:column;background:var(--page);border-right:1px solid var(--line)}
@@ -176,9 +182,6 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   <button type="button" role="tab" data-tab="board" aria-selected="false">프리폼</button>
   <button type="button" role="tab" data-tab="plan" aria-selected="false">설계도</button>
 </nav>
-<section class="plan" data-pane="plan" aria-label="설계도">
-  <div class="paper"><svg viewBox="0 0 10 10" role="img" aria-label="10×10 모눈종이"><path class="g" d="M1 0V10M2 0V10M3 0V10M4 0V10M5 0V10M6 0V10M7 0V10M8 0V10M9 0V10M0 1H10M0 2H10M0 3H10M0 4H10M0 5H10M0 6H10M0 7H10M0 8H10M0 9H10"/><rect class="b" width="10" height="10"/></svg></div>
-</section>
 <div class="mapbox on" id="mapbox" data-pane="map">
   <svg id="map" role="img" aria-label="대한민국 시군 지도"></svg>
   <div class="layers" role="group" aria-label="지도 레이어">
@@ -482,6 +485,12 @@ let items=[];// 이미지 {id,x,y,w,h,z,rot} · 글자 {id,type:"text",x,y,w,h,z
 // rot: 0/90/180/270 (가운데 기준 회전). 화살표는 오른쪽이 기본 방향이고 rot로 상하좌우를 정함
 let selId=null,topZ=1;
 const urls={};
+// 시트: ""=프리폼, "plan"=설계도. 항목의 sheet 칸으로 나누고(프리폼은 칸 없음), 화면 위치·배율도 시트마다 따로
+let sheet="";const camOf={"":null,plan:null};
+const onSheet=it=>(it.sheet||"")===sheet,vis=()=>items.filter(onSheet);
+const getCam=s=>s===sheet?cam:camOf[s];
+function putCam(s,c){if(!c||!c.z)return;if(s===sheet){cam=c;applyCam();}else camOf[s]=c;}
+const tagSheet=it=>{if(sheet)it.sheet=sheet;else delete it.sheet;return it;};
 
 // IndexedDB
 let dbp=new Promise((res)=>{try{const r=indexedDB.open("kr-map-board",1);
@@ -492,8 +501,9 @@ async function idb(store,mode,fn){const db=await dbp;if(!db)return null;
     tx.oncomplete=()=>res(r&&r.result);tx.onerror=()=>res(null);}catch(e){res(null)}});}
 let saveT;
 function saveMeta(){clearTimeout(saveT);saveT=setTimeout(()=>{
-  if(cloud.db){try{localStorage.setItem("kr-board-cam",JSON.stringify(cam))}catch(e){}cloudSync();}// 화면 위치·배율은 기기마다 따로
-  else idb("meta","readwrite",s=>s.put({items,cam},"state"));},250)}
+  if(cloud.db){try{localStorage.setItem("kr-board-cam",JSON.stringify(getCam("")));
+    if(getCam("plan"))localStorage.setItem("kr-plan-cam",JSON.stringify(getCam("plan")))}catch(e){}cloudSync();}// 화면 위치·배율은 기기마다 따로
+  else idb("meta","readwrite",s=>s.put({items,cam:getCam(""),camPlan:getCam("plan")},"state"));},250)}
 
 function applyCam(){
   world.style.transform=`translate(${cam.x}px,${cam.y}px) scale(${cam.z})`;
@@ -528,7 +538,7 @@ function render(it){
   if(it.type==="arrow"){const {w,h}=it,t=h*.38,hl=Math.min(w*.5,h*.9),a=(h-t)/2,b=(h+t)/2;
     el.firstChild.setAttribute("viewBox",`0 0 ${w} ${h}`);
     el.firstChild.firstChild.setAttribute("d",`M0 ${a}H${w-hl}V0L${w} ${h/2}L${w-hl} ${h}V${b}H0Z`);}
-  el.classList.toggle("sel",it.id===selId);
+  el.classList.toggle("sel",it.id===selId);el.hidden=!onSheet(it);
 }
 const inkPath=pts=>"M"+pts.map(p=>p.join(" ")).join("L");
 // 회전을 반영한 화면상 상자 (90°/270°면 가로세로가 바뀜)
@@ -553,18 +563,18 @@ function endEdit(it){const el=world.querySelector(`[data-iid="${it.id}"]`);if(!e
   saveMeta();}
 function addText(p,text=""){
   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-  const it={id,type:"text",x:p.x,y:p.y,w:0,h:0,z:++topZ,text,fs:28/cam.z};items.push(it);selId=id;renderAll();
+  const it=tagSheet({id,type:"text",x:p.x,y:p.y,w:0,h:0,z:++topZ,text,fs:28/cam.z});items.push(it);selId=id;renderAll();
   it.y-=it.h/2;render(it);
   if(!text)startEdit(it,false);saveMeta();return it;}
 function addArrow(rot){const r=board.getBoundingClientRect(),c=boardPoint(r.left+r.width/2,r.top+r.height/2);
   const w=160/cam.z,h=56/cam.z,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-  items.push({id,type:"arrow",x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,rot});selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
+  items.push(tagSheet({id,type:"arrow",x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,rot}));selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
 document.querySelectorAll("[data-arw]").forEach(b=>b.onclick=()=>addArrow(+b.dataset.arw));
 // 네모: 맨 뒤에 깔림 — 지금 있는 항목들 중 가장 작은 z보다 하나 작게
 const backZ=()=>Math.min(0,...items.map(i=>i.z||0))-1;
 function addRect(){const r=board.getBoundingClientRect(),c=boardPoint(r.left+r.width/2,r.top+r.height/2);
   const w=240/cam.z,h=160/cam.z,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-  items.push({id,type:"rect",x:c.x-w/2,y:c.y-h/2,w,h,z:backZ(),rot:0});selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
+  items.push(tagSheet({id,type:"rect",x:c.x-w/2,y:c.y-h/2,w,h,z:backZ(),rot:0}));selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
 document.getElementById("rectBtn").onclick=addRect;
 
 // ===== 펜 (검은 낙서) =====
@@ -585,7 +595,7 @@ function penEnd(cancel){if(!stroke)return;const st=stroke;stroke=null;st.svgEl.r
   const w=Math.max(...xs)+pad-x,h=Math.max(...ys)+pad-y,r=v=>Math.round(v*10)/10;
   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   const it={id,type:"ink",x,y,w,h,z:++topZ,vw:r(w),vh:r(h),sw:r(st.sw*10)/10||st.sw,pts:pts.map(p=>[r(p[0]-x),r(p[1]-y)])};
-  items.push(it);undoStack.push({added:id});renderAll();saveMeta();}
+  items.push(tagSheet(it));undoStack.push({added:id});renderAll();saveMeta();}
 
 // ===== 지우개: 문지른 곳에 닿은 펜 선을 통째로 지움 (⌘Z로 되살리기) =====
 const eraserBtn=document.getElementById("eraserBtn");let eraserOn=false,erasing=false;
@@ -601,7 +611,7 @@ function inkHit(it,p){// 보드 좌표 p가 선에서 (화면 기준 10px 안쪽
   for(let i=1;i<it.pts.length;i++)if(segDist(lx,ly,it.pts[i-1],it.pts[i])<=tol)return true;
   return it.pts.length===1&&Math.hypot(lx-it.pts[0][0],ly-it.pts[0][1])<=tol;}
 function eraseAt(ev){const p=boardPoint(ev.clientX,ev.clientY);let hit=false;
-  for(const it of [...items])if(it.type==="ink"&&inkHit(it,p)){
+  for(const it of vis())if(it.type==="ink"&&inkHit(it,p)){
     items=items.filter(i=>i!==it);world.querySelector(`[data-iid="${it.id}"]`)?.remove();undoStack.push({it:{...it}});hit=true;}
   if(hit){if(undoStack.length>50)undoStack.shift();renderAll();}}
 
@@ -613,7 +623,7 @@ function setReadOnly(on){readOnly=on;document.body.classList.toggle("ro",on);
   try{localStorage.setItem("kr-readonly",on?"1":"")}catch(e){}}
 modeBtn.onclick=()=>setReadOnly(!readOnly);
 const isTyping=t=>!!t.closest?.("textarea,input,[contenteditable=true]");
-function renderAll(){items.forEach(render);emptyEl.hidden=items.length>0}
+function renderAll(){items.forEach(render);emptyEl.hidden=vis().length>0}
 function select(id){selId=id;const it=items.find(i=>i.id===id);if(it&&it.type!=="rect"){it.z=++topZ;}// 네모는 눌러도 앞으로 안 나옴
   world.querySelectorAll(".item").forEach(e=>e.classList.toggle("sel",e.dataset.iid===id));renderAll();}
 
@@ -633,7 +643,7 @@ async function addFiles(files,at){
     const w=dim[0]*k,h=dim[1]*k;
     const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
     urls[id]=url;
-    const it={id,x:p.x-w/2,y:p.y-h/2,w,h,z:++topZ};items.push(it);
+    const it=tagSheet({id,x:p.x-w/2,y:p.y-h/2,w,h,z:++topZ});items.push(it);
     if(cloud.db)uploadImage(it,f,url);else await idb("blobs","readwrite",s=>s.put(f,id));
     p={x:p.x+24/cam.z,y:p.y+24/cam.z};
     selId=id;
@@ -668,6 +678,7 @@ async function undoDel(){const u=undoStack.pop();if(!u)return;
 document.addEventListener("paste",ev=>{
   if(readOnly&&!isTyping(ev.target))return;
   const typing=isTyping(ev.target),at=lastPt?boardPoint(lastPt.x,lastPt.y):null;
+  if(!typing&&!board.offsetWidth)return;// 보드가 안 보이는 화면(위치·메모)에서는 무시
   const files=[...(ev.clipboardData?.items||[])].filter(i=>i.kind==="file"&&i.type.startsWith("image/")).map(i=>i.getAsFile()).filter(Boolean);
   const text=(ev.clipboardData?.getData("text/plain")||"").replace(/\s+$/,"");
   // 방금 보드에서 복사한 것이면 그대로 복제
@@ -735,10 +746,10 @@ guide.className=hGuide.className="guide";guide.hidden=hGuide.hidden=true;world.a
 const edgeOf=(b,e)=>e==="left"?b.x:e==="right"?b.x+b.w:e==="top"?b.y:b.y+b.h;
 // me의 edges 중 다른 항목의 같은 쪽 끝과 가장 가까운 것 {d,edge,at,shift}
 function nearest(it,edges){const tol=6/cam.z,me=vbox(it);let best=null;
-  for(const o of items){if(o===it)continue;const ob=vbox(o);
+  for(const o of vis()){if(o===it)continue;const ob=vbox(o);
     for(const e of edges){const at=edgeOf(ob,e),d=Math.abs(at-edgeOf(me,e));if(d<=tol&&(!best||d<best.d))best={d,edge:e,at,shift:at-edgeOf(me,e)};}}
   return best;}
-function showGuides(v,h){const pad=12/cam.z,lw=1.5/cam.z,B=items.map(vbox);
+function showGuides(v,h){const pad=12/cam.z,lw=1.5/cam.z,B=vis().map(vbox);
   if(v){const same=B.filter(b=>Math.abs(edgeOf(b,v.edge)-v.at)<0.01),y0=Math.min(...same.map(b=>b.y)),y1=Math.max(...same.map(b=>b.y+b.h));
     Object.assign(guide.style,{left:(v.at-lw/2)+"px",top:(y0-pad)+"px",width:lw+"px",height:(y1-y0+pad*2)+"px"});}
   if(h){const same=B.filter(b=>Math.abs(edgeOf(b,h.edge)-h.at)<0.01),x0=Math.min(...same.map(b=>b.x)),x1=Math.max(...same.map(b=>b.x+b.w));
@@ -776,11 +787,37 @@ board.addEventListener("wheel",ev=>{ev.preventDefault();
   if(ev.ctrlKey||ev.metaKey)zoomBoard(Math.exp(-ev.deltaY*0.01),ev.clientX,ev.clientY);
   else{cam.x-=ev.deltaX;cam.y-=ev.deltaY;applyCam();saveMeta();}},{passive:false});
 function fit(){const r=board.getBoundingClientRect();
-  if(!items.length){cam={x:40,y:60,z:1};applyCam();saveMeta();return;}
-  const B=items.map(vbox),x0=Math.min(...B.map(i=>i.x)),y0=Math.min(...B.map(i=>i.y)),x1=Math.max(...B.map(i=>i.x+i.w)),y1=Math.max(...B.map(i=>i.y+i.h));
+  const B=vis().map(vbox);if(sheet==="plan")B.push(PAPER_BOX);// 설계도는 모눈종이까지 다 보이게
+  if(!B.length){cam={x:40,y:60,z:1};applyCam();saveMeta();return;}
+  const x0=Math.min(...B.map(i=>i.x)),y0=Math.min(...B.map(i=>i.y)),x1=Math.max(...B.map(i=>i.x+i.w)),y1=Math.max(...B.map(i=>i.y+i.h));
   const pad=60,z=Math.min(4,(r.width-pad*2)/(x1-x0),(r.height-pad*2-40)/(y1-y0));
   cam={z,x:(r.width-(x1-x0)*z)/2-x0*z,y:40+(r.height-40-(y1-y0)*z)/2-y0*z};applyCam();saveMeta();}
 document.getElementById("fitBtn").onclick=fit;
+// 모눈종이: 100평 정사각형 = 한 변 200/11 ≈ 18.18 m, 10×10칸이라 한 칸 ≈ 1.82 m. 보드 좌표로 한 칸 100 (종이 0~1000)
+const PAPER=1000,CELL=PAPER/10,SIDE_M=200/11,PAPER_BOX={x:-150,y:-150,w:PAPER+190,h:PAPER+190};
+const paperEl=(()=>{const m=-170,size=PAPER-m+40,svgEl=document.createElementNS(NS,"svg");
+  svgEl.setAttribute("class","paper");svgEl.setAttribute("viewBox",`${m} ${m} ${size} ${size}`);
+  Object.assign(svgEl.style,{left:m+"px",top:m+"px",width:size+"px",height:size+"px"});
+  const f=v=>v.toFixed(2);let g="",dl="",tx="";
+  for(let i=1;i<10;i++)g+=`M${i*CELL} 0V${PAPER}M0 ${i*CELL}H${PAPER}`;
+  // 칸 치수 (위·왼쪽) — 눈금 + 칸마다 1.82
+  dl+=`M0 -40H${PAPER}M-40 0V${PAPER}`;
+  for(let i=0;i<=10;i++){const v=i*CELL;dl+=`M${v} -50V-30M-50 ${v}H-30`;}
+  for(let i=0;i<10;i++){const c=i*CELL+CELL/2;
+    tx+=`<text class="t1" x="${c}" y="-50">${f(SIDE_M/10)}</text><text class="t1" transform="translate(-50 ${c}) rotate(-90)">${f(SIDE_M/10)}</text>`;}
+  // 전체 치수
+  dl+=`M0 -110H${PAPER}M0 -122V-98M${PAPER} -122V-98M-110 0V${PAPER}M-122 0H-98M-122 ${PAPER}H-98`;
+  const all=`${f(SIDE_M)} m · 100평 (330.6㎡)`;
+  tx+=`<text class="t2" x="${PAPER/2}" y="-122">${all}</text><text class="t2" transform="translate(-122 ${PAPER/2}) rotate(-90)">${all}</text>`;
+  svgEl.innerHTML=`<rect class="sheet" width="${PAPER}" height="${PAPER}"/><path class="g" d="${g}"/><rect class="b" width="${PAPER}" height="${PAPER}"/><path class="dl" d="${dl}"/>${tx}`;
+  svgEl.setAttribute("hidden","");world.prepend(svgEl);return svgEl;})();
+function setSheet(s){if(s===sheet)return;
+  stopEditing();penEnd(true);select(null);
+  camOf[sheet]=cam;sheet=s;const c=camOf[s];cam=c||{x:40,y:60,z:1};
+  board.classList.toggle("plan-mode",s==="plan");paperEl.toggleAttribute("hidden",s!=="plan");
+  board.setAttribute("aria-label",s==="plan"?"설계도 보드":"프리폼 보드");
+  applyCam();renderAll();
+  if(!c)setTimeout(()=>{if(board.offsetWidth)fit();});}// 이 시트를 처음 열면 전체 보기
 board.addEventListener("keydown",ev=>{
   if(isTyping(ev.target))return;
   if(ev.key==="Escape"&&(penOn||eraserOn)){setPen(false);setEraser(false);return;}
@@ -809,7 +846,7 @@ function copySel(){const it=items.find(i=>i.id===selId);if(!it)return false;
   else cb.write([new ClipboardItem({"image/png":toPng(urls[it.id])})]).catch(()=>cb.writeText(tag).catch(()=>{}));
   return true}
 async function pasteClip(at){const src=clip.it,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-  const it={...src,id,z:src.type==="rect"?backZ():++topZ},b=vbox(src);
+  const it=tagSheet({...src,id,z:src.type==="rect"?backZ():++topZ}),b=vbox(src);
   if(at){it.x+=at.x-(b.x+b.w/2);it.y+=at.y-(b.y+b.h/2);}else{it.x+=24/cam.z;it.y+=24/cam.z;}
   if(!src.type&&cloud.db&&src.asset)setAssetUrl(id,src.asset);// 같은 파일을 가리키기만 하면 됨
   else if(!src.type){const blob=await clip.blob;if(!blob)return;urls[id]=URL.createObjectURL(blob);
@@ -826,7 +863,7 @@ document.addEventListener("keydown",ev=>{
 (async()=>{
   const st=await idb("meta","readonly",s=>s.get("state"));
   if(cloud.db)return;
-  if(st){cam=st.cam||cam;
+  if(st){putCam("",st.cam);putCam("plan",st.camPlan);
     for(const it of st.items||[]){
       if(it.type){items.push(it);topZ=Math.max(topZ,it.z||1);continue;}
       const b=await idb("blobs","readonly",s=>s.get(it.id));
@@ -839,7 +876,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005000516";// 배포할 때 바뀜
+const BUILD="20261005001112";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -854,7 +891,8 @@ const tabBtns=[...document.querySelectorAll("[data-tab]")];
 const layout=document.getElementById("layout");
 function showTab(name){if(name!=="memo"){layout.dataset.view=name;try{localStorage.setItem("kr-view",name)}catch(e){}}
   tabBtns.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===(b.closest(".viewbar")?layout.dataset.view:name)));
-  document.querySelectorAll("[data-pane]").forEach(p=>p.classList.toggle("on",p.dataset.pane===name));
+  if(name==="board"||name==="plan")setSheet(name==="plan"?"plan":"");
+  document.querySelectorAll("[data-pane]").forEach(p=>p.classList.toggle("on",p.dataset.pane===(name==="plan"?"board":name)));
   closePop();try{localStorage.setItem("kr-tab",name)}catch(e){}}
 tabBtns.forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 try{const v=localStorage.getItem("kr-view"),t=localStorage.getItem("kr-tab");
@@ -954,7 +992,8 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
   else{document.getElementById("exportBtn").hidden=false;return;}// 파일로 연 경우
   if(!db)return;
   cloud.db=db;cloud.assets=assets;
-  let hasCam=false;try{const c=JSON.parse(localStorage.getItem("kr-board-cam")||"null");if(c&&c.z){cam=c;hasCam=true;}}catch(e){}
+  let hasCam=false;try{const c=JSON.parse(localStorage.getItem("kr-board-cam")||"null");if(c&&c.z){putCam("",c);hasCam=true;}
+    putCam("plan",JSON.parse(localStorage.getItem("kr-plan-cam")||"null"));}catch(e){}
   world.querySelectorAll(".item").forEach(e=>e.remove());items=[];selId=null;applyCam();renderAll();
   const first={};let firstLeft=3;
   const arrived=k=>{if(first[k])return;first[k]=1;if(--firstLeft)return;
@@ -969,7 +1008,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
       else if(typeof d.text==="string"&&d.text!==memo.value)memo.value=d.text;}
     if(d.fs&&d.fs!==fsz)setFs(d.fs,true);arrived("m");});
   // 이 기기에서 처음 열면 보드 전체가 보이게 (보드 칸이 숨겨진 휴대폰 탭이면 보드 탭을 처음 열 때)
-  let fitted=hasCam;const fitOnce=()=>{if(fitted||!items.length||!board.getBoundingClientRect().width)return;fitted=true;fit();};
+  let fitted=hasCam;const fitOnce=()=>{if(fitted||sheet||!vis().length||!board.getBoundingClientRect().width)return;fitted=true;fit();};
   tabBtns.forEach(b=>b.addEventListener("click",()=>setTimeout(fitOnce)));
   db.collection("items").onSnapshot(snap=>{applyItems(snap);arrived("i");fitOnce();},()=>note("동기화가 끊겼어요. 새로고침해 주세요."));
 })();
