@@ -30,7 +30,16 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;overflow:hidden}
 .app{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-inset-top,0px)}
-.layout{display:grid;grid-template-columns:3fr 2fr 5fr;grid-template-rows:minmax(0,1fr);flex:1;min-height:0}
+.layout{display:grid;grid-template-columns:2fr 8fr;grid-template-rows:auto minmax(0,1fr);flex:1;min-height:0}
+/* 메모는 왼쪽에 고정, 오른쪽은 위쪽 막대로 고른 위치(지도)·프리폼(보드) 중 하나만 */
+.layout>.memo{grid-column:1;grid-row:1/3}
+.layout>.mapbox,.layout>.content{grid-column:2;grid-row:2;min-width:0}
+.viewbar{grid-column:2;grid-row:1;display:flex;background:var(--panel);border-bottom:1px solid var(--line)}
+.viewbar button{flex:1 1 0;height:40px;border:0;background:none;color:var(--muted);font:inherit;font-size:.88rem;font-weight:600;cursor:pointer}
+.viewbar button+button{border-left:1px solid var(--line)}
+.viewbar button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--focus)}
+.viewbar button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+@media (min-width:761px){.layout[data-view="map"]>.content,.layout[data-view="board"]>.mapbox{display:none}}
 .layout>*{min-height:0}/* 긴 메모가 칸을 늘리지 않고 칸 안에서 스크롤되게 */
 .tabs{display:none}
 .memo{min-width:0;height:100%;display:flex;flex-direction:column;background:var(--page);border-right:1px solid var(--line)}
@@ -49,7 +58,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .hl-btn::before{content:"";width:14px;height:14px;border-radius:3px;background:#FFE45C;border:1px solid rgba(0,0,0,.15)}
 .hl-btn:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .memo .saved{font-size:.72rem;color:var(--muted);padding:0 16px 10px;min-height:1.6em}
-.mapbox{position:relative;width:100%;height:100%;min-height:0;background:rgb(7,23,51);touch-action:none;border-right:1px solid var(--line)}
+.mapbox{position:relative;width:100%;height:100%;min-height:0;background:rgb(7,23,51);touch-action:none}
 .content{min-width:0;height:100%;position:relative;overflow:hidden;background:rgb(138,118,96);
   touch-action:none;cursor:grab;outline:none}
 .content.panning{cursor:grabbing}
@@ -109,6 +118,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 /* 휴대폰: 세 칸을 탭으로 나눠 한 번에 하나씩 */
 @media (max-width:760px){
   .layout{display:block;position:relative}
+  .viewbar{display:none}
   .layout>[data-pane]{height:100%;border:0}
   .layout>[data-pane]:not(.on){display:none}
   .tabs{display:flex;border-top:1px solid var(--line);background:var(--panel);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -154,7 +164,11 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
 </style>
 </head><body>
 <div class="app">
-<div class="layout">
+<div class="layout" id="layout" data-view="map">
+<nav class="viewbar" role="tablist" aria-label="오른쪽 화면">
+  <button type="button" role="tab" data-tab="map" aria-selected="true">위치</button>
+  <button type="button" role="tab" data-tab="board" aria-selected="false">프리폼</button>
+</nav>
 <div class="mapbox on" id="mapbox" data-pane="map">
   <svg id="map" role="img" aria-label="대한민국 시군 지도"></svg>
   <div class="layers" role="group" aria-label="지도 레이어">
@@ -814,7 +828,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20260927185027";// 배포할 때 바뀜
+const BUILD="20261005000002";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -825,11 +839,16 @@ document.addEventListener("visibilitychange",checkUpdate);checkUpdate();
 
 // ===== 휴대폰 탭 (지도 · 메모 · 보드) =====
 const tabBtns=[...document.querySelectorAll("[data-tab]")];
-function showTab(name){tabBtns.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===name));
+// 넓은 화면: 메모는 늘 보이고, 위쪽 막대(.viewbar)로 위치·프리폼 중 하나(data-view)만 오른쪽에
+const layout=document.getElementById("layout");
+function showTab(name){if(name!=="memo"){layout.dataset.view=name;try{localStorage.setItem("kr-view",name)}catch(e){}}
+  tabBtns.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===(b.closest(".viewbar")?layout.dataset.view:name)));
   document.querySelectorAll("[data-pane]").forEach(p=>p.classList.toggle("on",p.dataset.pane===name));
   closePop();try{localStorage.setItem("kr-tab",name)}catch(e){}}
 tabBtns.forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-try{const t=localStorage.getItem("kr-tab");if(t&&tabBtns.some(b=>b.dataset.tab===t))showTab(t);}catch(e){}
+try{const v=localStorage.getItem("kr-view"),t=localStorage.getItem("kr-tab");
+  if(v==="map"||v==="board")showTab(v);
+  if(t&&t!==v&&tabBtns.some(b=>b.dataset.tab===t))showTab(t);}catch(e){}
 
 // ===== 알림 한 줄 =====
 let noteT;
