@@ -31,15 +31,21 @@ html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;overflow:hidden}
 .app{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-inset-top,0px)}
 .layout{display:grid;grid-template-columns:2fr 8fr;grid-template-rows:auto minmax(0,1fr);flex:1;min-height:0}
-/* 메모는 왼쪽에 고정, 오른쪽은 위쪽 막대로 고른 위치(지도)·프리폼(보드) 중 하나만 */
+/* 메모는 왼쪽에 고정, 오른쪽은 위쪽 막대로 고른 위치(지도)·프리폼(보드)·설계도 중 하나만 */
 .layout>.memo{grid-column:1;grid-row:1/3}
-.layout>.mapbox,.layout>.content{grid-column:2;grid-row:2;min-width:0}
+.layout>.mapbox,.layout>.content,.layout>.plan{grid-column:2;grid-row:2;min-width:0}
 .viewbar{grid-column:2;grid-row:1;display:flex;background:var(--panel);border-bottom:1px solid var(--line)}
 .viewbar button{flex:1 1 0;height:40px;border:0;background:none;color:var(--muted);font:inherit;font-size:.88rem;font-weight:600;cursor:pointer}
 .viewbar button+button{border-left:1px solid var(--line)}
 .viewbar button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--focus)}
 .viewbar button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
-@media (min-width:761px){.layout[data-view="map"]>.content,.layout[data-view="board"]>.mapbox{display:none}}
+@media (min-width:761px){.layout:not([data-view="map"])>.mapbox,.layout:not([data-view="board"])>.content,.layout:not([data-view="plan"])>.plan{display:none}}
+/* 설계도: 칸에 맞춘 정사각형 10×10 모눈종이 */
+.plan{height:100%;padding:24px;background:var(--page);display:grid;place-items:center;container-type:size}
+.paper{width:min(100cqw,100cqh);aspect-ratio:1;background:#fff}
+.paper svg{display:block;width:100%;height:100%}
+.paper .g{stroke:#9CC3D5;stroke-width:1;vector-effect:non-scaling-stroke;fill:none}
+.paper .b{stroke:#5A8FA8;stroke-width:2;vector-effect:non-scaling-stroke;fill:none}
 .layout>*{min-height:0}/* 긴 메모가 칸을 늘리지 않고 칸 안에서 스크롤되게 */
 .tabs{display:none}
 .memo{min-width:0;height:100%;display:flex;flex-direction:column;background:var(--page);border-right:1px solid var(--line)}
@@ -168,7 +174,11 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
 <nav class="viewbar" role="tablist" aria-label="오른쪽 화면">
   <button type="button" role="tab" data-tab="map" aria-selected="true">위치</button>
   <button type="button" role="tab" data-tab="board" aria-selected="false">프리폼</button>
+  <button type="button" role="tab" data-tab="plan" aria-selected="false">설계도</button>
 </nav>
+<section class="plan" data-pane="plan" aria-label="설계도">
+  <div class="paper"><svg viewBox="0 0 10 10" role="img" aria-label="10×10 모눈종이"><path class="g" d="M1 0V10M2 0V10M3 0V10M4 0V10M5 0V10M6 0V10M7 0V10M8 0V10M9 0V10M0 1H10M0 2H10M0 3H10M0 4H10M0 5H10M0 6H10M0 7H10M0 8H10M0 9H10"/><rect class="b" width="10" height="10"/></svg></div>
+</section>
 <div class="mapbox on" id="mapbox" data-pane="map">
   <svg id="map" role="img" aria-label="대한민국 시군 지도"></svg>
   <div class="layers" role="group" aria-label="지도 레이어">
@@ -232,6 +242,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   <button type="button" role="tab" data-tab="map" aria-selected="true">지도</button>
   <button type="button" role="tab" data-tab="memo" aria-selected="false">메모</button>
   <button type="button" role="tab" data-tab="board" aria-selected="false">보드</button>
+  <button type="button" role="tab" data-tab="plan" aria-selected="false">설계도</button>
 </nav>
 </div>
 
@@ -828,7 +839,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005000002";// 배포할 때 바뀜
+const BUILD="20261005000516";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -837,7 +848,7 @@ async function checkUpdate(){
     if(m&&m[1]!==BUILD&&m[1]!=="dev")location.replace(location.pathname+"?v="+m[1]);}catch(e){}}
 document.addEventListener("visibilitychange",checkUpdate);checkUpdate();
 
-// ===== 휴대폰 탭 (지도 · 메모 · 보드) =====
+// ===== 휴대폰 탭 (지도 · 메모 · 보드 · 설계도) =====
 const tabBtns=[...document.querySelectorAll("[data-tab]")];
 // 넓은 화면: 메모는 늘 보이고, 위쪽 막대(.viewbar)로 위치·프리폼 중 하나(data-view)만 오른쪽에
 const layout=document.getElementById("layout");
@@ -847,7 +858,7 @@ function showTab(name){if(name!=="memo"){layout.dataset.view=name;try{localStora
   closePop();try{localStorage.setItem("kr-tab",name)}catch(e){}}
 tabBtns.forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 try{const v=localStorage.getItem("kr-view"),t=localStorage.getItem("kr-tab");
-  if(v==="map"||v==="board")showTab(v);
+  if(v==="map"||v==="board"||v==="plan")showTab(v);
   if(t&&t!==v&&tabBtns.some(b=>b.dataset.tab===t))showTab(t);}catch(e){}
 
 // ===== 알림 한 줄 =====
