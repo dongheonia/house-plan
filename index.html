@@ -104,7 +104,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .content.plan-mode .item .tbt{text-align:center}/* 설계도 글상자는 가운데 정렬 */
 .tools .tbox-btn{font-weight:600}
 /* 설계도 칸 색 고르기 */
-.cellpop .opts{flex-wrap:wrap;max-width:calc(100vw - 32px)}
+.cellpop .opts{flex-wrap:wrap;width:min(400px,calc(100vw - 48px))}
 .tools .swatches{display:inline-flex;gap:4px;align-items:center;height:32px;padding:0 6px;border-radius:8px;border:1px solid var(--line);background:var(--panel)}
 .tools .swatches button{width:22px;height:22px;padding:0;border-radius:50%;border:1px solid rgba(0,0,0,.3);background:var(--c)}
 .tools .swatches button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--focus);border-color:transparent;font-weight:400}
@@ -563,7 +563,7 @@ function render(it){
   if(it.type==="text"){const c=el.firstChild;if(editingId!==it.id&&c.textContent!==it.text)c.textContent=it.text;// 다른 기기에서 고친 글자 반영
     c.style.fontSize=it.fs+"px";measure(it,el);}
   if(it.type==="rect"){const col=RECT_COLORS.find(c=>c[0]===it.color),bx=el.querySelector(".box");
-    bx.style.background=col?col[2]:"";bx.classList.toggle("light",!!col);}
+    bx.style.background=col?col[2]:"";bx.classList.toggle("light",!!col&&!col[3]);}
   if(it.type==="rect"||it.type==="tbox"){const t=edEl(el);if(editingId!==it.id&&t.textContent!==(it.text||""))t.textContent=it.text||"";
     (it.type==="tbox"?t.parentNode:t).style.fontSize=(it.fs||24)+"px";}// 글상자는 안쪽 여백도 글자 크기에 맞게
   if(it.type==="arrow"){const {w,h}=it,t=h*.38,hl=Math.min(w*.5,h*.9),a=(h-t)/2,b=(h+t)/2;
@@ -667,7 +667,9 @@ modeBtn.onclick=()=>setReadOnly(!readOnly);
 const isTyping=t=>!!t.closest?.("textarea,input,[contenteditable=true]");
 function renderAll(){items.forEach(render);emptyEl.hidden=vis().length>0;updateRectColors();}
 // 네모 색: 고른 네모가 있을 때만 도구 막대에 색 버튼 (color 칸이 없으면 기본 갈색)
-const RECT_COLORS=[["green","연초록","#C9E7C3"],["blue","연파랑","#C3DDF5"],["gray","연회색","#DEE1E0"],["purple","연보라","#DACDEE"],["brown","연갈색","#DCC9B3"],["ivory","연아이보리","#FBF4DC"]];
+// [이름, 표시, 색, 진한 색이면 1 (흰 글자)]
+const RECT_COLORS=[["red","연빨강","#F5CBC6"],["orange","연주황","#F8D9B6"],["green","연초록","#C9E7C3"],["blue","연파랑","#C3DDF5"],["purple","연보라","#DACDEE"],
+  ["gray","연회색","#DEE1E0"],["dgray","진회색","#6F7876",1],["brown","연갈색","#DCC9B3"],["dbrown","진갈색","#7C6049",1],["ivory","연아이보리","#FBF4DC"],["divory","진아이보리","#E8DBAE"]];
 const rectColors=document.getElementById("rectColors");
 RECT_COLORS.forEach(([k,n,c])=>{const b=document.createElement("button");b.type="button";b.dataset.rc=k;b.title=b.ariaLabel=n;
   b.style.setProperty("--c",c);b.onclick=()=>{const it=items.find(i=>i.id===selId);if(!it||it.type!=="rect")return;
@@ -952,7 +954,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005004910";// 배포할 때 바뀜
+const BUILD="20261005005200";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
