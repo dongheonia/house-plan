@@ -101,6 +101,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .item .tbox{width:100%;height:100%;background:#fff;border:1.5px solid #3D4A48;border-radius:3px;padding:.3em .45em;overflow:hidden}
 .item .tbt{color:#1D2524;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere;outline:none;min-height:1.35em;cursor:inherit}
 .item .tbt[contenteditable="true"]{cursor:text;user-select:text;-webkit-user-select:text}
+.content.plan-mode .item .tbt{text-align:center}/* 설계도 글상자는 가운데 정렬 */
 .tools .tbox-btn{font-weight:600}
 /* 설계도 칸 색 고르기 */
 .cellpop .opts{flex-wrap:wrap;max-width:calc(100vw - 32px)}
@@ -951,7 +952,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005002804";// 배포할 때 바뀜
+const BUILD="20261005004910";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
