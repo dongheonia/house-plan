@@ -669,7 +669,7 @@ const SYMS=[
   ["car","자동차",1.85,4.7,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
   ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",1.8,.6,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.2,1,"icon"],["storage","수납 공간",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
-  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"]];
+  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
 function symSVG(k,w,h){
   // f: 채움색, st: 선색 (짙은 바탕 위 선은 밝게)
@@ -702,6 +702,8 @@ function symSVG(k,w,h){
   case"bench":return R(0,0,w,h,"fl",m*.1,wood)+P(`M${w*.02} ${h/3}H${w*.98}M${w*.02} ${h*2/3}H${w*.98}`);
   case"closet":{let d=`M${w*.04} ${h/2}H${w*.96}`;for(let i=1;i<8;i++){const x=w*i/8;d+=`M${x-w*.035} ${h*.2}L${x+w*.035} ${h*.8}`;}// 옷걸이 봉 + 옷걸이
     return R(0,0,w,h,"fl",0,brown)+P(d,"tn",lite);}
+  case"pwall":{let d="";const step=Math.max(h,w/30);for(let x=-h;x<w;x+=step)d+=`M${Math.max(0,x)} ${x<0?-x:h}L${Math.min(w,x+h)} ${x+h>w?h-(x+h-w):0}`;// 빗금
+    return R(0,0,w,h,"fl",0,"#C9CECD")+P(d,"tn");}
   case"tv":return R(w*.32,h*.3,w*.36,h*.7,"fl",m*.08,black)+R(0,0,w,h*.3,"fl",m*.04,black);// 화면(위) + 받침대
   case"chair":return R(w*.04,h*.1,w*.92,h*.86,"fl",m*.12,wood)+R(w*.16,h*.24,w*.68,h*.6,"fl",m*.12,burg)+P(`M${w*.06} ${h*.06}H${w*.94}`,"ln");}// 나무 의자 + 버건디 쿠션
   return"";}
@@ -1079,7 +1081,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005172305";// 배포할 때 바뀜
+const BUILD="20261005172616";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
