@@ -908,21 +908,22 @@ function fit(){const r=board.getBoundingClientRect();
   cam={z,x:(r.width-(x1-x0)*z)/2-x0*z,y:40+(r.height-40-(y1-y0)*z)/2-y0*z};applyCam();saveMeta();}
 document.getElementById("fitBtn").onclick=fit;
 // 모눈종이: 100평 정사각형 = 한 변 200/11 ≈ 18.18 m, 10×10칸이라 한 칸 ≈ 1.82 m. 보드 좌표로 한 칸 100 (종이 0~1000)
-const PAPER=1000,CELL=PAPER/10,SIDE_M=200/11,PAPER_BOX={x:-150,y:-150,w:PAPER+190,h:PAPER+190};
-const paperEl=(()=>{const m=-170,size=PAPER-m+40,svgEl=document.createElementNS(NS,"svg");
+const PAPER=1000,CELL=PAPER/10,SIDE_M=200/11,GAP=40,PAPER_BOX={x:-190,y:-190,w:PAPER+230,h:PAPER+230};// GAP: 종이와 치수선 사이를 더 띄움
+const paperEl=(()=>{const m=-210,size=PAPER-m+40,svgEl=document.createElementNS(NS,"svg");
   svgEl.setAttribute("class","paper");svgEl.setAttribute("viewBox",`${m} ${m} ${size} ${size}`);
   Object.assign(svgEl.style,{left:m+"px",top:m+"px",width:size+"px",height:size+"px"});
   const f=v=>v.toFixed(2);let g="",dl="",tx="";
   for(let i=1;i<10;i++)g+=`M${i*CELL} 0V${PAPER}M0 ${i*CELL}H${PAPER}`;
   // 칸 치수 (위·왼쪽) — 눈금 + 칸마다 1.82
-  dl+=`M0 -40H${PAPER}M-40 0V${PAPER}`;
-  for(let i=0;i<=10;i++){const v=i*CELL;dl+=`M${v} -50V-30M-50 ${v}H-30`;}
+  const o=v=>-(v+GAP);// 종이 바깥쪽 거리 v → 좌표
+  dl+=`M0 ${o(40)}H${PAPER}M${o(40)} 0V${PAPER}`;
+  for(let i=0;i<=10;i++){const v=i*CELL;dl+=`M${v} ${o(50)}V${o(30)}M${o(50)} ${v}H${o(30)}`;}
   for(let i=0;i<10;i++){const c=i*CELL+CELL/2;
-    tx+=`<text class="t1" x="${c}" y="-50">${f(SIDE_M/10)}</text><text class="t1" transform="translate(-50 ${c}) rotate(-90)">${f(SIDE_M/10)}</text>`;}
+    tx+=`<text class="t1" x="${c}" y="${o(50)}">${f(SIDE_M/10)}</text><text class="t1" transform="translate(${o(50)} ${c}) rotate(-90)">${f(SIDE_M/10)}</text>`;}
   // 전체 치수
-  dl+=`M0 -110H${PAPER}M0 -122V-98M${PAPER} -122V-98M-110 0V${PAPER}M-122 0H-98M-122 ${PAPER}H-98`;
+  dl+=`M0 ${o(110)}H${PAPER}M0 ${o(122)}V${o(98)}M${PAPER} ${o(122)}V${o(98)}M${o(110)} 0V${PAPER}M${o(122)} 0H${o(98)}M${o(122)} ${PAPER}H${o(98)}`;
   const all=`${f(SIDE_M)} m · 100평 (330.6㎡)`;
-  tx+=`<text class="t2" x="${PAPER/2}" y="-122">${all}</text><text class="t2" transform="translate(-122 ${PAPER/2}) rotate(-90)">${all}</text>`;
+  tx+=`<text class="t2" x="${PAPER/2}" y="${o(122)}">${all}</text><text class="t2" transform="translate(${o(122)} ${PAPER/2}) rotate(-90)">${all}</text>`;
   svgEl.innerHTML=`<rect class="sheet" width="${PAPER}" height="${PAPER}"/><g class="cells"></g><path class="g" d="${g}"/><rect class="b" width="${PAPER}" height="${PAPER}"/><path class="dl" d="${dl}"/>${tx}`;
   svgEl.setAttribute("hidden","");world.prepend(svgEl);return svgEl;})();
 // 칸 색: 칸을 짧게 누르면 색 고르기. {"행,열": 색 이름} — 클라우드는 app/plan, 아니면 이 기기에
@@ -1012,7 +1013,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005030300";// 배포할 때 바뀜
+const BUILD="20261005031005";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
