@@ -567,6 +567,7 @@ function applyCam(){
   board.style.setProperty("--gx",cam.x+"px");board.style.setProperty("--gy",cam.y+"px");
   zv.textContent=Math.round(cam.z*100)+"%";
 }
+const TOP_Z=1e9;// 글상자(텍스트)는 늘 다른 항목보다 앞에 (그 안에서는 z 순서대로)
 function render(it){
   let el=world.querySelector(`[data-iid="${it.id}"]`);
   if(!el){el=document.createElement("div");el.className="item";el.dataset.iid=it.id;
@@ -592,7 +593,7 @@ function render(it){
     const dl=document.createElement("div");dl.className="del";dl.textContent="×";dl.title="삭제";
     el.append(c,h,ro,dl);world.append(el);}
   else if(!it.type&&urls[it.id]&&el.firstChild.getAttribute("src")!==urls[it.id])el.firstChild.src=urls[it.id];
-  Object.assign(el.style,{left:it.x+"px",top:it.y+"px",width:it.w+"px",height:it.h+"px",zIndex:it.z,transform:it.rot?`rotate(${it.rot}deg)`:""});
+  Object.assign(el.style,{left:it.x+"px",top:it.y+"px",width:it.w+"px",height:it.h+"px",zIndex:it.type==="tbox"?TOP_Z+it.z:it.z,transform:it.rot?`rotate(${it.rot}deg)`:""});
   if(it.type==="text"){const c=el.firstChild;if(editingId!==it.id&&c.textContent!==it.text)c.textContent=it.text;// 다른 기기에서 고친 글자 반영
     c.style.fontSize=it.fs+"px";measure(it,el);}
   if(it.type==="sym"){const c=el.firstChild;c.setAttribute("viewBox",`0 0 ${it.w} ${it.h}`);c.innerHTML=symSVG(it.kind,it.w,it.h);
@@ -1052,7 +1053,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005170806";// 배포할 때 바뀜
+const BUILD="20261005171106";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
