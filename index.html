@@ -109,10 +109,13 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .sym .tn{fill:none;stroke:#1D2524;stroke-width:1.2;vector-effect:non-scaling-stroke}
 .sym .ds{stroke-dasharray:4 3}
 .sym .fl{fill:#fff;stroke:#1D2524;stroke-width:1.6;vector-effect:non-scaling-stroke}
-.content:not(.plan-mode) .plan-only{display:none!important}
+.content:not(.plan-mode) .plan-only,.content.plan-mode .free-only{display:none!important}
+.sym .dk{fill:#1D2524;stroke:none}
+.sympop .sym .dk{fill:currentColor}
+.iconpop .opts{width:min(440px,calc(100vw - 48px))}
 .sympop{min-width:0}
 .sympop .opts{flex-wrap:wrap;width:min(330px,calc(100vw - 48px))}
-.sympop svg{width:40px;height:30px;overflow:visible}
+.sympop svg{width:44px;height:38px;overflow:visible}
 .sympop .sym .ln,.sympop .sym .tn{stroke:currentColor}
 .sympop .sym .fl{fill:var(--panel);stroke:currentColor}
 .tools .grp{display:inline-flex;gap:4px;align-items:center}
@@ -252,12 +255,14 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" id="penBtn" class="pen-btn" data-edit aria-pressed="false" title="펜 (P)">펜</button>
     <button type="button" id="eraserBtn" class="eraser-btn" data-edit aria-pressed="false" title="지우개: 문지른 펜 선을 지워요 (E)">지우개</button>
     <button type="button" data-edit id="rectBtn" aria-label="네모 추가" title="네모 (맨 뒤에 놓여요)">□</button>
-    <button type="button" data-edit id="tboxBtn" class="tbox-btn" title="글상자: 테두리 안에 글을 써요">글상자</button>
-    <button type="button" data-edit id="symBtn" class="plan-only" aria-haspopup="dialog" aria-expanded="false" title="문·창문 설계기호">문·창</button>
-    <button type="button" data-edit data-arw="180" aria-label="왼쪽 화살표 추가">←</button>
-    <button type="button" data-edit data-arw="270" aria-label="위쪽 화살표 추가">↑</button>
-    <button type="button" data-edit data-arw="0" aria-label="오른쪽 화살표 추가">→</button>
-    <button type="button" data-edit data-arw="90" aria-label="아래쪽 화살표 추가">↓</button>
+    <button type="button" data-edit id="tboxBtn" class="tbox-btn" title="테두리 안에 글을 써요"><span class="free-only">글상자</span><span class="plan-only">텍스트</span></button>
+    <button type="button" data-edit id="doorBtn" class="plan-only" aria-haspopup="dialog" aria-expanded="false" title="문 기호: 여닫이·양여닫이·미닫이">문</button>
+    <button type="button" data-edit id="winBtn" class="plan-only" title="창문 기호">창</button>
+    <button type="button" data-edit id="iconBtn" class="plan-only" aria-haspopup="dialog" aria-expanded="false" title="가구·설비 아이콘 (실제 크기)">아이콘</button>
+    <button type="button" data-edit class="free-only" data-arw="180" aria-label="왼쪽 화살표 추가">←</button>
+    <button type="button" data-edit class="free-only" data-arw="270" aria-label="위쪽 화살표 추가">↑</button>
+    <button type="button" data-edit class="free-only" data-arw="0" aria-label="오른쪽 화살표 추가">→</button>
+    <button type="button" data-edit class="free-only" data-arw="90" aria-label="아래쪽 화살표 추가">↓</button>
     <span class="swatches" id="rectColors" data-edit role="group" aria-label="네모 색" hidden></span>
     <span class="grp" id="symTools" data-edit role="group" aria-label="기호 돌리기·뒤집기" hidden>
       <button type="button" data-sym-act="rot" title="90° 돌리기 (R, 반대로 ⇧R)">↻ 90°</button>
@@ -268,9 +273,13 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" id="exportBtn" hidden>내보내기</button>
     <label class="b" id="importLbl" hidden>가져오기<input type="file" id="importIn" accept="application/json,.json" hidden></label>
   </div>
-  <div class="pop sympop" id="symPop" role="dialog" aria-label="문·창문 기호" hidden>
-    <div class="name">문·창문 기호</div>
-    <div class="opts" id="symOpts"></div>
+  <div class="pop sympop" id="doorPop" role="dialog" aria-label="문 기호" hidden>
+    <div class="name">문</div>
+    <div class="opts"></div>
+  </div>
+  <div class="pop sympop iconpop" id="iconPop" role="dialog" aria-label="아이콘" hidden>
+    <div class="name">아이콘 (실제 크기)</div>
+    <div class="opts"></div>
   </div>
   <div class="pop cellpop" id="cellPop" role="dialog" aria-label="칸 색 선택" hidden>
     <div class="name" id="cellName"></div>
@@ -644,28 +653,58 @@ function addTbox(){const r=board.getBoundingClientRect(),c=boardPoint(r.left+r.w
   const it=tagSheet({id,type:"tbox",x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,text:"",fs});
   items.push(it);selId=id;renderAll();startEdit(it,false);}
 document.getElementById("tboxBtn").onclick=addTbox;
-// ===== 문·창문 설계기호 =====
-// 상자 w×h 안에 그림. 벽은 아래쪽 변(y=h) 기준, 경첩은 왼쪽 아래. 돌리기(rot)·뒤집기(fx,fy)로 방향을 바꿈
+// ===== 문·창문 설계기호 · 가구 아이콘 =====
+// 상자 w×h 안에 그림. 문은 벽이 아래쪽 변(y=h), 경첩은 왼쪽 아래 / 가구는 위쪽이 벽 쪽. 돌리기(rot)·뒤집기(fx,fy)로 방향을 바꿈
 // 크기는 설계도 축척(한 칸 1.82 m = 100) 기준: 1 m = 55
 const M=55;// = 100 ÷ 1.818 m
+// [이름, 표시, 가로 m, 세로 m, 메뉴]
 const SYMS=[
-  ["door","여닫이문",.9,.9],["door2","양여닫이문",1.8,.9],["slide","미닫이문",1.8,.18],["window","창문",1.8,.2],["window2","미서기창",1.8,.2]];
+  ["door","여닫이",.9,.9,"door"],["door2","양여닫이",1.8,.9,"door"],["slide","미닫이",1.8,.18,"door"],
+  ["window","창문",1.8,.2,"win"],["window2","미서기창",1.8,.2],// 미서기창은 예전에 놓은 것만 그림
+  ["car","자동차",1.85,4.7,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
+  ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",1.8,.6,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
+  ["bed","침대",1.5,2,"icon"],["desk","책상",1.2,1,"icon"],["storage","수납 공간",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
+  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"]];
 function symSVG(k,w,h){
-  if(k==="door")return`<path class="tn ds" d="M0 ${h}H${w}"/><path class="tn" d="M0 0A${w} ${h} 0 0 1 ${w} ${h}"/><path class="ln" d="M0 ${h}V0"/>`;
-  if(k==="door2"){const m=w/2;return`<path class="tn ds" d="M0 ${h}H${w}"/><path class="tn" d="M0 0A${m} ${h} 0 0 1 ${m} ${h}M${w} 0A${m} ${h} 0 0 0 ${m} ${h}"/><path class="ln" d="M0 ${h}V0M${w} ${h}V0"/>`;}
-  if(k==="slide"){const a=h/2;return`<path class="tn" d="M0 0V${h}M${w} 0V${h}"/><rect class="fl" x="0" y="0" width="${w*.55}" height="${a}"/><rect class="fl" x="${w*.45}" y="${a}" width="${w*.55}" height="${a}"/>`;}
-  if(k==="window")return`<rect class="fl" width="${w}" height="${h}"/><path class="tn" d="M0 ${h/2}H${w}"/>`;
-  if(k==="window2")return`<rect class="fl" width="${w}" height="${h}"/><path class="ln" d="M0 ${h*.38}H${w*.55}M${w*.45} ${h*.62}H${w}"/>`;
+  const R=(x,y,a,b,c="fl",r=0)=>`<rect class="${c}" x="${x}" y="${y}" width="${a}" height="${b}" rx="${r}"/>`;
+  const P=(d,c="tn")=>`<path class="${c}" d="${d}"/>`,C=(x,y,r,c="tn")=>`<circle class="${c}" cx="${x}" cy="${y}" r="${r}"/>`;
+  const E=(x,y,rx,ry,c="fl")=>`<ellipse class="${c}" cx="${x}" cy="${y}" rx="${rx}" ry="${ry}"/>`,m=Math.min(w,h);
+  switch(k){
+  case"door":return P(`M0 ${h}H${w}`,"tn ds")+P(`M0 0A${w} ${h} 0 0 1 ${w} ${h}`)+P(`M0 ${h}V0`,"ln");
+  case"door2":{const c=w/2;return P(`M0 ${h}H${w}`,"tn ds")+P(`M0 0A${c} ${h} 0 0 1 ${c} ${h}M${w} 0A${c} ${h} 0 0 0 ${c} ${h}`)+P(`M0 ${h}V0M${w} ${h}V0`,"ln");}
+  case"slide":return P(`M0 0V${h}M${w} 0V${h}`)+R(0,0,w*.55,h/2)+R(w*.45,h/2,w*.55,h/2);
+  case"window":return R(0,0,w,h)+P(`M0 ${h/2}H${w}`);
+  case"window2":return R(0,0,w,h)+P(`M0 ${h*.38}H${w*.55}M${w*.45} ${h*.62}H${w}`,"ln");
+  case"car":{const tw=w*.09,th=h*.13;return R(-tw*.4,h*.12,tw,th,"dk",tw*.3)+R(w-tw*.6,h*.12,tw,th,"dk",tw*.3)+R(-tw*.4,h*.72,tw,th,"dk",tw*.3)+R(w-tw*.6,h*.72,tw,th,"dk",tw*.3)
+    +R(0,0,w,h,"fl",w*.28)+P(`M${w*.1} ${h*.3}Q${w/2} ${h*.24} ${w*.9} ${h*.3}M${w*.12} ${h*.8}Q${w/2} ${h*.84} ${w*.88} ${h*.8}`)+R(w*.16,h*.34,w*.68,h*.4,"tn",w*.1);}
+  case"shelf":return R(0,0,w,h)+P(`M${w/3} 0V${h}M${w*2/3} 0V${h}M0 ${h*.25}H${w}`);
+  case"washer":return R(0,0,w,h,"fl",m*.06)+P(`M0 ${h*.2}H${w}`)+C(w/2,h*.6,m*.3)+C(w/2,h*.6,m*.17);
+  case"toilet":return E(w/2,h*.6,w*.44,h*.38)+E(w/2,h*.63,w*.28,h*.25,"tn")+R(0,0,w,h*.24,"fl",m*.08);
+  case"dining":{const cw=w*.28,ch=h*.2;let o="";for(const x of [w*.14,w*.58])o+=R(x,0,cw,ch,"fl",cw*.15)+R(x,h-ch,cw,ch,"fl",cw*.15);
+    return o+R(0,h*.15,w,h*.7,"fl",m*.03);}
+  case"kitchen":{const r=Math.min(w*.07,h*.15);return R(0,0,w,h)+R(w*.06,h*.08,w*.4,h*.84,"tn",r*.3)+C(w*.17,h*.3,r)+C(w*.35,h*.3,r)+C(w*.17,h*.7,r)+C(w*.35,h*.7,r);}
+  case"fridge":return R(0,0,w,h)+P(`M0 ${h*.85}H${w}M${w/2} ${h*.85}V${h}`)+P(`M0 0L${w} ${h*.85}M${w} 0L0 ${h*.85}`,"tn ds");
+  case"sink":return R(0,0,w,h)+R(w*.15,h*.18,w*.7,h*.64,"tn",m*.1)+C(w/2,h*.5,m*.05)+P(`M${w/2} ${h*.04}V${h*.18}`,"ln");
+  case"bed":return R(0,0,w,h,"fl",m*.03)+R(w*.07,h*.04,w*.39,h*.13,"tn",m*.05)+R(w*.54,h*.04,w*.39,h*.13,"tn",m*.05)+P(`M0 ${h*.26}H${w}M${w*.68} ${h*.26}L${w} ${h*.4}`);
+  case"desk":return R(w*.3,h*.48,w*.4,h*.45,"fl",m*.06)+P(`M${w*.3} ${h*.93}H${w*.7}`,"ln")+R(0,0,w,h*.58);
+  case"storage":return R(0,0,w,h)+P(`M0 0L${w} ${h}M${w} 0L0 ${h}`,"tn ds");
+  case"sofa":return R(0,0,w,h,"fl",m*.08)+R(0,0,w,h*.3,"tn",m*.08)+R(0,0,w*.1,h,"tn",m*.08)+R(w*.9,0,w*.1,h,"tn",m*.08)+P(`M${w*.367} ${h*.3}V${h}M${w*.633} ${h*.3}V${h}`);
+  case"bench":return R(0,0,w,h,"fl",m*.1)+P(`M${w*.02} ${h/3}H${w*.98}M${w*.02} ${h*2/3}H${w*.98}`);
+  case"chair":return R(w*.06,h*.12,w*.88,h*.82,"fl",m*.12)+P(`M${w*.06} ${h*.06}H${w*.94}`,"ln");}
   return"";}
-const symPop=document.getElementById("symPop"),symBtn=document.getElementById("symBtn");
-SYMS.forEach(([k,n,wm,hm])=>{const b=document.createElement("button");b.type="button";
-  const w=40,h=Math.max(6,w*hm/wm);b.innerHTML=`<svg class="sym" viewBox="-3 -3 ${w+6} ${h+6}">${symSVG(k,w,h)}</svg>${n}`;
-  b.onclick=()=>{closeSymPop();addSym(k);};document.getElementById("symOpts").append(b);});
-function closeSymPop(){symPop.hidden=true;symBtn.setAttribute("aria-expanded","false");}
-symBtn.onclick=()=>{if(!symPop.hidden){closeSymPop();return;}
-  symPop.hidden=false;symBtn.setAttribute("aria-expanded","true");
-  const br=board.getBoundingClientRect(),r=symBtn.getBoundingClientRect();
-  symPop.style.left=Math.max(8,Math.min(r.left-br.left,br.width-symPop.offsetWidth-8))+"px";symPop.style.top=(r.bottom-br.top+6)+"px";};
+// 메뉴 창: 문(3가지) · 아이콘. 창은 바로 추가
+const symPops=[["door",document.getElementById("doorBtn"),document.getElementById("doorPop")],["icon",document.getElementById("iconBtn"),document.getElementById("iconPop")]];
+function closeSymPop(){for(const [,btn,pop] of symPops){pop.hidden=true;btn.setAttribute("aria-expanded","false");}}
+for(const [grp,btn,pop] of symPops){
+  SYMS.filter(s=>s[4]===grp).forEach(([k,n,wm,hm])=>{const b=document.createElement("button");b.type="button";
+    const sc=34/Math.max(wm,hm),w=Math.max(4,wm*sc),h=Math.max(4,hm*sc);// 미리보기는 긴 쪽을 맞춤
+    b.innerHTML=`<svg class="sym" viewBox="${-3-(40-w)/2} ${-3-(34-h)/2} 46 40">${symSVG(k,w,h)}</svg>${n}`;
+    b.onclick=()=>{closeSymPop();addSym(k);};pop.querySelector(".opts").append(b);});
+  btn.onclick=()=>{const open=pop.hidden;closeSymPop();if(!open)return;
+    pop.hidden=false;btn.setAttribute("aria-expanded","true");
+    const br=board.getBoundingClientRect(),r=btn.getBoundingClientRect();
+    pop.style.left=Math.max(8,Math.min(r.left-br.left,br.width-pop.offsetWidth-8))+"px";pop.style.top=(r.bottom-br.top+6)+"px";};}
+document.getElementById("winBtn").onclick=()=>{closeSymPop();addSym("window");};
 function addSym(k){const [,,wm,hm]=SYMS.find(s=>s[0]===k),r=board.getBoundingClientRect(),c=boardPoint(r.left+r.width/2,r.top+r.height/2);
   const w=wm*M,h=hm*M,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   items.push(tagSheet({id,type:"sym",kind:k,x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,rot:0}));selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
@@ -1013,7 +1052,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005031005";// 배포할 때 바뀜
+const BUILD="20261005170806";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
