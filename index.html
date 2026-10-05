@@ -269,6 +269,10 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
       <button type="button" data-sym-act="fx" title="좌우 뒤집기 (H)">⇋ 좌우</button>
       <button type="button" data-sym-act="fy" title="상하 뒤집기 (V)">⇅ 상하</button>
     </span>
+    <span class="grp" id="orderTools" data-edit role="group" aria-label="겹침 순서" hidden>
+      <button type="button" data-order="1" title="앞으로 (⌘] / Ctrl+])">앞으로</button>
+      <button type="button" data-order="-1" title="뒤로 (⌘[ / Ctrl+[)">뒤로</button>
+    </span>
     <span class="zv" id="zv">100%</span>
     <button type="button" id="exportBtn" hidden>내보내기</button>
     <label class="b" id="importLbl" hidden>가져오기<input type="file" id="importIn" accept="application/json,.json" hidden></label>
@@ -769,7 +773,19 @@ function setReadOnly(on){readOnly=on;document.body.classList.toggle("ro",on);
   try{localStorage.setItem("kr-readonly",on?"1":"")}catch(e){}}
 modeBtn.onclick=()=>setReadOnly(!readOnly);
 const isTyping=t=>!!t.closest?.("textarea,input,[contenteditable=true]");
-function renderAll(){items.forEach(render);emptyEl.hidden=vis().length>0;updateRectColors();updateSymTools();}
+function renderAll(){items.forEach(render);emptyEl.hidden=vis().length>0;updateRectColors();updateSymTools();updateOrderTools();}
+// 겹침 순서: 겹쳐 있는 바로 앞(뒤) 항목과 자리를 바꿈. 모눈종이·칸 색은 늘 맨 뒤라 그보다 뒤로는 못 감
+// 글상자는 늘 맨 앞 층이라 글상자끼리만 순서를 바꿈
+const orderTools=document.getElementById("orderTools");
+function overlaps(a,b){const p=vbox(a),q=vbox(b);return p.x<q.x+q.w&&q.x<p.x+p.w&&p.y<q.y+q.h&&q.y<p.y+p.h;}
+function reorder(it,dir){const layer=i=>i.type==="tbox";
+  const near=vis().filter(o=>o!==it&&layer(o)===layer(it)&&overlaps(o,it)&&(dir>0?o.z>=it.z:o.z<=it.z))
+    .sort((a,b)=>dir>0?a.z-b.z:b.z-a.z)[0];
+  if(!near){note(dir>0?"이미 맨 앞이에요.":"이미 맨 뒤예요.");return;}
+  if(near.z===it.z)it.z+=dir;else[it.z,near.z]=[near.z,it.z];
+  render(it);render(near);saveMeta();}
+orderTools.querySelectorAll("button").forEach(b=>b.onclick=()=>{const it=items.find(i=>i.id===selId);if(it)reorder(it,+b.dataset.order);board.focus({preventScroll:true});});
+function updateOrderTools(){orderTools.hidden=!(selId&&items.some(i=>i.id===selId)&&!readOnly);}
 // 네모 색: 고른 네모가 있을 때만 도구 막대에 색 버튼 (color 칸이 없으면 기본 갈색)
 // [이름, 표시, 색, 진한 색이면 1 (흰 글자)]
 const RECT_COLORS=[["red","연빨강","#F5CBC6"],["orange","연주황","#F8D9B6"],["green","연초록","#C9E7C3"],["blue","연파랑","#C3DDF5"],["dblue","진파랑","#3F6E9C",1],["purple","연보라","#DACDEE"],
@@ -781,7 +797,7 @@ RECT_COLORS.forEach(([k,n,c])=>{const b=document.createElement("button");b.type=
     render(it);updateRectColors();saveMeta();board.focus({preventScroll:true});};rectColors.append(b);});
 function updateRectColors(){const it=items.find(i=>i.id===selId),on=!!it&&it.type==="rect"&&!readOnly;rectColors.hidden=!on;
   if(on)rectColors.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.rc===it.color));}
-function select(id){selId=id;const it=items.find(i=>i.id===id);if(it&&it.type!=="rect"){it.z=++topZ;}// 네모는 눌러도 앞으로 안 나옴
+function select(id){selId=id;// 눌러도 순서는 그대로 — 앞으로·뒤로 버튼으로만 바꿈
   world.querySelectorAll(".item").forEach(e=>e.classList.toggle("sel",e.dataset.iid===id));renderAll();}
 
 function boardPoint(cx,cy){const r=board.getBoundingClientRect();return{x:(cx-r.left-cam.x)/cam.z,y:(cy-r.top-cam.y)/cam.z}}
@@ -1010,6 +1026,8 @@ board.addEventListener("keydown",ev=>{
   if(ev.code==="KeyR"&&selId&&!ev.metaKey&&!ev.ctrlKey&&!ev.altKey){const it=items.find(i=>i.id===selId);if(it){ev.preventDefault();rotate(it,ev.shiftKey?-90:90);}return;}
   if((ev.code==="KeyH"||ev.code==="KeyV")&&selId&&!ev.metaKey&&!ev.ctrlKey&&!ev.altKey){const it=items.find(i=>i.id===selId);
     if(it&&it.type==="sym"){ev.preventDefault();flipSym(it,ev.code==="KeyH"?"fx":"fy");}return;}
+  if((ev.metaKey||ev.ctrlKey)&&(ev.code==="BracketRight"||ev.code==="BracketLeft")&&selId){const it=items.find(i=>i.id===selId);
+    if(it){ev.preventDefault();reorder(it,ev.code==="BracketRight"?1:-1);}return;}
   if(ev.key==="Enter"&&selId){const it=items.find(i=>i.id===selId);if(it&&EDITABLE.includes(it.type)){ev.preventDefault();startEdit(it,true);}return;}
   if((ev.key==="Delete"||ev.key==="Backspace")&&selId){ev.preventDefault();delSel();}
   if(ev.key==="Escape"){select(null);closeCellPop();}
@@ -1061,7 +1079,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005171948";// 배포할 때 바뀜
+const BUILD="20261005172305";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
