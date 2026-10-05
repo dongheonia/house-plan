@@ -132,8 +132,13 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .tools .swatches button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--focus);border-color:transparent;font-weight:400}
 .item .bt[contenteditable="true"]{display:block;min-width:1em;cursor:text;user-select:text;-webkit-user-select:text;background:rgba(0,0,0,.25)}
 /* 펜 낙서: 상자 전체가 아니라 선 위에서만 잡히게 (아래 이미지를 가리지 않도록) */
-.item.ink{pointer-events:none}
-.item.ink>.h,.item.ink>.rot,.item.ink>.del{pointer-events:auto}
+.item.ink,.item.frm{pointer-events:none}
+.item.ink>.h,.item.ink>.rot,.item.ink>.del,.item.frm>.h,.item.frm>.rot,.item.frm>.del{pointer-events:auto}
+/* 테두리 네모: 선 위에서만 잡히고 안쪽은 아래 항목을 그대로 누를 수 있게 */
+.item svg.frm{display:block;width:100%;height:100%;overflow:visible}
+.item svg.frm .fr{fill:none}
+.item svg.frm .hit{fill:none;stroke:transparent;pointer-events:stroke}
+.tools .frame-btn::before{content:"";width:10px;height:10px;border:1.5px solid currentColor;margin-right:6px}
 .item svg.ink{display:block;width:100%;height:100%;overflow:visible}
 .item svg.ink .ln{fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round}
 .item svg.ink .hit{fill:none;stroke:transparent;stroke-linecap:round;stroke-linejoin:round;pointer-events:stroke}
@@ -261,6 +266,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" id="penBtn" class="pen-btn" data-edit aria-pressed="false" title="펜 (P)">펜</button>
     <button type="button" id="eraserBtn" class="eraser-btn" data-edit aria-pressed="false" title="지우개: 문지른 펜 선을 지워요 (E)">지우개</button>
     <button type="button" data-edit id="rectBtn" aria-label="네모 추가" title="네모 (맨 뒤에 놓여요)">□</button>
+    <button type="button" data-edit id="frameBtn" class="frame-btn" title="테두리만 있는 네모 (안쪽은 비어 있어요)">테두리</button>
     <button type="button" data-edit id="tboxBtn" class="tbox-btn" title="테두리 안에 글을 써요"><span class="free-only">글상자</span><span class="plan-only">텍스트</span></button>
     <button type="button" data-edit id="doorBtn" class="plan-only" aria-haspopup="dialog" aria-expanded="false" title="문 기호: 여닫이·양여닫이·미닫이">문</button>
     <button type="button" data-edit id="winBtn" class="plan-only" title="창문 기호">창</button>
@@ -270,6 +276,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" data-edit class="free-only" data-arw="0" aria-label="오른쪽 화살표 추가">→</button>
     <button type="button" data-edit class="free-only" data-arw="90" aria-label="아래쪽 화살표 추가">↓</button>
     <span class="swatches" id="rectColors" data-edit role="group" aria-label="네모 색" hidden></span>
+    <span class="swatches" id="frameColors" data-edit role="group" aria-label="테두리 색" hidden></span>
     <span class="grp" id="symTools" data-edit role="group" aria-label="기호 돌리기·뒤집기" hidden>
       <button type="button" data-sym-act="rot" title="90° 돌리기 (R, 반대로 ⇧R)">↻ 90°</button>
       <button type="button" data-sym-act="fx" title="좌우 뒤집기 (H)">⇋ 좌우</button>
@@ -591,6 +598,8 @@ function render(it){
     if(it.type==="text"){el.classList.add("txt");c=document.createElement("div");c.className="tx";wire(c,()=>measure(it,el));}
     else if(it.type==="arrow"){c=document.createElementNS("http://www.w3.org/2000/svg","svg");c.setAttribute("class","arw");
       c.append(document.createElementNS("http://www.w3.org/2000/svg","path"));}
+    else if(it.type==="frame"){el.classList.add("frm");c=document.createElementNS(NS,"svg");c.setAttribute("class","frm");
+      for(const cls of ["hit","fr"]){const r=document.createElementNS(NS,"rect");r.setAttribute("class",cls);c.append(r);}}
     else if(it.type==="rect"){c=document.createElement("div");c.className="box";const t=document.createElement("div");t.className="bt";wire(t);c.append(t);}
     else if(it.type==="sym"){c=document.createElementNS(NS,"svg");c.setAttribute("class","sym");c.setAttribute("preserveAspectRatio","none");}
     else if(it.type==="tbox"){c=document.createElement("div");c.className="tbox";const t=document.createElement("div");t.className="tbt";
@@ -608,6 +617,11 @@ function render(it){
   Object.assign(el.style,{left:it.x+"px",top:it.y+"px",width:it.w+"px",height:it.h+"px",zIndex:it.type==="tbox"?TOP_Z+it.z:it.z,transform:it.rot?`rotate(${it.rot}deg)`:""});
   if(it.type==="text"){const c=el.firstChild;if(editingId!==it.id&&c.textContent!==it.text)c.textContent=it.text;// 다른 기기에서 고친 글자 반영
     c.style.fontSize=it.fs+"px";measure(it,el);}
+  if(it.type==="frame"){const c=el.firstChild,bw=it.bw||3,col=(FRAME_COLORS.find(f=>f[0]===it.color)||FRAME_COLORS[2])[2];
+    c.setAttribute("viewBox",`0 0 ${it.w} ${it.h}`);
+    for(const r of c.children){const k=r.getAttribute("class")==="hit"?Math.max(bw*3,10/cam.z):bw;
+      Object.entries({x:bw/2,y:bw/2,width:Math.max(0,it.w-bw),height:Math.max(0,it.h-bw),"stroke-width":k}).forEach(([a,v])=>r.setAttribute(a,v));}
+    c.lastChild.setAttribute("stroke",col);}
   if(it.type==="sym"){const c=el.firstChild;c.setAttribute("viewBox",`0 0 ${it.w} ${it.h}`);c.innerHTML=symSVG(it.kind,it.w,it.h);
     c.style.transform=it.fx||it.fy?`scale(${it.fx?-1:1},${it.fy?-1:1})`:"";}
   if(it.type==="rect"){const col=RECT_COLORS.find(c=>c[0]===it.color),bx=el.querySelector(".box");
@@ -659,6 +673,11 @@ function addRect(){const r=board.getBoundingClientRect(),c=boardPoint(r.left+r.w
   const w=240/cam.z,h=160/cam.z,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   items.push(tagSheet({id,type:"rect",x:c.x-w/2,y:c.y-h/2,w,h,z:backZ(),rot:0}));selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
 document.getElementById("rectBtn").onclick=addRect;
+// 테두리 네모: 안쪽이 비어 있어 위에 놓아도 아래 항목이 보이고 눌림. 선 굵기는 만들 때 화면 기준 3px
+function addFrame(){const r=board.getBoundingClientRect(),c=boardPoint(r.left+r.width/2,r.top+r.height/2);
+  const w=240/cam.z,h=160/cam.z,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  items.push(tagSheet({id,type:"frame",x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,rot:0,color:"black",bw:3/cam.z}));selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
+document.getElementById("frameBtn").onclick=addFrame;
 // 글상자: 만들자마자 글 쓰기. 비운 채로 나가면 사라짐 (endEdit)
 const EDITABLE=["text","rect","tbox"];
 function addTbox(){const r=board.getBoundingClientRect(),c=boardPoint(r.left+r.width/2,r.top+r.height/2);
@@ -806,14 +825,21 @@ function updateOrderTools(){orderTools.hidden=!(selId&&items.some(i=>i.id===selI
 // 네모 색: 고른 네모가 있을 때만 도구 막대에 색 버튼 (color 칸이 없으면 기본 갈색)
 // [이름, 표시, 색, 진한 색이면 1 (흰 글자)]
 const RECT_COLORS=[["red","연빨강","#F5CBC6"],["orange","연주황","#F8D9B6"],["green","연초록","#C9E7C3"],["blue","연파랑","#C3DDF5"],["dblue","진파랑","#3F6E9C",1],["purple","연보라","#DACDEE"],
-  ["gray","연회색","#DEE1E0"],["dgray","진회색","#6F7876",1],["brown","연갈색","#DCC9B3"],["dbrown","진갈색","#7C6049",1],["ivory","연아이보리","#FBF4DC"],["divory","진아이보리","#E8DBAE"]];
+  ["gray","연회색","#DEE1E0"],["dgray","진회색","#6F7876",1],["black","연검정","#3E4443",1],["brown","연갈색","#DCC9B3"],["dbrown","진갈색","#7C6049",1],["ivory","연아이보리","#FBF4DC"],["divory","진아이보리","#E8DBAE"]];
 const rectColors=document.getElementById("rectColors");
 RECT_COLORS.forEach(([k,n,c])=>{const b=document.createElement("button");b.type="button";b.dataset.rc=k;b.title=b.ariaLabel=n;
   b.style.setProperty("--c",c);b.onclick=()=>{const it=items.find(i=>i.id===selId);if(!it||it.type!=="rect")return;
     if(it.color===k)delete it.color;else it.color=k;// 같은 색을 다시 누르면 기본 갈색으로
     render(it);updateRectColors();saveMeta();board.focus({preventScroll:true});};rectColors.append(b);});
-function updateRectColors(){const it=items.find(i=>i.id===selId),on=!!it&&it.type==="rect"&&!readOnly;rectColors.hidden=!on;
-  if(on)rectColors.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.rc===it.color));}
+// 테두리 네모 색 (기본 검정)
+const FRAME_COLORS=[["red","빨강","#D32F2F"],["blue","파랑","#1E63C4"],["black","검정","#111111"],["brown","갈색","#7B5233"],["green","초록","#2E7D32"]];
+const frameColors=document.getElementById("frameColors");
+FRAME_COLORS.forEach(([k,n,c])=>{const b=document.createElement("button");b.type="button";b.dataset.rc=k;b.title=b.ariaLabel=n;
+  b.style.setProperty("--c",c);b.onclick=()=>{const it=items.find(i=>i.id===selId);if(!it||it.type!=="frame")return;
+    it.color=k;render(it);updateRectColors();saveMeta();board.focus({preventScroll:true});};frameColors.append(b);});
+function updateRectColors(){const it=items.find(i=>i.id===selId),ok=!!it&&!readOnly;
+  for(const [box,type,def] of [[rectColors,"rect"],[frameColors,"frame","black"]]){const on=ok&&it.type===type;box.hidden=!on;
+    if(on)box.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.rc===(it.color||def)));}}
 function select(id){selId=id;group.clear();// 눌러도 순서는 그대로 — 앞으로·뒤로 버튼으로만 바꿈
   world.querySelectorAll(".item").forEach(e=>e.classList.toggle("sel",e.dataset.iid===id));renderAll();}
 
@@ -934,7 +960,7 @@ board.addEventListener("pointermove",ev=>{
   if(act.type==="pan"){cam.x=act.ox+dx;cam.y=act.oy+dy;applyCam();}
   else if(act.type==="move"){act.it.x=act.ox+dx/cam.z;act.it.y=act.oy+dy/cam.z;snapMove(act.it);render(act.it);}
   else if(act.it.type==="text"){act.it.fs=Math.max(6,act.ofs*Math.max(.05,(act.ow+dx/cam.z)/act.ow));render(act.it);snapResize(act.it);}
-  else if(act.it.type==="arrow"||act.it.type==="rect"||act.it.type==="tbox"||act.it.type==="sym"){act.it.w=Math.max(act.it.type==="sym"?4:20,act.ow+dx/cam.z);act.it.h=Math.max(act.it.type==="sym"?4:8,act.oh+dy/cam.z);render(act.it);snapResize(act.it);}
+  else if(act.it.type==="arrow"||act.it.type==="rect"||act.it.type==="tbox"||act.it.type==="sym"||act.it.type==="frame"){act.it.w=Math.max(act.it.type==="sym"?4:20,act.ow+dx/cam.z);act.it.h=Math.max(act.it.type==="sym"?4:8,act.oh+dy/cam.z);render(act.it);snapResize(act.it);}
   else{const ratio=act.oh/act.ow;let w=Math.max(30,act.ow+dx/cam.z);
     act.it.w=w;act.it.h=ev.shiftKey?Math.max(30,act.oh+dy/cam.z):w*ratio;render(act.it);snapResize(act.it,ev.shiftKey?0:ratio);}
 });
@@ -1036,7 +1062,7 @@ function drawCells(){cellG.innerHTML=Object.entries(cells).map(([k,v])=>{const c
   return col?`<rect x="${c*CELL}" y="${r*CELL}" width="${CELL}" height="${CELL}" fill="${col[2]}"/>`:"";}).join("");}
 function saveCells(){if(cloud.db)put("app/plan",{cells});else try{localStorage.setItem("kr-plan-cells",JSON.stringify(cells))}catch(e){}}
 let cellCur=null;
-[...RECT_COLORS,["none","지우기","transparent"]].forEach(([k,n,c])=>{const b=document.createElement("button");b.type="button";b.dataset.c=k;
+[...RECT_COLORS.filter(c=>c[0]!=="black"),["none","지우기","transparent"]].forEach(([k,n,c])=>{const b=document.createElement("button");b.type="button";b.dataset.c=k;
   b.innerHTML=`<span class="sw" style="--c:${c}"></span>${n}`;
   b.onclick=()=>{if(!cellCur)return;if(k==="none")delete cells[cellCur];else cells[cellCur]=k;drawCells();saveCells();closeCellPop();board.focus({preventScroll:true});};
   cellOpts.append(b);});
@@ -1119,7 +1145,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005223201";// 배포할 때 바뀜
+const BUILD="20261005223939";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
