@@ -668,7 +668,7 @@ const SYMS=[
   ["window","창문",1.8,.2,"win"],["window2","미서기창",1.8,.2],// 미서기창은 예전에 놓은 것만 그림
   ["car","자동차",1.85,4.7,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
   ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",1.8,.6,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
-  ["bed","침대",1.5,2,"icon"],["desk","책상",1.2,1,"icon"],["storage","수납 공간",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
+  ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["storage","수납 공간",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
   ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
 function symSVG(k,w,h){
@@ -696,7 +696,8 @@ function symSVG(k,w,h){
   case"sink":return R(0,0,w,h,"fl",0,gray)+R(w*.15,h*.18,w*.7,h*.64,"fl",m*.1,water)+C(w/2,h*.5,m*.05)+P(`M${w/2} ${h*.04}V${h*.18}`,"ln");
   case"bed":return R(0,0,w,h,"fl",m*.03,ivory)+R(w*.07,h*.04,w*.39,h*.13,"fl",m*.05)+R(w*.54,h*.04,w*.39,h*.13,"fl",m*.05)
     +R(0,h*.26,w,h*.74,"fl",m*.03,burg)+P(`M${w*.68} ${h*.26}L${w} ${h*.4}`,"tn",lite);// 이불
-  case"desk":return R(w*.3,h*.48,w*.4,h*.45,"fl",m*.06)+P(`M${w*.3} ${h*.93}H${w*.7}`,"ln")+R(0,0,w,h*.58,"fl",0,brown);
+  case"desk":return`<path class="fl" d="M0 0H${w}V${h}H${w/2}V${h/2}H0Z" style="fill:${brown}"/>`// ㄱ자 책상: 왼쪽 아래 사분면만 비움
+    +R(w*.2,h*.62,w*.22,h*.22,"fl",m*.04)+P(`M${w*.17} ${h*.62}V${h*.87}H${w*.42}`,"ln");// 안쪽 모서리를 보는 의자
   case"storage":return R(0,0,w,h,"fl",0,gray)+P(`M0 0L${w} ${h}M${w} 0L0 ${h}`,"tn ds");
   case"sofa":return R(0,0,w,h,"fl",m*.08,burg)+R(0,0,w,h*.3,"tn",m*.08,0,lite)+R(0,0,w*.1,h,"tn",m*.08,0,lite)+R(w*.9,0,w*.1,h,"tn",m*.08,0,lite)+P(`M${w*.367} ${h*.3}V${h}M${w*.633} ${h*.3}V${h}`,"tn",lite);
   case"bench":return R(0,0,w,h,"fl",m*.1,wood)+P(`M${w*.02} ${h/3}H${w*.98}M${w*.02} ${h*2/3}H${w*.98}`);
@@ -1085,7 +1086,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005181105";// 배포할 때 바뀜
+const BUILD="20261005182810";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
