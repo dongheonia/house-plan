@@ -103,6 +103,19 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .item .tbt[contenteditable="true"]{cursor:text;user-select:text;-webkit-user-select:text}
 .content.plan-mode .item .tbt{text-align:center}/* 설계도 글상자는 가운데 정렬 */
 .tools .tbox-btn{font-weight:600}
+/* 문·창 기호 (설계도에서만 추가). 선은 화면 기준 굵기, 반전은 안쪽 그림만 */
+.item svg.sym{display:block;width:100%;height:100%;overflow:visible}
+.sym .ln{fill:none;stroke:#1D2524;stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linecap:square}
+.sym .tn{fill:none;stroke:#1D2524;stroke-width:1.2;vector-effect:non-scaling-stroke}
+.sym .ds{stroke-dasharray:4 3}
+.sym .fl{fill:#fff;stroke:#1D2524;stroke-width:1.6;vector-effect:non-scaling-stroke}
+.content:not(.plan-mode) .plan-only{display:none!important}
+.sympop{min-width:0}
+.sympop .opts{flex-wrap:wrap;width:min(330px,calc(100vw - 48px))}
+.sympop svg{width:40px;height:30px;overflow:visible}
+.sympop .sym .ln,.sympop .sym .tn{stroke:currentColor}
+.sympop .sym .fl{fill:var(--panel);stroke:currentColor}
+.tools .grp{display:inline-flex;gap:4px;align-items:center}
 /* 설계도 칸 색 고르기 */
 .cellpop .opts{flex-wrap:wrap;width:min(400px,calc(100vw - 48px))}
 .tools .swatches{display:inline-flex;gap:4px;align-items:center;height:32px;padding:0 6px;border-radius:8px;border:1px solid var(--line);background:var(--panel)}
@@ -240,14 +253,24 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" id="eraserBtn" class="eraser-btn" data-edit aria-pressed="false" title="지우개: 문지른 펜 선을 지워요 (E)">지우개</button>
     <button type="button" data-edit id="rectBtn" aria-label="네모 추가" title="네모 (맨 뒤에 놓여요)">□</button>
     <button type="button" data-edit id="tboxBtn" class="tbox-btn" title="글상자: 테두리 안에 글을 써요">글상자</button>
+    <button type="button" data-edit id="symBtn" class="plan-only" aria-haspopup="dialog" aria-expanded="false" title="문·창문 설계기호">문·창</button>
     <button type="button" data-edit data-arw="180" aria-label="왼쪽 화살표 추가">←</button>
     <button type="button" data-edit data-arw="270" aria-label="위쪽 화살표 추가">↑</button>
     <button type="button" data-edit data-arw="0" aria-label="오른쪽 화살표 추가">→</button>
     <button type="button" data-edit data-arw="90" aria-label="아래쪽 화살표 추가">↓</button>
     <span class="swatches" id="rectColors" data-edit role="group" aria-label="네모 색" hidden></span>
+    <span class="grp" id="symTools" data-edit role="group" aria-label="기호 돌리기·뒤집기" hidden>
+      <button type="button" data-sym-act="rot" title="90° 돌리기 (R, 반대로 ⇧R)">↻ 90°</button>
+      <button type="button" data-sym-act="fx" title="좌우 뒤집기 (H)">⇋ 좌우</button>
+      <button type="button" data-sym-act="fy" title="상하 뒤집기 (V)">⇅ 상하</button>
+    </span>
     <span class="zv" id="zv">100%</span>
     <button type="button" id="exportBtn" hidden>내보내기</button>
     <label class="b" id="importLbl" hidden>가져오기<input type="file" id="importIn" accept="application/json,.json" hidden></label>
+  </div>
+  <div class="pop sympop" id="symPop" role="dialog" aria-label="문·창문 기호" hidden>
+    <div class="name">문·창문 기호</div>
+    <div class="opts" id="symOpts"></div>
   </div>
   <div class="pop cellpop" id="cellPop" role="dialog" aria-label="칸 색 선택" hidden>
     <div class="name" id="cellName"></div>
@@ -547,6 +570,7 @@ function render(it){
     else if(it.type==="arrow"){c=document.createElementNS("http://www.w3.org/2000/svg","svg");c.setAttribute("class","arw");
       c.append(document.createElementNS("http://www.w3.org/2000/svg","path"));}
     else if(it.type==="rect"){c=document.createElement("div");c.className="box";const t=document.createElement("div");t.className="bt";wire(t);c.append(t);}
+    else if(it.type==="sym"){c=document.createElementNS(NS,"svg");c.setAttribute("class","sym");c.setAttribute("preserveAspectRatio","none");}
     else if(it.type==="tbox"){c=document.createElement("div");c.className="tbox";const t=document.createElement("div");t.className="tbt";
       wire(t,()=>{const need=c.scrollHeight/1;if(need>it.h){it.h=need;el.style.height=it.h+"px";}});c.append(t);}// 글이 넘치면 상자를 아래로 늘림
     else if(it.type==="ink"){el.classList.add("ink");c=document.createElementNS(NS,"svg");c.setAttribute("class","ink");
@@ -562,6 +586,8 @@ function render(it){
   Object.assign(el.style,{left:it.x+"px",top:it.y+"px",width:it.w+"px",height:it.h+"px",zIndex:it.z,transform:it.rot?`rotate(${it.rot}deg)`:""});
   if(it.type==="text"){const c=el.firstChild;if(editingId!==it.id&&c.textContent!==it.text)c.textContent=it.text;// 다른 기기에서 고친 글자 반영
     c.style.fontSize=it.fs+"px";measure(it,el);}
+  if(it.type==="sym"){const c=el.firstChild;c.setAttribute("viewBox",`0 0 ${it.w} ${it.h}`);c.innerHTML=symSVG(it.kind,it.w,it.h);
+    c.style.transform=it.fx||it.fy?`scale(${it.fx?-1:1},${it.fy?-1:1})`:"";}
   if(it.type==="rect"){const col=RECT_COLORS.find(c=>c[0]===it.color),bx=el.querySelector(".box");
     bx.style.background=col?col[2]:"";bx.classList.toggle("light",!!col&&!col[3]);}
   if(it.type==="rect"||it.type==="tbox"){const t=edEl(el);if(editingId!==it.id&&t.textContent!==(it.text||""))t.textContent=it.text||"";
@@ -618,6 +644,36 @@ function addTbox(){const r=board.getBoundingClientRect(),c=boardPoint(r.left+r.w
   const it=tagSheet({id,type:"tbox",x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,text:"",fs});
   items.push(it);selId=id;renderAll();startEdit(it,false);}
 document.getElementById("tboxBtn").onclick=addTbox;
+// ===== 문·창문 설계기호 =====
+// 상자 w×h 안에 그림. 벽은 아래쪽 변(y=h) 기준, 경첩은 왼쪽 아래. 돌리기(rot)·뒤집기(fx,fy)로 방향을 바꿈
+// 크기는 설계도 축척(한 칸 1.82 m = 100) 기준: 1 m = 55
+const M=55;// = 100 ÷ 1.818 m
+const SYMS=[
+  ["door","여닫이문",.9,.9],["door2","양여닫이문",1.8,.9],["slide","미닫이문",1.8,.18],["window","창문",1.8,.2],["window2","미서기창",1.8,.2]];
+function symSVG(k,w,h){
+  if(k==="door")return`<path class="tn ds" d="M0 ${h}H${w}"/><path class="tn" d="M0 0A${w} ${h} 0 0 1 ${w} ${h}"/><path class="ln" d="M0 ${h}V0"/>`;
+  if(k==="door2"){const m=w/2;return`<path class="tn ds" d="M0 ${h}H${w}"/><path class="tn" d="M0 0A${m} ${h} 0 0 1 ${m} ${h}M${w} 0A${m} ${h} 0 0 0 ${m} ${h}"/><path class="ln" d="M0 ${h}V0M${w} ${h}V0"/>`;}
+  if(k==="slide"){const a=h/2;return`<path class="tn" d="M0 0V${h}M${w} 0V${h}"/><rect class="fl" x="0" y="0" width="${w*.55}" height="${a}"/><rect class="fl" x="${w*.45}" y="${a}" width="${w*.55}" height="${a}"/>`;}
+  if(k==="window")return`<rect class="fl" width="${w}" height="${h}"/><path class="tn" d="M0 ${h/2}H${w}"/>`;
+  if(k==="window2")return`<rect class="fl" width="${w}" height="${h}"/><path class="ln" d="M0 ${h*.38}H${w*.55}M${w*.45} ${h*.62}H${w}"/>`;
+  return"";}
+const symPop=document.getElementById("symPop"),symBtn=document.getElementById("symBtn");
+SYMS.forEach(([k,n,wm,hm])=>{const b=document.createElement("button");b.type="button";
+  const w=40,h=Math.max(6,w*hm/wm);b.innerHTML=`<svg class="sym" viewBox="-3 -3 ${w+6} ${h+6}">${symSVG(k,w,h)}</svg>${n}`;
+  b.onclick=()=>{closeSymPop();addSym(k);};document.getElementById("symOpts").append(b);});
+function closeSymPop(){symPop.hidden=true;symBtn.setAttribute("aria-expanded","false");}
+symBtn.onclick=()=>{if(!symPop.hidden){closeSymPop();return;}
+  symPop.hidden=false;symBtn.setAttribute("aria-expanded","true");
+  const br=board.getBoundingClientRect(),r=symBtn.getBoundingClientRect();
+  symPop.style.left=Math.max(8,Math.min(r.left-br.left,br.width-symPop.offsetWidth-8))+"px";symPop.style.top=(r.bottom-br.top+6)+"px";};
+function addSym(k){const [,,wm,hm]=SYMS.find(s=>s[0]===k),r=board.getBoundingClientRect(),c=boardPoint(r.left+r.width/2,r.top+r.height/2);
+  const w=wm*M,h=hm*M,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  items.push(tagSheet({id,type:"sym",kind:k,x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,rot:0}));selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
+function flipSym(it,ax){if(ax==="fx")it.fx=!it.fx;else it.fy=!it.fy;if(!it[ax])delete it[ax];render(it);saveMeta();}
+const symTools=document.getElementById("symTools");
+symTools.querySelectorAll("button").forEach(b=>b.onclick=()=>{const it=items.find(i=>i.id===selId);if(!it||it.type!=="sym")return;
+  if(b.dataset.symAct==="rot")rotate(it,90);else flipSym(it,b.dataset.symAct);board.focus({preventScroll:true});});
+function updateSymTools(){const it=items.find(i=>i.id===selId);symTools.hidden=!(it&&it.type==="sym"&&!readOnly);}
 
 // ===== 펜 (검은 낙서) =====
 const penBtn=document.getElementById("penBtn");let penOn=false,stroke=null;
@@ -665,7 +721,7 @@ function setReadOnly(on){readOnly=on;document.body.classList.toggle("ro",on);
   try{localStorage.setItem("kr-readonly",on?"1":"")}catch(e){}}
 modeBtn.onclick=()=>setReadOnly(!readOnly);
 const isTyping=t=>!!t.closest?.("textarea,input,[contenteditable=true]");
-function renderAll(){items.forEach(render);emptyEl.hidden=vis().length>0;updateRectColors();}
+function renderAll(){items.forEach(render);emptyEl.hidden=vis().length>0;updateRectColors();updateSymTools();}
 // 네모 색: 고른 네모가 있을 때만 도구 막대에 색 버튼 (color 칸이 없으면 기본 갈색)
 // [이름, 표시, 색, 진한 색이면 1 (흰 글자)]
 const RECT_COLORS=[["red","연빨강","#F5CBC6"],["orange","연주황","#F8D9B6"],["green","연초록","#C9E7C3"],["blue","연파랑","#C3DDF5"],["dblue","진파랑","#3F6E9C",1],["purple","연보라","#DACDEE"],
@@ -790,7 +846,7 @@ board.addEventListener("pointermove",ev=>{
   if(act.type==="pan"){cam.x=act.ox+dx;cam.y=act.oy+dy;applyCam();}
   else if(act.type==="move"){act.it.x=act.ox+dx/cam.z;act.it.y=act.oy+dy/cam.z;snapMove(act.it);render(act.it);}
   else if(act.it.type==="text"){act.it.fs=Math.max(6,act.ofs*Math.max(.05,(act.ow+dx/cam.z)/act.ow));render(act.it);snapResize(act.it);}
-  else if(act.it.type==="arrow"||act.it.type==="rect"||act.it.type==="tbox"){act.it.w=Math.max(20,act.ow+dx/cam.z);act.it.h=Math.max(8,act.oh+dy/cam.z);render(act.it);snapResize(act.it);}
+  else if(act.it.type==="arrow"||act.it.type==="rect"||act.it.type==="tbox"||act.it.type==="sym"){act.it.w=Math.max(act.it.type==="sym"?4:20,act.ow+dx/cam.z);act.it.h=Math.max(act.it.type==="sym"?4:8,act.oh+dy/cam.z);render(act.it);snapResize(act.it);}
   else{const ratio=act.oh/act.ow;let w=Math.max(30,act.ow+dx/cam.z);
     act.it.w=w;act.it.h=ev.shiftKey?Math.max(30,act.oh+dy/cam.z):w*ratio;render(act.it);snapResize(act.it,ev.shiftKey?0:ratio);}
 });
@@ -887,7 +943,7 @@ function openCellPop(cx,cy){const p=boardPoint(cx,cy),c=Math.floor(p.x/CELL),r=M
   cellPop.hidden=false;const br=board.getBoundingClientRect(),pw=cellPop.offsetWidth,ph=cellPop.offsetHeight;
   let x=cx-br.left+14,y=cy-br.top+14;if(x+pw>br.width-8)x=Math.max(8,cx-br.left-pw-14);if(y+ph>br.height-8)y=Math.max(8,cy-br.top-ph-14);
   cellPop.style.left=x+"px";cellPop.style.top=y+"px";return true;}
-function closeCellPop(){cellPop.hidden=true;cellCur=null;}
+function closeCellPop(){cellPop.hidden=true;cellCur=null;if(typeof closeSymPop==="function")closeSymPop();}
 drawCells();
 function setSheet(s){if(s===sheet)return;
   stopEditing();penEnd(true);select(null);closeCellPop();
@@ -903,6 +959,8 @@ board.addEventListener("keydown",ev=>{
   if(ev.code==="KeyP"&&!ev.metaKey&&!ev.ctrlKey&&!ev.altKey){ev.preventDefault();setPen(!penOn);return;}
   if(ev.code==="KeyE"&&!ev.metaKey&&!ev.ctrlKey&&!ev.altKey){ev.preventDefault();setEraser(!eraserOn);return;}
   if(ev.code==="KeyR"&&selId&&!ev.metaKey&&!ev.ctrlKey&&!ev.altKey){const it=items.find(i=>i.id===selId);if(it){ev.preventDefault();rotate(it,ev.shiftKey?-90:90);}return;}
+  if((ev.code==="KeyH"||ev.code==="KeyV")&&selId&&!ev.metaKey&&!ev.ctrlKey&&!ev.altKey){const it=items.find(i=>i.id===selId);
+    if(it&&it.type==="sym"){ev.preventDefault();flipSym(it,ev.code==="KeyH"?"fx":"fy");}return;}
   if(ev.key==="Enter"&&selId){const it=items.find(i=>i.id===selId);if(it&&EDITABLE.includes(it.type)){ev.preventDefault();startEdit(it,true);}return;}
   if((ev.key==="Delete"||ev.key==="Backspace")&&selId){ev.preventDefault();delSel();}
   if(ev.key==="Escape"){select(null);closeCellPop();}
@@ -954,7 +1012,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005011236";// 배포할 때 바뀜
+const BUILD="20261005030300";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
