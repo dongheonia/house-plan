@@ -669,7 +669,7 @@ const SYMS=[
   ["car","자동차",1.85,4.7,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
   ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",1.8,.6,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.2,1,"icon"],["storage","수납 공간",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
-  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,.75,"icon"],["shower","샤워부스",.9,.9,"icon"]];
+  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
 function symSVG(k,w,h){
   // f: 채움색, st: 선색 (짙은 바탕 위 선은 밝게)
@@ -704,7 +704,8 @@ function symSVG(k,w,h){
     return R(0,0,w,h,"fl",0,brown)+P(d,"tn",lite);}
   case"pwall":{let d="";const step=Math.max(h,w/30);for(let x=-h;x<w;x+=step)d+=`M${Math.max(0,x)} ${x<0?-x:h}L${Math.min(w,x+h)} ${x+h>w?h-(x+h-w):0}`;// 빗금
     return R(0,0,w,h,"fl",0,"#C9CECD")+P(d,"tn");}
-  case"tub":return R(0,0,w,h,"fl",m*.1)+R(w*.06,h*.12,w*.88,h*.76,"fl",m*.3,water)+C(w*.14,h/2,m*.04,"fl")+P(`M${w*.02} ${h/2}H${w*.07}`,"ln");// 물 담긴 욕조 + 배수구·수전
+  case"tub":{const b=Math.min(w,h)*.08;return R(0,0,w,h,"fl",m*.08)+R(b,b,w-b*2,h-b*2,"fl",m*.22,water)+C(b+m*.1,h/2,m*.03,"fl")+P(`M0 ${h/2}H${b*1.1}`,"ln");}// 큰 정사각형식 욕조, 물 담김 + 배수구·수전
+  case"utility":return R(0,0,w,h,"fl",0,"#D9DEDD")+`<path class="dk" d="M0 ${h}L${w} 0V${h}Z" style="fill:#4B5150"/>`+R(0,0,w,h,"tn");// 설비 기호 (보일러실·수도계량기·분전함 등)
   case"shower":return R(0,0,w,h,"fl",0,"#EEF3F4")+P(`M0 0L${w} ${h}M${w} 0L0 ${h}`,"tn ds")+C(w/2,h/2,m*.05,"fl")+C(w*.15,h*.15,m*.07,"tn")
     +P(`M0 ${h}H${w}`,"ln",water);// 아래쪽이 유리문
   case"tv":return R(w*.32,h*.3,w*.36,h*.7,"fl",m*.08,black)+R(0,0,w,h*.3,"fl",m*.04,black);// 화면(위) + 받침대
@@ -1084,7 +1085,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005180400";// 배포할 때 바뀜
+const BUILD="20261005181105";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
