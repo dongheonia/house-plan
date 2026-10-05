@@ -46,8 +46,8 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .content.plan-mode .empty{display:none}
 .paper{position:absolute;pointer-events:none;overflow:visible;z-index:-1000000}
 .paper .sheet{fill:#fff;stroke:none}
-.paper .g{stroke:#9CC3D5;stroke-width:1;vector-effect:non-scaling-stroke;fill:none}
-.paper .b{stroke:#4F86A0;stroke-width:2;vector-effect:non-scaling-stroke;fill:none}
+.paper .g{stroke:#000;stroke-width:1.5;vector-effect:non-scaling-stroke;fill:none}
+.paper .b{stroke:#000;stroke-width:2.5;vector-effect:non-scaling-stroke;fill:none}
 .paper .dl{stroke:#3D4A48;stroke-width:1.2;vector-effect:non-scaling-stroke;fill:none}
 .paper text{fill:#3D4A48;font-family:inherit;text-anchor:middle}
 .paper .t1{font-size:20px}
@@ -1081,7 +1081,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005172616";// 배포할 때 바뀜
+const BUILD="20261005175859";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
