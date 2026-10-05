@@ -74,6 +74,11 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .content{min-width:0;height:100%;position:relative;overflow:hidden;background:rgb(138,118,96);
   touch-action:none;cursor:grab;outline:none}
 .content.panning{cursor:grabbing}
+/* 프리폼: 빈 곳을 끌면 범위 선택 (화면 이동은 스페이스·가운데 버튼·휠·한 손가락) */
+.content:not(.plan-mode){cursor:default}
+.content.space{cursor:grab}
+.marq{position:absolute;z-index:4;border:1px dashed var(--focus);background:color-mix(in srgb,var(--focus) 12%,transparent);pointer-events:none}
+.item.gsel{outline:2px solid var(--focus);outline-offset:2px}
 .content.drop{box-shadow:inset 0 0 0 3px var(--focus)}
 .world{position:absolute;left:0;top:0;transform-origin:0 0}
 .item{position:absolute;cursor:move;user-select:none;-webkit-user-drag:none}
@@ -290,6 +295,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <div class="name" id="cellName"></div>
     <div class="opts" id="cellOpts"></div>
   </div>
+  <div class="marq" id="marq" hidden></div>
   <div class="note" id="note" hidden></div>
 </main>
 </div>
@@ -545,6 +551,7 @@ let items=[];// 이미지 {id,x,y,w,h,z,rot} · 글자 {id,type:"text",x,y,w,h,z
 // · 펜 {id,type:"ink",x,y,w,h,z,rot,pts:[[x,y]…] (그릴 때 상자 기준 좌표),vw,vh (그릴 때 상자 크기),sw (선 굵기)}
 // rot: 0/90/180/270 (가운데 기준 회전). 화살표는 오른쪽이 기본 방향이고 rot로 상하좌우를 정함
 let selId=null,topZ=1;
+let group=new Set();// 범위 선택으로 고른 여러 항목 (2개 이상일 때만)
 const urls={};
 // 시트: ""=프리폼, "plan"=설계도. 항목의 sheet 칸으로 나누고(프리폼은 칸 없음), 화면 위치·배율도 시트마다 따로
 let sheet="";const camOf={"":null,plan:null};
@@ -610,7 +617,7 @@ function render(it){
   if(it.type==="arrow"){const {w,h}=it,t=h*.38,hl=Math.min(w*.5,h*.9),a=(h-t)/2,b=(h+t)/2;
     el.firstChild.setAttribute("viewBox",`0 0 ${w} ${h}`);
     el.firstChild.firstChild.setAttribute("d",`M0 ${a}H${w-hl}V0L${w} ${h/2}L${w-hl} ${h}V${b}H0Z`);}
-  el.classList.toggle("sel",it.id===selId);el.hidden=!onSheet(it);
+  el.classList.toggle("sel",it.id===selId);el.classList.toggle("gsel",group.has(it.id));el.hidden=!onSheet(it);
 }
 const inkPath=pts=>"M"+pts.map(p=>p.join(" ")).join("L");
 // 회전을 반영한 화면상 상자 (90°/270°면 가로세로가 바뀜)
@@ -807,7 +814,7 @@ RECT_COLORS.forEach(([k,n,c])=>{const b=document.createElement("button");b.type=
     render(it);updateRectColors();saveMeta();board.focus({preventScroll:true});};rectColors.append(b);});
 function updateRectColors(){const it=items.find(i=>i.id===selId),on=!!it&&it.type==="rect"&&!readOnly;rectColors.hidden=!on;
   if(on)rectColors.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.rc===it.color));}
-function select(id){selId=id;// 눌러도 순서는 그대로 — 앞으로·뒤로 버튼으로만 바꿈
+function select(id){selId=id;group.clear();// 눌러도 순서는 그대로 — 앞으로·뒤로 버튼으로만 바꿈
   world.querySelectorAll(".item").forEach(e=>e.classList.toggle("sel",e.dataset.iid===id));renderAll();}
 
 function boardPoint(cx,cy){const r=board.getBoundingClientRect();return{x:(cx-r.left-cam.x)/cam.z,y:(cy-r.top-cam.y)/cam.z}}
@@ -903,10 +910,15 @@ board.addEventListener("pointerdown",ev=>{
   if(penOn){penStart(ev);board.setPointerCapture(ev.pointerId);return;}
   if(eraserOn){erasing=true;eraseAt(ev);board.setPointerCapture(ev.pointerId);return;}
   const itEl=readOnly?null:ev.target.closest(".item");
+  if(itEl&&group.has(itEl.dataset.iid)){// 여러 개 고른 상태에서 그중 하나를 끌면 함께 옮김
+    act={type:"gmove",sx:ev.clientX,sy:ev.clientY,orig:items.filter(i=>group.has(i.id)).map(o=>[o,o.x,o.y])};
+    board.setPointerCapture(ev.pointerId);return;}
   if(itEl){const it=items.find(i=>i.id===itEl.dataset.iid);select(it.id);
     if(ev.target.classList.contains("rot")){rotate(it,90);bp.delete(ev.pointerId);return;}
     if(ev.target.classList.contains("del")){delSel();bp.delete(ev.pointerId);return;}
     act={type:ev.target.classList.contains("h")?"resize":"move",it,sx:ev.clientX,sy:ev.clientY,ox:it.x,oy:it.y,ow:it.w,oh:it.h,ofs:it.fs};}
+  else if(!sheet&&!readOnly&&ev.pointerType!=="touch"&&ev.button===0&&!spaceDown){select(null);// 프리폼: 범위 선택
+    act={type:"marq",sx:ev.clientX,sy:ev.clientY};drawMarq(ev);marqEl.hidden=false;}
   else{select(null);act={type:"pan",sx:ev.clientX,sy:ev.clientY,ox:cam.x,oy:cam.y};board.classList.add("panning");}
   board.setPointerCapture(ev.pointerId);
 });
@@ -916,6 +928,8 @@ board.addEventListener("pointermove",ev=>{
   if(stroke){penMove(ev);return;}
   if(erasing){eraseAt(ev);return;}
   if(!act)return;let dx=ev.clientX-act.sx,dy=ev.clientY-act.sy;
+  if(act.type==="marq"){drawMarq(ev);return;}
+  if(act.type==="gmove"){for(const [o,ox,oy] of act.orig){o.x=ox+dx/cam.z;o.y=oy+dy/cam.z;render(o);}return;}
   if(act.type==="resize"&&act.it.rot){const a=act.it.rot*Math.PI/180,c=Math.cos(a),s=Math.sin(a);[dx,dy]=[dx*c+dy*s,-dx*s+dy*c];}
   if(act.type==="pan"){cam.x=act.ox+dx;cam.y=act.oy+dy;applyCam();}
   else if(act.type==="move"){act.it.x=act.ox+dx/cam.z;act.it.y=act.oy+dy/cam.z;snapMove(act.it);render(act.it);}
@@ -953,10 +967,25 @@ function snapResize(it,ratio){
     if(v){it.w+=v.shift;it.h=it.w*ratio;}else if(h){it.h+=h.shift;it.w=it.h/ratio;}}
   else{if(v)it.w+=v.shift;if(h)it.h+=h.shift;}
   render(it);showGuides(v,h);}
+// 범위 선택 상자 (화면 좌표) → 놓으면 상자에 걸친 항목을 모두 고름
+const marqEl=document.getElementById("marq");let spaceDown=false;
+function drawMarq(ev){const r=board.getBoundingClientRect(),x0=Math.min(act.sx,ev.clientX),y0=Math.min(act.sy,ev.clientY);
+  Object.assign(marqEl.style,{left:x0-r.left+"px",top:y0-r.top+"px",width:Math.abs(ev.clientX-act.sx)+"px",height:Math.abs(ev.clientY-act.sy)+"px"});}
+function endMarq(ev){marqEl.hidden=true;
+  if(Math.hypot(ev.clientX-act.sx,ev.clientY-act.sy)<4)return;// 그냥 누른 것
+  const a=boardPoint(Math.min(act.sx,ev.clientX),Math.min(act.sy,ev.clientY)),b=boardPoint(Math.max(act.sx,ev.clientX),Math.max(act.sy,ev.clientY));
+  const hit=vis().filter(it=>{const v=vbox(it);return v.x<b.x&&a.x<v.x+v.w&&v.y<b.y&&a.y<v.y+v.h;}).map(i=>i.id);
+  if(hit.length===1)select(hit[0]);else if(hit.length>1){select(null);group=new Set(hit);renderAll();}}
+async function delGroup(){const ids=[...group];group.clear();for(const id of ids){selId=id;await delSel();}renderAll();}
+// 스페이스를 누른 채 끌면 화면 이동
+document.addEventListener("keydown",ev=>{if(ev.code==="Space"&&!isTyping(ev.target)&&board.offsetWidth){if(!spaceDown){spaceDown=true;board.classList.add("space");}if(ev.target===board)ev.preventDefault();}});
+document.addEventListener("keyup",ev=>{if(ev.code==="Space"){spaceDown=false;board.classList.remove("space");}});
+window.addEventListener("blur",()=>{spaceDown=false;board.classList.remove("space");});
 let tap=null,lastTap=null;
 function endPtr(ev){bp.delete(ev.pointerId);if(bp.size<2)pinch=null;guide.hidden=hGuide.hidden=true;
   if(stroke){penEnd(ev.type==="pointercancel");tap=null;return;}
   if(erasing){erasing=false;tap=null;saveMeta();return;}
+  if(act&&act.type==="marq")endMarq(ev);
   const wasPan=act&&act.type==="pan";
   if(act){saveMeta();act=null;board.classList.remove("panning");}
   // 설계도: 빈 곳(모눈종이 칸)을 짧게 누르면 칸 색 고르기
@@ -1039,6 +1068,7 @@ board.addEventListener("keydown",ev=>{
   if((ev.metaKey||ev.ctrlKey)&&(ev.code==="BracketRight"||ev.code==="BracketLeft")&&selId){const it=items.find(i=>i.id===selId);
     if(it){ev.preventDefault();reorder(it,ev.code==="BracketRight"?1:-1);}return;}
   if(ev.key==="Enter"&&selId){const it=items.find(i=>i.id===selId);if(it&&EDITABLE.includes(it.type)){ev.preventDefault();startEdit(it,true);}return;}
+  if((ev.key==="Delete"||ev.key==="Backspace")&&group.size){ev.preventDefault();delGroup();return;}
   if((ev.key==="Delete"||ev.key==="Backspace")&&selId){ev.preventDefault();delSel();}
   if(ev.key==="Escape"){select(null);closeCellPop();}
 });
@@ -1089,7 +1119,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005190802";// 배포할 때 바뀜
+const BUILD="20261005223201";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
