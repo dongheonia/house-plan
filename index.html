@@ -113,6 +113,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .sym .dk{fill:#1D2524;stroke:none}
 .sympop .sym .dk{fill:currentColor}
 .iconpop .opts{width:min(440px,calc(100vw - 48px))}
+.iconpop{max-height:calc(100% - 70px);overflow-y:auto}/* 아이콘이 많아도 화면 안에서 스크롤 */
 .sympop{min-width:0}
 .sympop .opts{flex-wrap:wrap;width:min(330px,calc(100vw - 48px))}
 .sympop svg{width:44px;height:38px;overflow:visible}
@@ -667,7 +668,7 @@ const SYMS=[
   ["door","여닫이",.9,.9,"door"],["door2","양여닫이",1.8,.9,"door"],["slide","미닫이",1.8,.18,"door"],
   ["window","창문",1.8,.2,"win"],["window2","미서기창",1.8,.2],// 미서기창은 예전에 놓은 것만 그림
   ["car","자동차",1.85,4.7,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
-  ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
+  ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["storage","수납 공간",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
   ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
@@ -691,9 +692,9 @@ function symSVG(k,w,h){
   case"toilet":return E(w/2,h*.6,w*.44,h*.38)+E(w/2,h*.63,w*.28,h*.25,"tn")+R(0,0,w,h*.24,"fl",m*.08);
   case"dining":{const cw=w*.28,ch=h*.2;let o="";for(const x of [w*.14,w*.58])o+=R(x,0,cw,ch,"fl",cw*.15,brown)+R(x,h-ch,cw,ch,"fl",cw*.15,brown);
     return o+R(0,h*.15,w,h*.7,"fl",m*.03,brown);}
-  case"kitchen":{const dx=w*.25,dy=h*.25,r=Math.min(w*.035,dy*.14),cy=dy/2;// ㄱ자 조리대 (깊이 0.6 m) + 위쪽 팔에 4구 쿡탑
-    return`<path class="fl" d="M0 0H${w}V${h}H${w-dx}V${dy}H0Z"/>`+R(w*.08,dy*.12,w*.3,dy*.76,"tn",r*.3)
-      +C(w*.15,cy-dy*.2,r)+C(w*.31,cy-dy*.2,r)+C(w*.15,cy+dy*.2,r)+C(w*.31,cy+dy*.2,r);}
+  case"kitchen":{const dx=w*.25,dy=h*.25;return`<path class="fl" d="M0 0H${w}V${h}H${w-dx}V${dy}H0Z"/>`;}// ㄱ자 조리대 (깊이 0.6 m)
+  case"cooktop":{const r=Math.min(w,h)*.17;// 인덕션: 검은 유리판 + 4구
+    return R(0,0,w,h,"fl",m*.06,black)+C(w*.28,h*.3,r,"tn",0,lite)+C(w*.72,h*.3,r,"tn",0,lite)+C(w*.28,h*.7,r,"tn",0,lite)+C(w*.72,h*.7,r,"tn",0,lite);}
   case"fridge":return R(0,0,w,h,"fl",0,gray)+P(`M0 ${h*.85}H${w}M${w/2} ${h*.85}V${h}`)+P(`M0 0L${w} ${h*.85}M${w} 0L0 ${h*.85}`,"tn ds");
   case"sink":return R(0,0,w,h,"fl",0,gray)+R(w*.15,h*.18,w*.7,h*.64,"fl",m*.1,water)+C(w/2,h*.5,m*.05)+P(`M${w/2} ${h*.04}V${h*.18}`,"ln");
   case"bed":return R(0,0,w,h,"fl",m*.03,ivory)+R(w*.07,h*.04,w*.39,h*.13,"fl",m*.05)+R(w*.54,h*.04,w*.39,h*.13,"fl",m*.05)
@@ -1088,7 +1089,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261005183035";// 배포할 때 바뀜
+const BUILD="20261005190802";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
