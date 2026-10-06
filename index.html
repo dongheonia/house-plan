@@ -697,7 +697,7 @@ const SYMS=[
   ["car","자동차",1.85,4.7,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
   ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["storage","수납 공간",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
-  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.4,1.05,"icon"]];
+  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.4,1.05,"icon"],["fan","환풍기",.3,.3,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
 function symSVG(k,w,h){
   // f: 채움색, st: 선색 (짙은 바탕 위 선은 밝게)
@@ -752,6 +752,10 @@ function symSVG(k,w,h){
     return R(w*.36,0,w*.28,h*.1,"fl",w*.05,"#4A3020")+R(w*.44,h*.08,w*.12,h*.34,"fl",0,"#5A3B22")
       +`<path class="fl" d="${body}" style="fill:#C98A4B"/>`+C(w/2,h*.6,w*.14,"fl","#2A1A10")+R(w*.34,h*.8,w*.32,h*.04,"fl",w*.01,"#4A3020")
       +`<path d="${str}" style="fill:none;stroke:#EDE6D6;stroke-width:.7;vector-effect:non-scaling-stroke"/>`;}
+  case"fan":{const cx=w/2,cy=h/2,r=m*.38;let bl="";// 환풍기: 네모 틀 + 둥근 망 + 날개 4장
+    for(let i=0;i<4;i++){const a=i*Math.PI/2,c=Math.cos(a),s=Math.sin(a),p=(d,t)=>`${(cx+d*Math.cos(a+t)).toFixed(2)} ${(cy+d*Math.sin(a+t)).toFixed(2)}`;
+      bl+=`<path class="tn" d="M${p(r*.18,0)}Q${p(r*.75,-.5)} ${p(r*.92,.15)}Q${p(r*.6,.55)} ${p(r*.18,.6)}Z" style="fill:#8E9694"/>`;}
+    return R(0,0,w,h,"fl",m*.08,"#E6E9E8")+C(cx,cy,r,"fl","#F7F8F8")+bl+C(cx,cy,r*.18,"fl","#5E6665")+C(cx,cy,r,"tn");}
   case"tv":return R(w*.32,h*.3,w*.36,h*.7,"fl",m*.08,black)+R(0,0,w,h*.3,"fl",m*.04,black);// 화면(위) + 받침대
   case"chair":return R(w*.04,h*.1,w*.92,h*.86,"fl",m*.12,wood)+R(w*.16,h*.24,w*.68,h*.6,"fl",m*.12,burg)+P(`M${w*.06} ${h*.06}H${w*.94}`,"ln");}// 나무 의자 + 버건디 쿠션
   return"";}
@@ -1159,7 +1163,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261006012001";// 배포할 때 바뀜
+const BUILD="20261006012120";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
