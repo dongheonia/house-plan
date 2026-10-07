@@ -1224,7 +1224,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008003724";// 배포할 때 바뀜
+const BUILD="20261008004039";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1367,7 +1367,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
 // 설계도 시트의 항목·칸 색을 읽어 three.js로 그림 (탭을 처음 열 때 불러옴). 설계도가 바뀌면 다시 그림
 // 좌표: 보드 1 m = 55 → 3D 1 = 1 m. 보드 x → x, 보드 y(아래) → z
 var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true,roof:false,fenceH:1.4};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
-const DOOR_H=2.1,SILL=.9,WALL_T=.12,CAB_H=.5,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
+const DOOR_H=2.1,SILL=.9,SLIT=[1.2,1.8],WALL_T=.12,CAB_H=.5,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
 const OPEN_KINDS={door:"door",door2:"door",slide:"door",garage:"garage",window:"win",window2:"win",slit:"slit"};
 // 색: 벽·돌(회랑)·지붕
 const C3={wall:"#F4F1EA",stone:"#D9D0C1",roof:"#4A525C",gable:"#EDE7DA",wood:"#9A7350",lwood:"#C39A68",door:"#A67C52",
@@ -1565,7 +1565,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   // ② 문·창을 벽 줄에 붙이기 — 차례대로 찾음
   //  외여닫이: 문짝 직선(그림의 왼쪽 변, 좌우 뒤집으면 오른쪽) → 호의 밑변 / 양여닫이: 밑변 / 미닫이·창: 가운데 선
   //  위에서 못 찾은 문: 회랑(복도)↔방 경계를 따라 놓인 것이면 그 경계 → 그래도 없으면 걸친 가장 가까운 벽
-  const doorPanels=[];
+  const doorPanels=[],slits=[];
   const near=(r,box,pad)=>r.horiz?(r.line>=box.z0-pad&&r.line<=box.z1+pad&&r.b>box.x0&&r.a<box.x1):(r.line>=box.x0-pad&&r.line<=box.x1+pad&&r.b>box.z0&&r.a<box.z1);
   const ROT={L:"T",T:"R",R:"B",B:"L"};// 시계 방향 90°
   const sideLine=(vb,side,rot)=>{for(let k=0;k<rot/90;k++)side=ROT[side];
@@ -1591,15 +1591,16 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     // 같은 자리에 겹친 벽 줄(네모 변·칸 경계)도 모두 비움
     for(const r of runs)if(r.kind==="wall"&&!!r.horiz===!!H0&&Math.abs(r.line-L)<=.25&&r.b>a&&r.a<b)r.opens.push({a:Math.max(a,r.a),b:Math.min(b,r.b),type});
     const grp=sameLine(target),ga=Math.min(...grp.map(q=>q.a)),gb=Math.max(...grp.map(q=>q.b));
-    if(isDoor)doorPanels.push({horiz:H0,line:L,a:Math.max(a,ga),b:Math.min(b,gb),kind:it.kind});}
+    if(isDoor)doorPanels.push({horiz:H0,line:L,a:Math.max(a,ga),b:Math.min(b,gb),kind:it.kind});
+    if(type==="slit")slits.push({horiz:H0,line:L,a:Math.max(a,ga),b:Math.min(b,gb)});}
   // ③ 세우기
   const wm=mat3(C3.wall),glass=mat3(C3.glass,{op:.45,r:.1}),GAR_H=()=>Math.max(.5,Math.min(2.3,H-.15));// 차고문 높이
   const blockers=[];// 햇빛을 막는 것 (벽·문·아치·지붕·천장) — 유리는 통과
   const piece=(horiz,line,a,b,y0,y1,m=wm,t=WALL_T)=>{if(b-a<.01||y1-y0<.01)return;const L=b-a,h=y1-y0,mid=(a+b)/2;
     const o=horiz?add(new THREE.BoxGeometry(L,h,t),m,mid,y0+h/2,line):add(new THREE.BoxGeometry(t,h,L),m,line,y0+h/2,mid);if(m!==glass)blockers.push(o);};
   // 한 줄 벽: 문·창·슬릿 경계로 잘라 구간마다 높이 띠를 계산 (겹쳐도 됨 — 창 아래 슬릿 등)
-  //  문 0~2.1 / 차고문 0~2.3 / 창 0.9~2.1 유리 / 슬릿 0.9~2.1 뚫림(유리 없음)
-  const band=o=>o.type==="door"?[0,Math.min(DOOR_H,H),0]:o.type==="garage"?[0,GAR_H(),0]:[Math.min(SILL,H),Math.min(DOOR_H,H),o.type==="win"?1:0];
+  //  문 0~2.1 / 차고문 0~2.3 / 창 0.9~2.1 유리 / 슬릿 1.2~1.8 길게 뚫린 띠(유리 없음, 아래에 검은 선반)
+  const band=o=>o.type==="door"?[0,Math.min(DOOR_H,H),0]:o.type==="garage"?[0,GAR_H(),0]:o.type==="slit"?[Math.min(SLIT[0],H),Math.min(SLIT[1],H),0]:[Math.min(SILL,H),Math.min(DOOR_H,H),1];
   const wallLine=r=>{const {horiz,line,a,b}=r,xs=[...new Set([a,b,...r.opens.flatMap(o=>[o.a,o.b])])].filter(v=>v>=a&&v<=b).sort((p,q)=>p-q);
     for(let i=0;i<xs.length-1;i++){const x0=xs[i],x1=xs[i+1];if(x1-x0<.005)continue;
       const here=r.opens.filter(o=>o.a<x1-.001&&o.b>x0+.001),slit=here.some(o=>o.type==="slit");
@@ -1618,6 +1619,9 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     for(let i=0;i<=n;i++){const u=a+i*bw,[x,z]=horiz?[u,line]:[line,u];// 기둥 + 기둥머리 + 받침
       blockers.push(add(new THREE.CylinderGeometry(.15,.17,spring,20),stone,x,spring/2,z));add(new THREE.BoxGeometry(.42,.14,.42),stone,x,spring+.07,z);add(new THREE.BoxGeometry(.42,.1,.42),stone,x,.05,z);}};
   if(T3.walls&&H>0){for(const r of runs)r.kind==="arc"?arcadeLine(r):wallLine(r);
+    // 슬릿 선반: 틈 아래 검은 판이 벽 양쪽으로 튀어나옴
+    const lm=mat3("#1E2022",{r:.45});for(const sl of slits){const L=sl.b-sl.a,y=Math.min(SLIT[0],H);if(L<.05)continue;
+      const o=sl.horiz?add(new THREE.BoxGeometry(L,.05,WALL_T+.3),lm,(sl.a+sl.b)/2,y-.025,sl.line):add(new THREE.BoxGeometry(WALL_T+.3,.05,L),lm,sl.line,y-.025,(sl.a+sl.b)/2);blockers.push(o);}
     // 닫힌 문짝: 벽 구멍을 채워 양쪽에서 보이게 (양여닫이는 두 짝, 미닫이는 겹친 두 장)
     const dm=mat3(C3.door),dm2=mat3(C3.lwood),hm=mat3(C3.steel),DT=.05,DH=Math.min(DOOR_H,H)-.01;
     for(const d of doorPanels){const {horiz,line}=d,gap=.006;
