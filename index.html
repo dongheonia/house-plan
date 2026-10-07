@@ -33,13 +33,23 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .layout{display:grid;grid-template-columns:2fr 8fr;grid-template-rows:auto minmax(0,1fr);flex:1;min-height:0}
 /* 메모는 왼쪽에 고정, 오른쪽은 위쪽 막대로 고른 위치(지도)·프리폼(보드)·설계도 중 하나만 */
 .layout>.memo{grid-column:1;grid-row:1/3}
-.layout>.mapbox,.layout>.content{grid-column:2;grid-row:2;min-width:0}
+.layout>.mapbox,.layout>.content,.layout>.three{grid-column:2;grid-row:2;min-width:0}
 .viewbar{grid-column:2;grid-row:1;display:flex;background:var(--panel);border-bottom:1px solid var(--line)}
 .viewbar button{flex:1 1 0;height:40px;border:0;background:none;color:var(--muted);font:inherit;font-size:.88rem;font-weight:600;cursor:pointer}
 .viewbar button+button{border-left:1px solid var(--line)}
 .viewbar button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--focus)}
 .viewbar button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
-@media (min-width:761px){.layout:not([data-view="map"])>.mapbox,.layout[data-view="map"]>.content{display:none}}
+@media (min-width:761px){.layout:not([data-view="map"])>.mapbox,.layout[data-view="map"]>.content,.layout[data-view="three"]>.content,.layout:not([data-view="three"])>.three{display:none}}
+/* 3D */
+.three{position:relative;height:100%;background:#DDE2E0;overflow:hidden}
+#threeView{position:absolute;inset:0;touch-action:none}
+#threeView canvas{display:block}
+.three .tools{position:absolute;left:12px;top:12px;z-index:3;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.three .tools button{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.82rem;cursor:pointer}
+.three .tools button[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:600}
+.three .tools label{height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:.82rem;display:inline-flex;align-items:center;gap:8px}
+.three .tools input[type=range]{width:110px}
+.three .hint{position:absolute;left:12px;bottom:12px;z-index:3;background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.78rem}
 /* 설계도: 프리폼과 같은 보드에 10×10 모눈종이(100평 정사각형)를 깔고 항목은 시트별로 따로 */
 .content.plan-mode{background:#DDE2E0}
 .content.plan-mode .item .tx{color:#000}
@@ -227,7 +237,19 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   <button type="button" role="tab" data-tab="map" aria-selected="true">위치</button>
   <button type="button" role="tab" data-tab="board" aria-selected="false">프리폼</button>
   <button type="button" role="tab" data-tab="plan" aria-selected="false">설계도</button>
+  <button type="button" role="tab" data-tab="three" aria-selected="false">3D</button>
 </nav>
+<section class="three" data-pane="three" aria-label="설계도 3D">
+  <div id="threeView"></div>
+  <div class="tools">
+    <button type="button" data-v3="tilt">비스듬히</button>
+    <button type="button" data-v3="top">위에서</button>
+    <button type="button" id="wallsBtn" aria-pressed="true" title="네모(방) 둘레에 벽 세우기">벽</button>
+    <label>벽 높이 <input type="range" id="wallH" min="0.3" max="3.5" step="0.1" value="2.4"><span id="wallHv">2.4 m</span></label>
+    <button type="button" id="labelsBtn" aria-pressed="true" title="텍스트를 방 이름표로 띄우기">이름표</button>
+  </div>
+  <div class="hint">끌어서 돌리기 · 휠/두 손가락으로 확대 · 오른쪽 버튼(두 손가락 끌기)으로 이동 — 설계도를 바꾸면 자동으로 다시 그려요</div>
+</section>
 <div class="mapbox on" id="mapbox" data-pane="map">
   <svg id="map" role="img" aria-label="대한민국 시군 지도"></svg>
   <div class="layers" role="group" aria-label="지도 레이어">
@@ -321,6 +343,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   <button type="button" role="tab" data-tab="memo" aria-selected="false">메모</button>
   <button type="button" role="tab" data-tab="board" aria-selected="false">보드</button>
   <button type="button" role="tab" data-tab="plan" aria-selected="false">설계도</button>
+  <button type="button" role="tab" data-tab="three" aria-selected="false">3D</button>
 </nav>
 </div>
 
@@ -828,7 +851,7 @@ function setReadOnly(on){readOnly=on;document.body.classList.toggle("ro",on);
   try{localStorage.setItem("kr-readonly",on?"1":"")}catch(e){}}
 modeBtn.onclick=()=>setReadOnly(!readOnly);
 const isTyping=t=>!!t.closest?.("textarea,input,[contenteditable=true]");
-function renderAll(){items.forEach(render);emptyEl.hidden=vis().length>0;updateRectColors();updateSymTools();updateOrderTools();}
+function renderAll(){if(typeof mark3D==="function")mark3D();items.forEach(render);emptyEl.hidden=vis().length>0;updateRectColors();updateSymTools();updateOrderTools();}
 // 겹침 순서: 겹쳐 있는 바로 앞(뒤) 항목과 자리를 바꿈. 모눈종이·칸 색은 늘 맨 뒤라 그보다 뒤로는 못 감
 // 글상자는 늘 맨 앞 층이라 글상자끼리만 순서를 바꿈
 const orderTools=document.getElementById("orderTools");
@@ -1077,7 +1100,7 @@ const paperEl=(()=>{const m=-210,size=PAPER-m+40,svgEl=document.createElementNS(
 // 칸 색: 칸을 짧게 누르면 색 고르기. {"행,열": 색 이름} — 클라우드는 app/plan, 아니면 이 기기에
 let cells={};try{cells=JSON.parse(localStorage.getItem("kr-plan-cells")||"{}")||{}}catch(e){}
 const cellG=paperEl.querySelector(".cells"),cellPop=document.getElementById("cellPop"),cellOpts=document.getElementById("cellOpts");
-function drawCells(){cellG.innerHTML=Object.entries(cells).map(([k,v])=>{const col=RECT_COLORS.find(c=>c[0]===v),[r,c]=k.split(",").map(Number);
+function drawCells(){if(typeof mark3D==="function")mark3D();cellG.innerHTML=Object.entries(cells).map(([k,v])=>{const col=RECT_COLORS.find(c=>c[0]===v),[r,c]=k.split(",").map(Number);
   return col?`<rect x="${c*CELL}" y="${r*CELL}" width="${CELL}" height="${CELL}" fill="${col[2]}"/>`:"";}).join("");}
 function saveCells(){if(cloud.db)put("app/plan",{cells});else try{localStorage.setItem("kr-plan-cells",JSON.stringify(cells))}catch(e){}}
 let cellCur=null;
@@ -1164,7 +1187,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261006015848";// 배포할 때 바뀜
+const BUILD="20261007224328";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1181,10 +1204,11 @@ function showTab(name){if(name!=="memo"){layout.dataset.view=name;try{localStora
   tabBtns.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===(b.closest(".viewbar")?layout.dataset.view:name)));
   if(name==="board"||name==="plan")setSheet(name==="plan"?"plan":"");
   document.querySelectorAll("[data-pane]").forEach(p=>p.classList.toggle("on",p.dataset.pane===(name==="plan"?"board":name)));
+  show3D(name==="three");
   closePop();try{localStorage.setItem("kr-tab",name)}catch(e){}}
 tabBtns.forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 try{const v=localStorage.getItem("kr-view"),t=localStorage.getItem("kr-tab");
-  if(v==="map"||v==="board"||v==="plan")showTab(v);
+  if(v==="map"||v==="board"||v==="plan"||v==="three")showTab(v);
   if(t&&t!==v&&tabBtns.some(b=>b.dataset.tab===t))showTab(t);}catch(e){}
 
 // ===== 알림 한 줄 =====
@@ -1301,6 +1325,132 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
   tabBtns.forEach(b=>b.addEventListener("click",()=>setTimeout(fitOnce)));
   db.collection("items").onSnapshot(snap=>{applyItems(snap);arrived("i");fitOnce();},()=>note("동기화가 끊겼어요. 새로고침해 주세요."));
 })();
+
+// ===== 3D: 설계도를 입체로 =====
+// 설계도 시트의 항목·칸 색을 읽어 three.js로 그림 (탭을 처음 열 때 불러옴). 설계도가 바뀌면 다시 그림
+// 좌표: 보드 1 m = 55 → 3D 1 = 1 m. 보드 x → x, 보드 y(아래) → z
+var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
+const DOOR_H=2.1,SILL=.9,WALL_T=.12,u2m=v=>v/M;
+// 아이콘 높이(m)·옆면 색, lift: 바닥에서 띄움, glass: 유리, wall: 벽 높이를 따름
+const H3={car:[1.45,"#4B5150"],shelf:[1.8,"#9A7350"],washer:[.85,"#AEB4B3"],toilet:[.4,"#FFFFFF"],dining:[.75,"#9A7350"],
+  kitchen:[.9,"#FFFFFF"],cooktop:[.03,"#111111",{lift:.9}],fridge:[1.8,"#AEB4B3"],sink:[.9,"#AEB4B3"],bed:[.55,"#F3E8C6"],
+  desk:[.75,"#9A7350"],desk2:[.75,"#9A7350"],storage:[2,"#AEB4B3"],sofa:[.8,"#7A1F2E"],bench:[.45,"#C39A68"],chair:[.45,"#C39A68"],
+  tv:[1.05,"#111111"],closet:[2.1,"#9A7350"],pwall:[0,"#C9CECD",{wall:1}],tub:[.55,"#FFFFFF"],shower:[2,"#A9DBF5",{glass:1}],
+  utility:[1,"#D9DEDD"],bust:[1.4,"#F4F1EA"],guitar:[.1,"#C98A4B"],fan:[.05,"#E6E9E8",{ceil:1}]};
+const OPEN_KINDS={door:"door",door2:"door",slide:"door",window:"win",window2:"win"};
+function show3D(on){if(!T3)return;T3.on=on;if(on)open3D();}
+function mark3D(){if(!T3)return;T3.dirty=true;if(T3.on&&T3.ready)clearTimeout(T3.t),T3.t=setTimeout(build3D,300);}
+async function open3D(){
+  if(!T3.ready)T3.ready=(async()=>{
+    await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js");
+    await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js");
+    const box=document.getElementById("threeView");
+    const r=new THREE.WebGLRenderer({antialias:true});r.setPixelRatio(Math.min(2,devicePixelRatio));
+    r.shadowMap.enabled=true;r.shadowMap.type=THREE.PCFSoftShadowMap;box.append(r.domElement);
+    const scene=new THREE.Scene();scene.background=new THREE.Color("#DDE2E0");
+    const cam=new THREE.PerspectiveCamera(45,1,.1,500);
+    const ctl=new THREE.OrbitControls(cam,r.domElement);ctl.enableDamping=true;ctl.maxPolarAngle=Math.PI/2-.02;
+    scene.add(new THREE.HemisphereLight(0xffffff,0xb8c0be,.9));
+    const sun=new THREE.DirectionalLight(0xffffff,.6);sun.position.set(-5,34,-6);// 거의 머리 위 해 — 방 안이 벽 그림자에 덜 가리게sun.castShadow=true;
+    sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-16,right:16,top:16,bottom:-16,near:1,far:80});
+    const C=SIDE_M/2;sun.target.position.set(C,0,C);scene.add(sun,sun.target);
+    const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:"#D3D9D7",roughness:1}));
+    ground.rotation.x=-Math.PI/2;ground.position.y=-.01;ground.receiveShadow=true;scene.add(ground);
+    const root=new THREE.Group();scene.add(root);
+    Object.assign(T3,{r,scene,cam,ctl,root,box});view3D("tilt");
+    new ResizeObserver(size3D).observe(box);size3D();
+    const loop=()=>{requestAnimationFrame(loop);if(!T3.on||!box.offsetWidth)return;ctl.update();r.render(scene,cam);};loop();
+  })().catch(e=>{T3.ready=null;note("3D를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.");throw e;});
+  await T3.ready;size3D();if(T3.dirty)build3D();}
+function size3D(){const b=T3.box;if(!b||!b.offsetWidth)return;T3.r.setSize(b.offsetWidth,b.offsetHeight);T3.cam.aspect=b.offsetWidth/b.offsetHeight;T3.cam.updateProjectionMatrix();}
+function view3D(k){const C=SIDE_M/2;T3.ctl.target.set(C,0,C);
+  if(k==="top")T3.cam.position.set(C,30,C+.01);else T3.cam.position.set(C-4,17,C+20);T3.ctl.update();}
+// 아이콘 그림(symSVG)을 윗면 무늬로: 화면용 CSS 대신 굵기를 직접 넣은 SVG를 그려 캔버스로
+const texCache={};
+// 그림은 종류·크기별로 한 번만 그리고, 항목마다 그 캔버스를 쓰는 새 텍스처를 만듦 (다 그려지면 모두 갱신)
+function symTex(kind,w,h){const key=kind+":"+Math.round(w)+"x"+Math.round(h);let e=texCache[key];
+  if(!e){e=texCache[key]=symCanvas(kind,w,h);}
+  const tex=new THREE.CanvasTexture(e.cv);tex.flipY=false;if(e.done)tex.needsUpdate=true;else e.texs.push(tex);return tex;}
+function symCanvas(kind,w,h){
+  const sw=Math.max(w,h)/140,px=512,cw=w>=h?px:Math.max(32,Math.round(px*w/h)),ch=h>=w?px:Math.max(32,Math.round(px*h/w));
+  const css=`.ln{fill:none;stroke:#1D2524;stroke-width:${sw*2}px;stroke-linecap:square}.tn{fill:none;stroke:#1D2524;stroke-width:${sw}px}.ds{stroke-dasharray:${sw*3} ${sw*2}}.fl{fill:#fff;stroke:#1D2524;stroke-width:${sw*1.3}px}.dk{fill:#1D2524;stroke:none}`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${cw}" height="${ch}" preserveAspectRatio="none"><style>${css}</style>${symSVG(kind,w,h)}</svg>`;
+  const cv=document.createElement("canvas");cv.width=cw;cv.height=ch;const e={cv,done:false,texs:[]};
+  const im=new Image();im.onload=()=>{cv.getContext("2d").drawImage(im,0,0,cw,ch);e.done=true;e.texs.forEach(t=>t.needsUpdate=true);e.texs=[];};
+  im.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);return e;}
+// 바닥 모양 (단위 0~1, 아래쪽이 +): ㄱ자 책상·주방은 비운 칸을 빼고
+function footprint(kind){if(kind==="desk")return[[0,0],[1,0],[1,1],[.5,1],[.5,.5],[0,.5]];
+  if(kind==="kitchen")return[[0,0],[1,0],[1,1],[.75,1],[.75,.25],[0,.25]];return[[0,0],[1,0],[1,1],[0,1]];}
+const mat3=c=>new THREE.MeshStandardMaterial({color:c,roughness:.85});
+function clear3D(g){for(const o of [...g.children]){g.remove(o);o.traverse(n=>{n.geometry&&n.geometry.dispose();
+  for(const m of [].concat(n.material||[]))if(m){m.map&&m.map.dispose();m.dispose();}});}}
+function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;clear3D(g);
+  const P=items.filter(i=>i.sheet==="plan"),S=SIDE_M,c=CELL/M;
+  const add=(geo,m,x,y,z,sh=true)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=sh;o.receiveShadow=true;g.add(o);return o;};
+  // 종이 + 칸 색
+  add(new THREE.BoxGeometry(S,.02,S),mat3("#FFFFFF"),S/2,-.01,S/2,false);
+  for(const [k,v] of Object.entries(cells)){const col=RECT_COLORS.find(x=>x[0]===v);if(!col)continue;const [rw,cl]=k.split(",").map(Number);
+    add(new THREE.BoxGeometry(c,.01,c),mat3(col[2]),cl*c+c/2,.005,rw*c+c/2,false);}
+  // 네모 = 방 바닥 (겹침 순서대로 조금씩 높게)
+  const rects=P.filter(i=>i.type==="rect").sort((a,b)=>a.z-b.z);
+  rects.forEach((it,n)=>{const b=vbox(it),col=RECT_COLORS.find(x=>x[0]===it.color);
+    add(new THREE.BoxGeometry(u2m(b.w),.02,u2m(b.h)),mat3(col?col[2]:"rgb(115,98,79)"),u2m(b.x+b.w/2),.012+n*.001,u2m(b.y+b.h/2),false);});
+  // 테두리 네모 = 바닥 위 색 선
+  for(const it of P.filter(i=>i.type==="frame")){const b=vbox(it),t=u2m((it.bw||3)*1.7),m=mat3((FRAME_COLORS.find(f=>f[0]===it.color)||FRAME_COLORS[2])[2]);
+    const x=u2m(b.x),z=u2m(b.y),w=u2m(b.w),d=u2m(b.h);
+    add(new THREE.BoxGeometry(w,.03,t),m,x+w/2,.04,z+t/2,false);add(new THREE.BoxGeometry(w,.03,t),m,x+w/2,.04,z+d-t/2,false);
+    add(new THREE.BoxGeometry(t,.03,d),m,x+t/2,.04,z+d/2,false);add(new THREE.BoxGeometry(t,.03,d),m,x+w-t/2,.04,z+d/2,false);}
+  // 문·창: 놓인 벽 선과 폭
+  const opens=[];
+  for(const it of P.filter(i=>i.type==="sym"&&OPEN_KINDS[i.kind])){const b=vbox(it),rot=((it.rot||0)%360+360)%360,horiz=rot%180===0;let line;
+    if(it.kind==="door"||it.kind==="door2"){const bottom=!it.fy;// 문은 그림의 아래쪽 변이 벽 (상하 뒤집으면 위쪽)
+      line=rot===0?(bottom?b.y+b.h:b.y):rot===180?(bottom?b.y:b.y+b.h):rot===90?(bottom?b.x:b.x+b.w):(bottom?b.x+b.w:b.x);}
+    else line=horiz?b.y+b.h/2:b.x+b.w/2;
+    opens.push({horiz,line:u2m(line),a:u2m(horiz?b.x:b.y),b:u2m(horiz?b.x+b.w:b.y+b.h),type:OPEN_KINDS[it.kind]});}
+  // 벽: 네모의 네 변을 따라, 문·창 자리는 비움
+  const H=T3.wallH,wm=mat3("#F7F6F2"),glass=new THREE.MeshStandardMaterial({color:"#A9DBF5",transparent:true,opacity:.45,roughness:.1});
+  const piece=(horiz,line,a,b,y0,y1,m=wm)=>{if(b-a<.01||y1-y0<.01)return;const L=b-a,h=y1-y0,mid=(a+b)/2;
+    if(horiz)add(new THREE.BoxGeometry(L,h,WALL_T),m,mid,y0+h/2,line);else add(new THREE.BoxGeometry(WALL_T,h,L),m,line,y0+h/2,mid);};
+  if(T3.walls&&H>0)for(const it of rects){const b=vbox(it),x0=u2m(b.x),z0=u2m(b.y),x1=u2m(b.x+b.w),z1=u2m(b.y+b.h);
+    for(const [horiz,line,a,bb] of [[1,z0,x0,x1],[1,z1,x0,x1],[0,x0,z0,z1],[0,x1,z0,z1]]){
+      const hit=opens.filter(o=>!!o.horiz===!!horiz&&Math.abs(o.line-line)<=.33&&o.b>a&&o.a<bb).map(o=>({...o,a:Math.max(a,o.a),b:Math.min(bb,o.b)})).sort((p,q)=>p.a-q.a);
+      let at=a;for(const o of hit){piece(horiz,line,at,o.a,0,H);
+        if(o.type==="door")piece(horiz,line,o.a,o.b,Math.min(DOOR_H,H),H);
+        else{piece(horiz,line,o.a,o.b,0,Math.min(SILL,H));piece(horiz,line,o.a,o.b,Math.min(DOOR_H,H),H);piece(horiz,line,o.a,o.b,Math.min(SILL,H),Math.min(DOOR_H,H),glass);}
+        at=Math.max(at,o.b);}
+      piece(horiz,line,at,bb,0,H);}}
+  // 가구·설비 아이콘: 바닥 모양을 높이만큼 세우고 윗면에 아이콘 그림
+  for(const it of P.filter(i=>i.type==="sym"&&H3[i.kind])){const [hh,side,opt={}]=H3[it.kind];const ht=opt.wall?H||2.4:hh;if(!ht)continue;
+    const W=u2m(it.w),D=u2m(it.h),fp=footprint(it.kind).map(([u,v])=>[((it.fx?1-u:u)-.5)*W,((it.fy?1-v:v)-.5)*D]);
+    const sh=new THREE.Shape();fp.forEach(([x,y],k)=>k?sh.lineTo(x,y):sh.moveTo(x,y));
+    const geo=new THREE.ExtrudeGeometry(sh,{depth:ht,bevelEnabled:false});
+    const tex=symTex(it.kind,it.w,it.h);tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;
+    tex.repeat.set((it.fx?-1:1)/W,(it.fy?-1:1)/D);tex.offset.set(.5,.5);
+    const top=new THREE.MeshStandardMaterial({map:tex,roughness:.8,transparent:!!opt.glass,opacity:opt.glass?.55:1});
+    const sideM=new THREE.MeshStandardMaterial({color:side,roughness:.8,transparent:!!opt.glass,opacity:opt.glass?.3:1});
+    const mesh=new THREE.Mesh(geo,[top,sideM]);mesh.rotation.x=Math.PI/2;mesh.castShadow=!opt.glass;mesh.receiveShadow=true;
+    const lift=opt.ceil?Math.max(.1,(H||2.4)-ht):(opt.lift||0);mesh.position.y=lift+ht;
+    const grp=new THREE.Group();grp.add(mesh);
+    const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo,30),new THREE.LineBasicMaterial({color:"#1D2524",transparent:true,opacity:.35}));
+    edges.rotation.x=Math.PI/2;edges.position.y=mesh.position.y;grp.add(edges);
+    grp.position.set(u2m(it.x+it.w/2),0,u2m(it.y+it.h/2));grp.rotation.y=-(it.rot||0)*Math.PI/180;g.add(grp);}
+  // 이름표: 글상자·글자를 방 위에 띄움
+  if(T3.labels)for(const it of P.filter(i=>(i.type==="tbox"||i.type==="text")&&(i.text||"").trim())){
+    const t=it.text.trim().split("\n")[0],cv=document.createElement("canvas"),x=cv.getContext("2d"),f=48;
+    x.font=`700 ${f}px "IBM Plex Sans KR",system-ui,sans-serif`;const tw=Math.ceil(x.measureText(t).width)+40;
+    cv.width=tw;cv.height=f+28;x.font=`700 ${f}px "IBM Plex Sans KR",system-ui,sans-serif`;
+    x.fillStyle="rgba(255,255,255,.92)";x.strokeStyle="#1D2524";x.lineWidth=3;x.beginPath();x.rect(1.5,1.5,tw-3,f+25);x.fill();x.stroke();
+    x.fillStyle="#1D2524";x.textAlign="center";x.textBaseline="middle";x.fillText(t,tw/2,(f+28)/2+2);
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));sp.renderOrder=10;
+    const hgt=.42;sp.scale.set(hgt*cv.width/cv.height,hgt,1);const b=vbox(it);
+    sp.position.set(u2m(b.x+b.w/2),(T3.walls?H:0)+.6,u2m(b.y+b.h/2));g.add(sp);}
+}
+document.querySelectorAll("[data-v3]").forEach(b=>b.onclick=()=>T3.ready&&view3D(b.dataset.v3));
+document.getElementById("wallsBtn").onclick=ev=>{T3.walls=!T3.walls;ev.currentTarget.setAttribute("aria-pressed",T3.walls);build3D();};
+document.getElementById("labelsBtn").onclick=ev=>{T3.labels=!T3.labels;ev.currentTarget.setAttribute("aria-pressed",T3.labels);build3D();};
+const wallHIn=document.getElementById("wallH");
+if(layout.dataset.view==="three"||document.querySelector(".three.on"))show3D(true);// 3D 탭을 열어 둔 채 다시 들어온 경우
+wallHIn.oninput=()=>{T3.wallH=+wallHIn.value;document.getElementById("wallHv").textContent=T3.wallH.toFixed(1)+" m";clearTimeout(T3.ht);T3.ht=setTimeout(build3D,120);};
 
 // ===== 옮기기: 컴퓨터 파일에서 내보내기 → claude.ai에서 가져오기 =====
 const readAsDataURL=b=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r(null);fr.readAsDataURL(b)});
