@@ -1224,7 +1224,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008004436";// 배포할 때 바뀜
+const BUILD="20261008004609";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1599,7 +1599,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   const piece=(horiz,line,a,b,y0,y1,m=wm,t=WALL_T)=>{if(b-a<.01||y1-y0<.01)return;const L=b-a,h=y1-y0,mid=(a+b)/2;
     const o=horiz?add(new THREE.BoxGeometry(L,h,t),m,mid,y0+h/2,line):add(new THREE.BoxGeometry(t,h,L),m,line,y0+h/2,mid);if(m!==glass)blockers.push(o);};
   // 한 줄 벽: 문·창·슬릿 경계로 잘라 구간마다 높이 띠를 계산 (겹쳐도 됨 — 창 아래 슬릿 등)
-  //  문 0~2.1 / 차고문 0~2.3 / 창 0.9~2.1 유리 / 슬릿 1.2~1.8 길게 뚫린 띠(유리 없음, 아래에 검은 선반)
+  //  문 0~2.1 / 차고문 0~2.3 / 창 0.9~2.1 유리 / 슬릿 1.2~1.8 길게 뚫린 띠(유리·선반 없이 구멍만)
   const band=o=>o.type==="door"?[0,Math.min(DOOR_H,H),0]:o.type==="garage"?[0,GAR_H(),0]:o.type==="slit"?[Math.min(SLIT[0],H),Math.min(SLIT[1],H),0]:[Math.min(SILL,H),Math.min(DOOR_H,H),1];
   const wallLine=r=>{const {horiz,line,a,b}=r,xs=[...new Set([a,b,...r.opens.flatMap(o=>[o.a,o.b])])].filter(v=>v>=a&&v<=b).sort((p,q)=>p-q);
     for(let i=0;i<xs.length-1;i++){const x0=xs[i],x1=xs[i+1];if(x1-x0<.005)continue;
@@ -1619,9 +1619,6 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     for(let i=0;i<=n;i++){const u=a+i*bw,[x,z]=horiz?[u,line]:[line,u];// 기둥 + 기둥머리 + 받침
       blockers.push(add(new THREE.CylinderGeometry(.15,.17,spring,20),stone,x,spring/2,z));add(new THREE.BoxGeometry(.42,.14,.42),stone,x,spring+.07,z);add(new THREE.BoxGeometry(.42,.1,.42),stone,x,.05,z);}};
   if(T3.walls&&H>0){for(const r of runs)r.kind==="arc"?arcadeLine(r):wallLine(r);
-    // 슬릿 선반: 틈 아래 검은 판이 벽 양쪽으로 튀어나옴
-    const lm=mat3("#1E2022",{r:.45});for(const sl of slits){const L=sl.b-sl.a,y=Math.min(SLIT[0],H);if(L<.05)continue;
-      const o=sl.horiz?add(new THREE.BoxGeometry(L,.05,WALL_T+.3),lm,(sl.a+sl.b)/2,y-.025,sl.line):add(new THREE.BoxGeometry(WALL_T+.3,.05,L),lm,sl.line,y-.025,(sl.a+sl.b)/2);blockers.push(o);}
     // 닫힌 문짝: 벽 구멍을 채워 양쪽에서 보이게 (양여닫이는 두 짝, 미닫이는 겹친 두 장)
     const dm=mat3(C3.door),dm2=mat3(C3.lwood),hm=mat3(C3.steel),DT=.05,DH=Math.min(DOOR_H,H)-.01;
     for(const d of doorPanels){const {horiz,line}=d,gap=.006;
