@@ -248,6 +248,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" id="wallsBtn" aria-pressed="true" title="네모(방) 둘레에 벽 세우기">벽</button>
     <label>벽 높이 <input type="range" id="wallH" min="0.3" max="3.5" step="0.1" value="2.4"><span id="wallHv">2.4 m</span></label>
     <button type="button" id="labelsBtn" aria-pressed="true" title="텍스트를 방 이름표로 띄우기">이름표</button>
+    <label>담장 <input type="range" id="fenceH" min="0" max="3" step="0.1" value="1.4"><span id="fenceHv">1.4 m</span></label>
     <button type="button" id="roofBtn" aria-pressed="false" title="박공지붕 씌우기 (중정은 열어 둠)">지붕</button>
   </div>
   <div class="hint">끌어서 돌리기 · 휠/두 손가락으로 확대 · 오른쪽 버튼(두 손가락 끌기)으로 이동 — 설계도를 바꾸면 자동으로 다시 그려요</div>
@@ -1199,7 +1200,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261007234258";// 배포할 때 바뀜
+const BUILD="20261007235751";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1341,7 +1342,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
 // ===== 3D: 설계도를 입체로 =====
 // 설계도 시트의 항목·칸 색을 읽어 three.js로 그림 (탭을 처음 열 때 불러옴). 설계도가 바뀌면 다시 그림
 // 좌표: 보드 1 m = 55 → 3D 1 = 1 m. 보드 x → x, 보드 y(아래) → z
-var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true,roof:false};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
+var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true,roof:false,fenceH:1.4};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
 const DOOR_H=2.1,SILL=.9,WALL_T=.12,u2m=v=>v/M;
 const OPEN_KINDS={door:"door",door2:"door",slide:"door",garage:"garage",window:"win",window2:"win",slit:"slit"};
 // 색: 벽·돌(회랑)·지붕
@@ -1362,9 +1363,9 @@ async function open3D(){
     scene.add(new THREE.HemisphereLight(0xffffff,0xb8c0be,.55));// 빛을 합쳐 1 안팎 — 넘치면 해 드는 바닥이 하얗게 날아감
     // 거의 머리 위 해 — 방 안이 벽 그림자에 덜 가리게
     const sun=new THREE.DirectionalLight(0xffffff,.5);sun.position.set(-5,34,-6);sun.castShadow=true;
-    sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-16,right:16,top:16,bottom:-16,near:1,far:80});
+    sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-24,right:24,top:24,bottom:-24,near:1,far:90});
     const C=SIDE_M/2;sun.target.position.set(C,0,C);scene.add(sun,sun.target);
-    const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:"#D3D9D7",roughness:1}));
+    const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),grassMat(200,200));// 바깥 땅은 잔디
     ground.rotation.x=-Math.PI/2;ground.position.y=-.01;ground.receiveShadow=true;scene.add(ground);
     const root=new THREE.Group();scene.add(root);
     Object.assign(T3,{r,scene,cam,ctl,root,box});view3D("tilt");
@@ -1374,7 +1375,16 @@ async function open3D(){
   await T3.ready;size3D();if(T3.dirty)build3D();}
 function size3D(){const b=T3.box;if(!b||!b.offsetWidth)return;T3.r.setSize(b.offsetWidth,b.offsetHeight);T3.cam.aspect=b.offsetWidth/b.offsetHeight;T3.cam.updateProjectionMatrix();}
 function view3D(k){const C=SIDE_M/2;T3.ctl.target.set(C,0,C);
-  if(k==="top")T3.cam.position.set(C,30,C+.01);else T3.cam.position.set(C-4,17,C+20);T3.ctl.update();}
+  if(k==="top")T3.cam.position.set(C,38,C+.01);else T3.cam.position.set(C-10,30,C+36);T3.ctl.update();}
+// 잔디: 초록 점을 흩뿌린 무늬 (한 장 GRASS_M m)
+const GRASS_M=3;let GRASS_TEX=null;
+function grassTex(){if(GRASS_TEX)return GRASS_TEX;const N=256,cv=document.createElement("canvas");cv.width=cv.height=N;const x=cv.getContext("2d");
+  x.fillStyle="#5E8F3A";x.fillRect(0,0,N,N);let sd=7;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+  const cols=["#4F7F2F","#6FA344","#7DB04E","#557F34","#8BBC5A","#486F2A"];
+  for(let i=0;i<9000;i++){x.fillStyle=cols[(rnd()*cols.length)|0];const px=rnd()*N,py=rnd()*N;x.fillRect(px,py,1+rnd()*2,1+rnd()*2.5);}
+  const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;return GRASS_TEX=t;}
+function grassMat(w,d){const t=grassTex().clone();t.needsUpdate=true;t.repeat.set(w/GRASS_M,d/GRASS_M);
+  return new THREE.MeshStandardMaterial({map:t,roughness:1});}
 // 지붕 기와: 짙은 회색 둥근 기와를 줄지어 그린 무늬 (한 장이 TILE_M m 정사각)
 const TILE_M=2;let ROOF_MAT=null;
 function roofMat(){if(ROOF_MAT)return ROOF_MAT;const N=512,cv=document.createElement("canvas");cv.width=cv.height=N;const x=cv.getContext("2d");
@@ -1491,12 +1501,25 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   const colOf=(r,cl)=>cells[r+","+cl]||"";
   // 종이 + 칸 색
   add(new THREE.BoxGeometry(S,.02,S),mat3("#FFFFFF"),S/2,-.01,S/2,false);
-  for(const [k,v] of Object.entries(cells)){const col=RECT_COLORS.find(x=>x[0]===v);if(!col)continue;const [rw,cl]=k.split(",").map(Number);
-    add(new THREE.BoxGeometry(c,.01,c),mat3(col[2]),cl*c+c/2,.005,rw*c+c/2,false);}
+  // (칸 바닥은 회랑·중정 색을 알아낸 뒤에 — 중정은 잔디)
   // 이름표 글자로 회랑(복도)·중정 칸 색 찾기
   const labelled=re=>{const it=P.find(i=>(i.type==="tbox"||i.type==="text")&&re.test(i.text||""));if(!it)return null;
     const b=vbox(it),cl=Math.floor((b.x+b.w/2)/CELL),r=Math.floor((b.y+b.h/2)/CELL);return colOf(r,cl)||null;};
   const corridor=labelled(/회랑|복도/),court=labelled(/중정|정원|마당/);
+  for(const [k,v] of Object.entries(cells)){const col=RECT_COLORS.find(x=>x[0]===v);if(!col)continue;const [rw,cl]=k.split(",").map(Number);
+    add(new THREE.BoxGeometry(c,.01,c),v===court?grassMat(c,c):mat3(col[2]),cl*c+c/2,.005,rw*c+c/2,false);}
+  // 마당(포장)·담장·길: 집 둘레에 넓게 포장 마당, 그 둘레에 담장(기둥 + 앞쪽 대문 자리), 앞에 길
+  {const mS=3.5,mF=7,X0=-mS,X1=S+mS,Z0=-mS,Z1=S+mF,F=T3.fenceH;
+    add(new THREE.BoxGeometry(X1-X0,.01,Z1-Z0),mat3("#C8CBCA",{r:.95}),(X0+X1)/2,-.012,(Z0+Z1)/2,false);
+    add(new THREE.BoxGeometry(X1-X0+30,.01,7),mat3("#45484B",{r:.9}),(X0+X1)/2,-.011,Z1+4.5,false);// 길
+    for(let x=X0-15;x<X1+15;x+=3)add(new THREE.BoxGeometry(1.4,.012,.12),mat3("#E8E3C8"),x,-.004,Z1+4.5,false);// 가운데 점선
+    if(F>0){const fm=mat3("#B9BDBC"),cap=mat3("#D3D6D5"),T=.2,gate=4.2,gx=(X0+X1)/2;
+      const seg=(x0,z0,x1,z1)=>{const L=Math.hypot(x1-x0,z1-z0);if(L<.05)return;const hz=Math.abs(z1-z0)<.01;
+        add(hz?new THREE.BoxGeometry(L,F,T):new THREE.BoxGeometry(T,F,L),fm,(x0+x1)/2,F/2,(z0+z1)/2);
+        add(hz?new THREE.BoxGeometry(L+.06,.06,T+.08):new THREE.BoxGeometry(T+.08,.06,L+.06),cap,(x0+x1)/2,F+.03,(z0+z1)/2);
+        const n=Math.max(1,Math.round(L/3.2));for(let i=0;i<=n;i++){const t=i/n,px=x0+(x1-x0)*t,pz=z0+(z1-z0)*t;
+          add(new THREE.BoxGeometry(.36,F+.18,.36),fm,px,(F+.18)/2,pz);add(new THREE.BoxGeometry(.44,.06,.44),cap,px,F+.21,pz);}};
+      seg(X0,Z0,X1,Z0);seg(X0,Z0,X0,Z1);seg(X1,Z0,X1,Z1);seg(X0,Z1,gx-gate/2,Z1);seg(gx+gate/2,Z1,X1,Z1);}}
   const isArcade=(a,b)=>corridor&&court&&corridor!==court&&((a===corridor&&b===court)||(a===court&&b===corridor));
   // 네모 = 방 바닥 (겹침 순서대로 조금씩 높게)
   const rects=P.filter(i=>i.type==="rect").sort((a,b)=>a.z-b.z);
@@ -1640,6 +1663,8 @@ for(const [id,key] of [["wallsBtn","walls"],["labelsBtn","labels"],["roofBtn","r
   document.getElementById(id).onclick=ev=>{T3[key]=!T3[key];ev.currentTarget.setAttribute("aria-pressed",T3[key]);build3D();};
 const wallHIn=document.getElementById("wallH");
 if(layout.dataset.view==="three"||document.querySelector(".three.on"))show3D(true);// 3D 탭을 열어 둔 채 다시 들어온 경우
+const fenceIn=document.getElementById("fenceH");
+fenceIn.oninput=()=>{T3.fenceH=+fenceIn.value;document.getElementById("fenceHv").textContent=T3.fenceH?T3.fenceH.toFixed(1)+" m":"없음";clearTimeout(T3.ft);T3.ft=setTimeout(build3D,120);};
 wallHIn.oninput=()=>{T3.wallH=+wallHIn.value;document.getElementById("wallHv").textContent=T3.wallH.toFixed(1)+" m";clearTimeout(T3.ht);T3.ht=setTimeout(build3D,120);};
 
 // ===== 옮기기: 컴퓨터 파일에서 내보내기 → claude.ai에서 가져오기 =====
