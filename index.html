@@ -1192,7 +1192,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261007230705";// 배포할 때 바뀜
+const BUILD="20261007231858";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1381,7 +1381,7 @@ function rboxGeo(w,d,r){const s=new THREE.Shape(),x=-w/2,z=-d/2;r=Math.min(r,w/2
   s.lineTo(x+r,z+d);s.quadraticCurveTo(x,z+d,x,z+d-r);s.lineTo(x,z+r);s.quadraticCurveTo(x,z,x+r,z);return s;}
 // ===== 가구·설비 모델: 아이콘 상자(W×D m) 안의 부품들 =====
 // 부품 좌표는 아이콘 왼쪽 위가 (0,0), x 오른쪽 · z 아래(그림의 아래쪽) · y 위. 단위 m
-// {b:[x0,x1,z0,z1,y0,y1],c,r(둥근 모서리),o(재질)} 상자 · {cy:[x,z,r,y0,y1],c,sx,sz} 세운 원기둥 · {cx:[x,y,z,r,len],ax:"x"|"z"} 누운 원기둥 · {sp:[x,y,z,r],s:[sx,sy,sz]} 공
+// {b:[x0,x1,z0,z1,y0,y1],c,r(둥근 모서리),o(재질)} 상자 · {cy:[x,z,r,y0,y1],c,sx,sz} 세운 원기둥 · {cx:[x,y,z,r,len],ax:"x"|"z",sv} 누운 원기둥 · {sp:[x,y,z,r],s:[sx,sy,sz]} 공
 function model3D(kind,W,D,H){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
   const B=(x0,x1,z0,z1,y0,y1,col,r,o)=>p.push({b:[X(x0),X(x1),Z(z0),Z(z1),y0,y1],c:col,r,o});// 비율 좌표
   const Bm=(x0,x1,z0,z1,y0,y1,col,r,o)=>p.push({b:[x0,x1,z0,z1,y0,y1],c:col,r,o});// m 좌표
@@ -1436,8 +1436,12 @@ function model3D(kind,W,D,H){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
   case"utility":B(0,1,0,1,0,1.2,"#D9DEDD",.02);B(.1,.9,.98,1.01,.6,1.1,c.dgray,.02);p.push({cy:[X(.3),Z(.5),.05,1.2,1.6],c:c.steel});p.push({cy:[X(.7),Z(.5),.05,1.2,1.6],c:c.steel});break;
   case"bust":{const m="#F4F1EA",cx=X(.5),cz=Z(.5);B(.2,.8,.2,.8,0,1,"#C9CFCE",.02);B(.15,.85,.15,.85,1,1.04,"#BFC5C4",.02);
     p.push({sp:[cx,1.14,cz,.14],s:[1.6,.75,.95],c:m});p.push({cy:[cx,cz,.05,1.15,1.32],c:m});p.push({sp:[cx,1.4,cz,.1],s:[.85,1.12,.95],c:m});break;}
-  case"guitar":p.push({cy:[X(.5),Z(.8),X(.5),0,.1],sz:(D*.2)/(W*.5),c:"#C98A4B"});p.push({cy:[X(.5),Z(.53),X(.4),0,.1],sz:(D*.14)/(W*.4),c:"#C98A4B"});
-    p.push({cy:[X(.5),Z(.6),X(.13),.1,.102],c:"#2A1A10"});B(.44,.56,.08,.42,.06,.09,"#5A3B22");B(.36,.64,0,.1,.06,.09,"#4A3020");B(.34,.66,.8,.84,.1,.11,"#4A3020");break;
+  case"guitar":{const cx=X(.5),cz=Z(.5),wd="#C98A4B",dk="#4A3020",st="#2B2F2E";// 스탠드에 세운 통기타 (앞면이 그림 아래쪽)
+    p.push({cx:[cx,.34,cz,.19,.1],ax:"z",sv:1.15,c:wd});p.push({cx:[cx,.66,cz,.15,.1],ax:"z",sv:.95,c:wd});
+    p.push({cx:[cx,.56,cz,.05,.104],ax:"z",c:"#2A1A10"});Bm(cx-.06,cx+.06,cz-.052,cz+.052,.24,.26,dk);
+    Bm(cx-.025,cx+.025,cz-.02,cz+.03,.8,1.32,"#5A3B22");Bm(cx-.045,cx+.045,cz-.02,cz+.03,1.32,1.5,dk);
+    Bm(cx-.22,cx+.22,cz-.06,cz+.14,.0,.03,st);Bm(cx-.2,cx-.12,cz+.04,cz+.12,.03,.17,st);Bm(cx+.12,cx+.2,cz+.04,cz+.12,.03,.17,st);// 받침 + 앞 걸이
+    p.push({cy:[cx,cz-.13,.012,0,1.05],c:st});Bm(cx-.06,cx+.06,cz-.14,cz-.02,1.02,1.06,st);break;}// 뒤 기둥 + 목 걸이
   case"fan":{const h=H||2.4;B(0,1,0,1,h-.03,h,"#E6E9E8");p.push({cy:[X(.5),Z(.5),Math.min(W,D)*.38,h-.045,h-.03],c:"#8E9694"});break;}
   default:return null;}
   return p;}
@@ -1451,7 +1455,7 @@ function partsGroup(parts,W,D,fx,fy){const g=new THREE.Group();
       else{mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2);}}
     else if(q.cy){const [x,z,r,y0,y1]=q.cy;mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,y1-y0,28),m);mesh.position.set(mx(x),(y0+y1)/2,mz(z));mesh.scale.set(q.sx||1,1,q.sz||1);}
     else if(q.cx){const [x,y,z,r,len]=q.cx;mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,24),m);mesh.position.set(mx(x),y,mz(z));
-      if(q.ax==="x")mesh.rotation.z=Math.PI/2;else mesh.rotation.x=Math.PI/2;}
+      if(q.ax==="x")mesh.rotation.z=Math.PI/2;else{mesh.rotation.x=Math.PI/2;if(q.sv)mesh.scale.z=q.sv;}}// sv: 앞에서 본 원을 세로로 늘임
     else if(q.sp){const [x,y,z,r]=q.sp;mesh=new THREE.Mesh(new THREE.SphereGeometry(r,28,18),m);mesh.position.set(mx(x),y,mz(z));if(q.s)mesh.scale.set(...q.s);}
     if(!mesh)continue;mesh.castShadow=!(q.o&&q.o.op);mesh.receiveShadow=true;g.add(mesh);}
   return g;}
@@ -1484,49 +1488,71 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     const x=u2m(b.x),z=u2m(b.y),w=u2m(b.w),d=u2m(b.h);
     add(new THREE.BoxGeometry(w,.03,t),m,x+w/2,.04,z+t/2,false);add(new THREE.BoxGeometry(w,.03,t),m,x+w/2,.04,z+d-t/2,false);
     add(new THREE.BoxGeometry(t,.03,d),m,x+t/2,.04,z+d/2,false);add(new THREE.BoxGeometry(t,.03,d),m,x+w-t/2,.04,z+d/2,false);}
-  // 문·창: 놓인 벽 선과 폭
-  const opens=[];
-  for(const it of P.filter(i=>i.type==="sym"&&OPEN_KINDS[i.kind])){const b=vbox(it),rot=((it.rot||0)%360+360)%360,horiz=rot%180===0;let line;
-    if(it.kind==="door"||it.kind==="door2"){const bottom=!it.fy;// 문은 그림의 아래쪽 변이 벽 (상하 뒤집으면 위쪽)
-      line=rot===0?(bottom?b.y+b.h:b.y):rot===180?(bottom?b.y:b.y+b.h):rot===90?(bottom?b.x:b.x+b.w):(bottom?b.x+b.w:b.x);}
-    else line=horiz?b.y+b.h/2:b.x+b.w/2;
-    opens.push({horiz,line:u2m(line),a:u2m(horiz?b.x:b.y),b:u2m(horiz?b.x+b.w:b.y+b.h),type:OPEN_KINDS[it.kind]});}
+  // ① 벽 줄 모으기 (아직 세우지 않음): 네모 둘레, 색이 다른 칸 사이(회랑↔중정은 아치), 색칠된 칸의 바깥 가장자리
+  const runs=[];// {horiz,line,a,b,kind:"wall"|"arc",cr:회랑↔방 경계?,opens:[]}
+  const pushRun=(horiz,line,a,b,kind,cr)=>runs.push({horiz,line,a,b,kind,cr:!!cr,opens:[]});
+  for(const it of rects){const b=vbox(it),x0=u2m(b.x),z0=u2m(b.y),x1=u2m(b.x+b.w),z1=u2m(b.y+b.h);
+    for(const [horiz,line,a,bb] of [[1,z0,x0,x1],[1,z1,x0,x1],[0,x0,z0,z1],[0,x1,z0,z1]])pushRun(horiz,line,a,bb,"wall");}
+  const kindAt=(a,b)=>a===b?null:isArcade(a,b)?"arc":(corridor&&(a===corridor||b===corridor)&&a!==court&&b!==court)?"cr":"wall";
+  for(let i=0;i<=10;i++){let ra=null,rk=null,ca=null,ck=null;
+    for(let j=0;j<=10;j++){
+      const kh=j<10?(i===0?(colOf(0,j)?"wall":null):i===10?(colOf(9,j)?"wall":null):kindAt(colOf(i-1,j),colOf(i,j))):null;// 가로 선 y=i
+      if(kh!==rk){if(rk)pushRun(1,i*c,ra*c,j*c,rk==="arc"?"arc":"wall",rk==="cr");ra=j;rk=kh;}
+      const kv=j<10?(i===0?(colOf(j,0)?"wall":null):i===10?(colOf(j,9)?"wall":null):kindAt(colOf(j,i-1),colOf(j,i))):null;// 세로 선 x=i
+      if(kv!==ck){if(ck)pushRun(0,i*c,ca*c,j*c,ck==="arc"?"arc":"wall",ck==="cr");ca=j;ck=kv;}}}
+  // ② 문·창을 벽 줄에 붙이기
+  //  - 회랑(복도)에 닿은 문은 무조건 회랑↔방 경계의 문
+  //  - 그 밖에는 그림에서 벽 쪽 변(문은 아래 변, 창은 가운데 선)에 가까운 벽 줄, 없으면 기호가 걸친 가장 가까운 벽 줄
+  const doorPanels=[];
+  const near=(r,box,pad)=>r.horiz?(r.line>=box.z0-pad&&r.line<=box.z1+pad&&r.b>box.x0&&r.a<box.x1):(r.line>=box.x0-pad&&r.line<=box.x1+pad&&r.b>box.z0&&r.a<box.z1);
+  for(const it of P.filter(i=>i.type==="sym"&&OPEN_KINDS[i.kind])){const vb=vbox(it),rot=((it.rot||0)%360+360)%360,horiz=rot%180===0,type=OPEN_KINDS[it.kind];
+    const box={x0:u2m(vb.x),x1:u2m(vb.x+vb.w),z0:u2m(vb.y),z1:u2m(vb.y+vb.h)},cxm=(box.x0+box.x1)/2,czm=(box.z0+box.z1)/2;
+    let line;if(type==="door"&&it.kind!=="slide"){const bottom=!it.fy;
+      line=u2m(rot===0?(bottom?vb.y+vb.h:vb.y):rot===180?(bottom?vb.y:vb.y+vb.h):rot===90?(bottom?vb.x:vb.x+vb.w):(bottom?vb.x+vb.w:vb.x));}
+    else line=horiz?czm:cxm;
+    const dist=r=>Math.abs(r.line-(r.horiz?czm:cxm));
+    let target=null;
+    if(type==="door"){const cr=runs.filter(r=>r.cr&&near(r,box,.35)).sort((p,q)=>dist(p)-dist(q));if(cr.length)target=cr[0];}
+    if(!target)target=runs.filter(r=>r.kind==="wall"&&!!r.horiz===horiz&&Math.abs(r.line-line)<=.45&&(horiz?r.b>box.x0&&r.a<box.x1:r.b>box.z0&&r.a<box.z1))
+      .sort((p,q)=>Math.abs(p.line-line)-Math.abs(q.line-line))[0]||null;
+    if(!target&&type==="door")target=runs.filter(r=>r.kind==="wall"&&near(r,box,.2)).sort((p,q)=>dist(p)-dist(q))[0]||null;
+    if(!target)continue;
+    const H0=target.horiz,a=H0?box.x0:box.z0,b=H0?box.x1:box.z1,L=target.line;
+    // 같은 자리에 겹친 벽 줄(네모 변·칸 경계)도 모두 비움
+    for(const r of runs)if(r.kind==="wall"&&!!r.horiz===!!H0&&Math.abs(r.line-L)<=.25&&r.b>a&&r.a<b)r.opens.push({a:Math.max(a,r.a),b:Math.min(b,r.b),type});
+    if(type==="door")doorPanels.push({horiz:H0,line:L,a:Math.max(a,target.a),b:Math.min(b,target.b),kind:it.kind});}
+  // ③ 세우기
   const wm=mat3(C3.wall),glass=mat3(C3.glass,{op:.45,r:.1});
-  const piece=(horiz,line,a,b,y0,y1,m=wm)=>{if(b-a<.01||y1-y0<.01)return;const L=b-a,h=y1-y0,mid=(a+b)/2;
-    if(horiz)add(new THREE.BoxGeometry(L,h,WALL_T),m,mid,y0+h/2,line);else add(new THREE.BoxGeometry(WALL_T,h,L),m,line,y0+h/2,mid);};
-  // 한 줄의 벽 (a~bb), 그 선에 닿은 문·창 자리는 비움
-  const wallLine=(horiz,line,a,bb)=>{
-    const hit=opens.filter(o=>!!o.horiz===!!horiz&&Math.abs(o.line-line)<=.33&&o.b>a&&o.a<bb).map(o=>({...o,a:Math.max(a,o.a),b:Math.min(bb,o.b)})).sort((p,q)=>p.a-q.a);
+  const piece=(horiz,line,a,b,y0,y1,m=wm,t=WALL_T)=>{if(b-a<.01||y1-y0<.01)return;const L=b-a,h=y1-y0,mid=(a+b)/2;
+    if(horiz)add(new THREE.BoxGeometry(L,h,t),m,mid,y0+h/2,line);else add(new THREE.BoxGeometry(t,h,L),m,line,y0+h/2,mid);};
+  const wallLine=r=>{const {horiz,line,a,b}=r,hit=r.opens.slice().sort((p,q)=>p.a-q.a);
     let at=a;for(const o of hit){piece(horiz,line,at,o.a,0,H);
       if(o.type==="door")piece(horiz,line,o.a,o.b,Math.min(DOOR_H,H),H);
       else{piece(horiz,line,o.a,o.b,0,Math.min(SILL,H));piece(horiz,line,o.a,o.b,Math.min(DOOR_H,H),H);piece(horiz,line,o.a,o.b,Math.min(SILL,H),Math.min(DOOR_H,H),glass);}
       at=Math.max(at,o.b);}
-    piece(horiz,line,at,bb,0,H);};
-  // 고딕 회랑: 칸(1.82 m)마다 뾰족 아치 + 기둥
+    piece(horiz,line,at,b,0,H);};
+  // 고딕 회랑: 한 변에 뾰족 아치 3개 + 기둥
   const arcades=[],stone=mat3(C3.stone);
-  const arcadeLine=(horiz,line,a,b)=>{arcades.push({horiz,line,a,b});if(H<1.6){piece(horiz,line,a,b,0,H,stone);return;}
-    const n=Math.max(1,Math.round((b-a)/c)),bw=(b-a)/n,AT=.3,p=.16,{sh,spring}=archShape(bw,H,p);
+  const arcadeLine=({horiz,line,a,b})=>{arcades.push({horiz,line,a,b});if(H<1.6){piece(horiz,line,a,b,0,H,stone);return;}
+    const n=3,bw=(b-a)/n,AT=.3,p=.2,{sh,spring}=archShape(bw,H,p);
     const geo=new THREE.ExtrudeGeometry(sh,{depth:AT,bevelEnabled:false});
     for(let i=0;i<n;i++){const u=a+i*bw,mesh=new THREE.Mesh(geo,stone);mesh.castShadow=mesh.receiveShadow=true;
       if(horiz)mesh.position.set(u,0,line-AT/2);else{mesh.rotation.y=-Math.PI/2;mesh.position.set(line+AT/2,0,u);}g.add(mesh);}
-    for(let i=0;i<=n;i++){const u=a+i*bw,[x,z]=horiz?[u,line]:[line,u];// 기둥 + 기둥머리
-      add(new THREE.CylinderGeometry(.13,.15,spring,20),stone,x,spring/2,z);add(new THREE.BoxGeometry(.36,.12,.36),stone,x,spring+.06,z);add(new THREE.BoxGeometry(.36,.1,.36),stone,x,.05,z);}};
-  const runLine=(horiz,line,a,b,kind)=>kind==="arc"?arcadeLine(horiz,line,a,b):wallLine(horiz,line,a,b);
-  if(T3.walls&&H>0){
-    for(const it of rects){const b=vbox(it),x0=u2m(b.x),z0=u2m(b.y),x1=u2m(b.x+b.w),z1=u2m(b.y+b.h);
-      for(const [horiz,line,a,bb] of [[1,z0,x0,x1],[1,z1,x0,x1],[0,x0,z0,z1],[0,x1,z0,z1]])wallLine(horiz,line,a,bb);}
-    // 모눈 칸 경계: 색이 다르면 벽 (회랑↔중정은 아치), 종이 가장자리는 색칠된 칸이면 바깥벽 — 같은 선에서 이어지는 것은 한 줄로
-    const kindAt=(a,b)=>a===b?null:isArcade(a,b)?"arc":"wall";
-    for(let i=0;i<=10;i++){let ra=null,rk=null,ca=null,ck=null;
-      for(let j=0;j<=10;j++){
-        const kh=j<10?(i===0?(colOf(0,j)?"wall":null):i===10?(colOf(9,j)?"wall":null):kindAt(colOf(i-1,j),colOf(i,j))):null;// 가로 선 y=i
-        if(kh!==rk){if(rk)runLine(1,i*c,ra*c,j*c,rk);ra=j;rk=kh;}
-        const kv=j<10?(i===0?(colOf(j,0)?"wall":null):i===10?(colOf(j,9)?"wall":null):kindAt(colOf(j,i-1),colOf(j,i))):null;// 세로 선 x=i
-        if(kv!==ck){if(ck)runLine(0,i*c,ca*c,j*c,ck);ca=j;ck=kv;}}}}
-  // 가구·설비·문짝 (아치 선 위의 가벽은 낮은 난간으로)
-  for(const it of P.filter(i=>i.type==="sym")){
+    for(let i=0;i<=n;i++){const u=a+i*bw,[x,z]=horiz?[u,line]:[line,u];// 기둥 + 기둥머리 + 받침
+      add(new THREE.CylinderGeometry(.15,.17,spring,20),stone,x,spring/2,z);add(new THREE.BoxGeometry(.42,.14,.42),stone,x,spring+.07,z);add(new THREE.BoxGeometry(.42,.1,.42),stone,x,.05,z);}};
+  if(T3.walls&&H>0){for(const r of runs)r.kind==="arc"?arcadeLine(r):wallLine(r);
+    // 닫힌 문짝: 벽 구멍을 채워 양쪽에서 보이게 (양여닫이는 두 짝, 미닫이는 겹친 두 장)
+    const dm=mat3(C3.door),dm2=mat3(C3.lwood),hm=mat3(C3.steel),DT=.05,DH=Math.min(DOOR_H,H)-.01;
+    for(const d of doorPanels){const {horiz,line}=d,gap=.006;
+      const leaf=(a,b,m=dm,off=0)=>{piece(horiz,line+off,a+gap,b-gap,0,DH,m,DT);
+        const hx=b-a>.3?(a+b)/2+(b-a)*.35:(a+b)/2;// 손잡이 (양쪽 면)
+        for(const s of [-1,1]){const o=line+off+s*(DT/2+.02);if(horiz)add(new THREE.BoxGeometry(.12,.03,.03),hm,hx,1,o);else add(new THREE.BoxGeometry(.03,.03,.12),hm,o,1,hx);}};
+      if(d.kind==="door2"){const m=(d.a+d.b)/2;leaf(d.a,m);leaf(m,d.b);}
+      else if(d.kind==="slide"){const L=d.b-d.a;leaf(d.a,d.a+L*.55,dm2,-.03);leaf(d.a+L*.45,d.b,dm2,.03);}
+      else leaf(d.a,d.b);}}
+  // 가구·설비 (창·문은 벽에서 처리, 아치 선 위의 가벽은 낮은 난간으로)
+  for(const it of P.filter(i=>i.type==="sym"&&!OPEN_KINDS[i.kind])){
     const W=u2m(it.w),D=u2m(it.h);let parts;
-    if(it.kind==="window"||it.kind==="window2")continue;// 창은 벽에 유리로
     if(it.kind==="pwall"){const b=vbox(it),horiz=b.w>=b.h,line=u2m(horiz?b.y+b.h/2:b.x+b.w/2),a=u2m(horiz?b.x:b.y),bb=u2m(horiz?b.x+b.w:b.y+b.h);
       const low=arcades.some(o=>!!o.horiz===horiz&&Math.abs(o.line-line)<.7&&o.b>a&&o.a<bb);
       parts=[{b:[0,W,0,D,0,low?.55:(H||2.4)],c:low?C3.stone:"#C9CECD"}];}
@@ -1534,19 +1560,28 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     if(!parts)continue;
     const inner=partsGroup(parts,W,D,!!it.fx,!!it.fy);inner.position.set(-W/2,0,-D/2);
     const grp=new THREE.Group();grp.add(inner);grp.position.set(u2m(it.x+it.w/2),0,u2m(it.y+it.h/2));grp.rotation.y=-(it.rot||0)*Math.PI/180;g.add(grp);}
-  // 박공지붕: 색칠된 칸(중정 제외)을 큰 직사각형들로 나눠 긴 쪽을 용마루로
+  // 박공지붕: 한 높이로 끊김 없이. 중정이 있으면 바깥 처마 ↔ 용마루(사각 고리) ↔ 안쪽 처마(중정)로 이어진 정사각형 고리 지붕
   let roofTop=0;
-  if(T3.roof){const on=(r,cl)=>{const v=colOf(r,cl);return !!v&&v!==court;},used=new Set(),k=(r,cl)=>r+","+cl;
-    const caps=mat3(C3.gable),slope=mat3(C3.roof,{r:.7}),o=.35,pitch=Math.tan(32*Math.PI/180);
-    for(let r=0;r<10;r++)for(let cl=0;cl<10;cl++){if(!on(r,cl)||used.has(k(r,cl)))continue;
-      let w=1;while(cl+w<10&&on(r,cl+w)&&!used.has(k(r,cl+w)))w++;
-      let h=1;while(r+h<10&&[...Array(w)].every((_,d)=>on(r+h,cl+d)&&!used.has(k(r+h,cl+d))))h++;
-      for(let a=0;a<h;a++)for(let d=0;d<w;d++)used.add(k(r+a,cl+d));
-      const x0=cl*c,z0=r*c,X=w*c,Z=h*c,alongX=X>=Z,span=alongX?Z:X,len=alongX?X:Z,rise=(span/2+o)*pitch;roofTop=Math.max(roofTop,H+rise);
-      const sh=new THREE.Shape();sh.moveTo(-o,0);sh.lineTo(span+o,0);sh.lineTo(span/2,rise);
-      const mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:len+2*o,bevelEnabled:false}),[caps,slope]);mesh.castShadow=mesh.receiveShadow=true;
-      if(alongX){mesh.rotation.y=-Math.PI/2;mesh.position.set(x0+X+o,H,z0);}else mesh.position.set(x0,H,z0-o);
-      g.add(mesh);}}
+  if(T3.roof){const cl=[],cc=[];for(const [k,v] of Object.entries(cells)){if(!v)continue;const [r,q]=k.split(",").map(Number);(v===court?cc:cl).push([r,q]);}
+    const bb=a=>a.length?{x0:Math.min(...a.map(p=>p[1]))*c,x1:(Math.max(...a.map(p=>p[1]))+1)*c,z0:Math.min(...a.map(p=>p[0]))*c,z1:(Math.max(...a.map(p=>p[0]))+1)*c}:null;
+    const O=bb(cl.concat(cc)),I=bb(cc),o=.35,pitch=Math.tan(32*Math.PI/180);
+    if(O){const pos=[],quad=(p1,p2,p3,p4)=>pos.push(...p1,...p2,...p3,...p1,...p3,...p4);
+      const ox0=O.x0-o,ox1=O.x1+o,oz0=O.z0-o,oz1=O.z1+o;
+      if(I){const ix0=I.x0+o,ix1=I.x1-o,iz0=I.z0+o,iz1=I.z1-o;
+        const rx0=(O.x0+I.x0)/2,rx1=(O.x1+I.x1)/2,rz0=(O.z0+I.z0)/2,rz1=(O.z1+I.z1)/2;
+        const half=Math.max(I.x0-O.x0,O.x1-I.x1,I.z0-O.z0,O.z1-I.z1)/2,top=H+(half+o)*pitch;roofTop=top;
+        const Oc=(x,z)=>[x,H,z],R=(x,z)=>[x,top,z],Ic=(x,z)=>[x,H,z];
+        quad(Oc(ox0,oz0),Oc(ox1,oz0),R(rx1,rz0),R(rx0,rz0));quad(Oc(ox1,oz0),Oc(ox1,oz1),R(rx1,rz1),R(rx1,rz0));// 바깥 비탈
+        quad(Oc(ox1,oz1),Oc(ox0,oz1),R(rx0,rz1),R(rx1,rz1));quad(Oc(ox0,oz1),Oc(ox0,oz0),R(rx0,rz0),R(rx0,rz1));
+        quad(R(rx0,rz0),R(rx1,rz0),Ic(ix1,iz0),Ic(ix0,iz0));quad(R(rx1,rz0),R(rx1,rz1),Ic(ix1,iz1),Ic(ix1,iz0));// 안쪽 비탈 (중정 쪽)
+        quad(R(rx1,rz1),R(rx0,rz1),Ic(ix0,iz1),Ic(ix1,iz1));quad(R(rx0,rz1),R(rx0,rz0),Ic(ix0,iz0),Ic(ix0,iz1));}
+      else{const alongX=O.x1-O.x0>=O.z1-O.z0,top=H+((alongX?O.z1-O.z0:O.x1-O.x0)/2+o)*pitch;roofTop=top;// 중정이 없으면 긴 쪽을 용마루로 한 박공
+        if(alongX){const zm=(O.z0+O.z1)/2;quad([ox0,H,oz0],[ox1,H,oz0],[ox1,top,zm],[ox0,top,zm]);quad([ox1,H,oz1],[ox0,H,oz1],[ox0,top,zm],[ox1,top,zm]);
+          pos.push(ox0,H,oz0,ox0,top,zm,ox0,H,oz1, ox1,H,oz1,ox1,top,zm,ox1,H,oz0);}
+        else{const xm=(O.x0+O.x1)/2;quad([ox0,H,oz1],[ox0,H,oz0],[xm,top,oz0],[xm,top,oz1]);quad([ox1,H,oz0],[ox1,H,oz1],[xm,top,oz1],[xm,top,oz0]);
+          pos.push(ox0,H,oz0,ox1,H,oz0,xm,top,oz0, ox1,H,oz1,ox0,H,oz1,xm,top,oz1);}}
+      const geo=new THREE.BufferGeometry();geo.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));geo.computeVertexNormals();
+      const roof=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:C3.roof,roughness:.7,side:THREE.DoubleSide}));roof.castShadow=roof.receiveShadow=true;g.add(roof);}}
   // 이름표: 글상자·글자를 방 위에 띄움
   if(T3.labels)for(const it of P.filter(i=>(i.type==="tbox"||i.type==="text")&&(i.text||"").trim())){
     const t=it.text.trim().split("\n")[0],cv=document.createElement("canvas"),x=cv.getContext("2d"),f=48;
