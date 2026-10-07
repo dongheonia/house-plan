@@ -1224,7 +1224,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008004039";// 배포할 때 바뀜
+const BUILD="20261008004436";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1578,7 +1578,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   for(const it of P.filter(i=>i.type==="sym"&&OPEN_KINDS[i.kind])){const vb=vbox(it),rot=((it.rot||0)%360+360)%360,type=OPEN_KINDS[it.kind];
     const box={x0:u2m(vb.x),x1:u2m(vb.x+vb.w),z0:u2m(vb.y),z1:u2m(vb.y+vb.h)},cxm=(box.x0+box.x1)/2,czm=(box.z0+box.z1)/2;
     const lines=it.kind==="door"?[sideLine(vb,it.fx?"R":"L",rot),sideLine(vb,it.fy?"T":"B",rot)]
-      :it.kind==="door2"?[sideLine(vb,it.fy?"T":"B",rot)]:[rot%180===0?{horiz:true,line:czm}:{horiz:false,line:cxm}];
+      :it.kind==="door2"?[sideLine(vb,it.fy?"T":"B",rot)]:[vb.w>=vb.h?{horiz:true,line:czm}:{horiz:false,line:cxm}];// 창·슬릿·미닫이·차고문: 늘린 모양(가로가 길면 가로 벽)으로
     let target=null;
     for(const ln of lines){target=runs.filter(r=>r.kind==="wall"&&!!r.horiz===ln.horiz&&Math.abs(r.line-ln.line)<=.45&&fits(r,box))
       .sort((p,q)=>Math.abs(p.line-ln.line)-Math.abs(q.line-ln.line))[0]||null;if(target)break;}
