@@ -1200,7 +1200,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261007235751";// 배포할 때 바뀜
+const BUILD="20261008000259";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1375,7 +1375,8 @@ async function open3D(){
   await T3.ready;size3D();if(T3.dirty)build3D();}
 function size3D(){const b=T3.box;if(!b||!b.offsetWidth)return;T3.r.setSize(b.offsetWidth,b.offsetHeight);T3.cam.aspect=b.offsetWidth/b.offsetHeight;T3.cam.updateProjectionMatrix();}
 function view3D(k){const C=SIDE_M/2;T3.ctl.target.set(C,0,C);
-  if(k==="top")T3.cam.position.set(C,38,C+.01);else T3.cam.position.set(C-10,30,C+36);T3.ctl.update();}
+  const f=T3.front||"bottom",[dx,dz]=f==="top"?[10,-36]:f==="bottom"?[-10,36]:f==="left"?[-36,-10]:[36,10];// 비스듬히: 앞(정문) 쪽에서
+  if(k==="top")T3.cam.position.set(C,38,C+.01);else T3.cam.position.set(C+dx,30,C+dz);T3.ctl.update();}
 // 잔디: 초록 점을 흩뿌린 무늬 (한 장 GRASS_M m)
 const GRASS_M=3;let GRASS_TEX=null;
 function grassTex(){if(GRASS_TEX)return GRASS_TEX;const N=256,cv=document.createElement("canvas");cv.width=cv.height=N;const x=cv.getContext("2d");
@@ -1508,18 +1509,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   const corridor=labelled(/회랑|복도/),court=labelled(/중정|정원|마당/);
   for(const [k,v] of Object.entries(cells)){const col=RECT_COLORS.find(x=>x[0]===v);if(!col)continue;const [rw,cl]=k.split(",").map(Number);
     add(new THREE.BoxGeometry(c,.01,c),v===court?grassMat(c,c):mat3(col[2]),cl*c+c/2,.005,rw*c+c/2,false);}
-  // 마당(포장)·담장·길: 집 둘레에 넓게 포장 마당, 그 둘레에 담장(기둥 + 앞쪽 대문 자리), 앞에 길
-  {const mS=3.5,mF=7,X0=-mS,X1=S+mS,Z0=-mS,Z1=S+mF,F=T3.fenceH;
-    add(new THREE.BoxGeometry(X1-X0,.01,Z1-Z0),mat3("#C8CBCA",{r:.95}),(X0+X1)/2,-.012,(Z0+Z1)/2,false);
-    add(new THREE.BoxGeometry(X1-X0+30,.01,7),mat3("#45484B",{r:.9}),(X0+X1)/2,-.011,Z1+4.5,false);// 길
-    for(let x=X0-15;x<X1+15;x+=3)add(new THREE.BoxGeometry(1.4,.012,.12),mat3("#E8E3C8"),x,-.004,Z1+4.5,false);// 가운데 점선
-    if(F>0){const fm=mat3("#B9BDBC"),cap=mat3("#D3D6D5"),T=.2,gate=4.2,gx=(X0+X1)/2;
-      const seg=(x0,z0,x1,z1)=>{const L=Math.hypot(x1-x0,z1-z0);if(L<.05)return;const hz=Math.abs(z1-z0)<.01;
-        add(hz?new THREE.BoxGeometry(L,F,T):new THREE.BoxGeometry(T,F,L),fm,(x0+x1)/2,F/2,(z0+z1)/2);
-        add(hz?new THREE.BoxGeometry(L+.06,.06,T+.08):new THREE.BoxGeometry(T+.08,.06,L+.06),cap,(x0+x1)/2,F+.03,(z0+z1)/2);
-        const n=Math.max(1,Math.round(L/3.2));for(let i=0;i<=n;i++){const t=i/n,px=x0+(x1-x0)*t,pz=z0+(z1-z0)*t;
-          add(new THREE.BoxGeometry(.36,F+.18,.36),fm,px,(F+.18)/2,pz);add(new THREE.BoxGeometry(.44,.06,.44),cap,px,F+.21,pz);}};
-      seg(X0,Z0,X1,Z0);seg(X0,Z0,X0,Z1);seg(X1,Z0,X1,Z1);seg(X0,Z1,gx-gate/2,Z1);seg(gx+gate/2,Z1,X1,Z1);}}
+  // (마당·담장·길은 문 위치를 안 뒤에 — 아래쪽)
   const isArcade=(a,b)=>corridor&&court&&corridor!==court&&((a===corridor&&b===court)||(a===court&&b===corridor));
   // 네모 = 방 바닥 (겹침 순서대로 조금씩 높게)
   const rects=P.filter(i=>i.type==="rect").sort((a,b)=>a.z-b.z);
@@ -1620,6 +1610,41 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     if(!parts)continue;
     const inner=partsGroup(parts,W,D,!!it.fx,!!it.fy);inner.position.set(-W/2,0,-D/2);
     const grp=new THREE.Group();grp.add(inner);grp.position.set(u2m(it.x+it.w/2),0,u2m(it.y+it.h/2));grp.rotation.y=-(it.rot||0)*Math.PI/180;g.add(grp);}
+  // 마당(포장)·담장·길 — 바깥벽에 문·차가 가장 많은 쪽을 앞(정문 쪽)으로: 앞마당을 넓게, 그 밖에 길
+  //  담장 앞쪽에는 가운데 사람 출입구(정문 맞춤)와 양옆 차 출입구(차고의 차 맞춤)를 냄
+  {const sides=["top","bottom","left","right"],score={top:0,bottom:0,left:0,right:0},E=.4;
+    for(const d of doorPanels){if(d.horiz&&d.line<E)score.top+=2;if(d.horiz&&d.line>S-E)score.bottom+=2;if(!d.horiz&&d.line<E)score.left+=2;if(!d.horiz&&d.line>S-E)score.right+=2;}
+    const cars=P.filter(i=>i.type==="sym"&&i.kind==="car").map(i=>({x:u2m(i.x+i.w/2),z:u2m(i.y+i.h/2)}));
+    for(const q of cars){const dd={top:q.z,bottom:S-q.z,left:q.x,right:S-q.x};const k=sides.reduce((m,k)=>dd[k]<dd[m]?k:m,"top");score[k]+=3;}
+    const front=sides.reduce((m,k)=>score[k]>score[m]?k:m,"top"),m={top:3.5,bottom:3.5,left:3.5,right:3.5};m[front]=7;
+    if(T3.front!==front){const first=!T3.front;T3.front=front;if(first)view3D("tilt");}// 처음 그릴 때 앞쪽에서 보이게
+    const X0=-m.left,X1=S+m.right,Z0=-m.top,Z1=S+m.bottom,F=T3.fenceH,along=front==="top"||front==="bottom";
+    add(new THREE.BoxGeometry(X1-X0,.01,Z1-Z0),mat3("#C8CBCA",{r:.95}),(X0+X1)/2,-.012,(Z0+Z1)/2,false);
+    // 길 (앞쪽 담장 밖)
+    const RW=7,ro=front==="top"?[ (X0+X1)/2,Z0-4.5]:front==="bottom"?[(X0+X1)/2,Z1+4.5]:front==="left"?[X0-4.5,(Z0+Z1)/2]:[X1+4.5,(Z0+Z1)/2];
+    add(along?new THREE.BoxGeometry(X1-X0+30,.01,RW):new THREE.BoxGeometry(RW,.01,Z1-Z0+30),mat3("#45484B",{r:.9}),ro[0],-.011,ro[1],false);
+    for(let t=-15;t<(along?X1-X0:Z1-Z0)+15;t+=3)add(along?new THREE.BoxGeometry(1.4,.012,.12):new THREE.BoxGeometry(.12,.012,1.4),mat3("#E8E3C8"),along?X0+t:ro[0],-.004,along?ro[1]:Z0+t,false);
+    if(F>0){const fm=mat3("#B9BDBC"),cap=mat3("#D3D6D5"),T=.2;
+      const post=(x,z,h=F+.18,w=.36)=>{add(new THREE.BoxGeometry(w,h,w),fm,x,h/2,z);add(new THREE.BoxGeometry(w+.08,.06,w+.08),cap,x,h+.03,z);};
+      const seg=(x0,z0,x1,z1)=>{const L=Math.hypot(x1-x0,z1-z0);if(L<.05)return;const hz=Math.abs(z1-z0)<.01;
+        add(hz?new THREE.BoxGeometry(L,F,T):new THREE.BoxGeometry(T,F,L),fm,(x0+x1)/2,F/2,(z0+z1)/2);
+        add(hz?new THREE.BoxGeometry(L+.06,.06,T+.08):new THREE.BoxGeometry(T+.08,.06,L+.06),cap,(x0+x1)/2,F+.03,(z0+z1)/2);
+        const n=Math.max(1,Math.round(L/3.2));for(let i=0;i<=n;i++){const t=i/n;post(x0+(x1-x0)*t,z0+(z1-z0)*t);}};
+      // 앞쪽 담장의 출입구 (앞변을 따라 잰 위치 u)
+      const u0=along?X0:Z0,u1=along?X1:Z1,onFront=d=>!!d.horiz===along&&(front==="top"||front==="left"?d.line<E:d.line>S-E);
+      const carU=cars.filter(q=>(front==="top"?q.z<S/2:front==="bottom"?q.z>S/2:front==="left"?q.x<S/2:q.x>S/2)).map(q=>along?q.x:q.z);
+      let carGates=carU.length?carU:[u0+(u1-u0)/6,u1-(u1-u0)/6];
+      const mid=(u0+u1)/2,fd=doorPanels.filter(onFront).map(d=>(d.a+d.b)/2).filter(u=>!carGates.some(c=>Math.abs(c-u)<2.5));
+      const walkU=fd.length?fd.sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid))[0]:mid;
+      let gates=[...carGates.map(u=>[u-1.9,u+1.9]),[walkU-.75,walkU+.75]].map(([a,b])=>[Math.max(u0+.5,a),Math.min(u1-.5,b)]).filter(([a,b])=>b-a>.5).sort((p,q)=>p[0]-q[0]);
+      const merged=[];for(const gg of gates){const l=merged[merged.length-1];if(l&&gg[0]<=l[1]+.4)l[1]=Math.max(l[1],gg[1]);else merged.push([...gg]);}
+      const fl=front==="top"?Z0:front==="bottom"?Z1:front==="left"?X0:X1;
+      const P2=u=>along?[u,fl]:[fl,u];
+      // 세 옆 담장
+      if(front!=="top")seg(X0,Z0,X1,Z0);if(front!=="bottom")seg(X0,Z1,X1,Z1);if(front!=="left")seg(X0,Z0,X0,Z1);if(front!=="right")seg(X1,Z0,X1,Z1);
+      // 앞 담장: 출입구 사이만, 출입구 양옆엔 조금 굵고 높은 문기둥
+      let at=u0;for(const [a,b] of merged){seg(...P2(at),...P2(a));post(...P2(a),F+.45,.48);post(...P2(b),F+.45,.48);at=b;}
+      seg(...P2(at),...P2(u1));}}
   // 박공지붕: 한 높이로 끊김 없이. 중정이 있으면 바깥 처마 ↔ 용마루(사각 고리) ↔ 안쪽 처마(중정)로 이어진 정사각형 고리 지붕
   let roofTop=0;
   if(T3.roof){const cl=[],cc=[];for(const [k,v] of Object.entries(cells)){if(!v)continue;const [r,q]=k.split(",").map(Number);(v===court?cc:cl).push([r,q]);}
