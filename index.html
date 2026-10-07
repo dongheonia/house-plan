@@ -1192,7 +1192,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261007231858";// 배포할 때 바뀜
+const BUILD="20261007232720";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1428,7 +1428,7 @@ function model3D(kind,W,D,H){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
     for(const [a,b] of [[.1,.367],[.367,.633],[.633,.9]])B(a+.005,b-.005,.3,.98,.42,.53,c.burg2,.05);legs(X(.02),X(.98),Z(.04),Z(.96),.08,c.dgray,.04);break;
   case"bench":B(0,1,0,1,.4,.45,c.lwood,.02);for(const u of [.05,.88])B(u,u+.07,.05,.95,0,.4,c.lwood);break;
   case"chair":chair(W/2,D/2,"n",c.lwood,c.burg);break;
-  case"tv":B(0,1,.1,.1+.05/D,.72,1.55,c.black,.01,{r:.3});B(.47,.53,.2,.4,0,.8,"#2B2F2E");B(.3,.7,.3,1,0,.03,"#2B2F2E",.02);break;
+  case"tv":{const z0=Math.max(.13,D*.45);Bm(0,W,z0,z0+.05,.72,1.55,c.black,.01,{r:.3});Bm(W*.47,W*.53,z0+.05,z0+.1,.03,.8,"#2B2F2E");Bm(W*.3,W*.7,Math.max(.02,z0-.12),Math.min(D,z0+.2),0,.03,"#2B2F2E",.02);break;}// 벽에 묻히지 않게 화면을 앞으로
   case"pwall":B(0,1,0,1,0,H||2.4,"#C9CECD");break;
   case"tub":B(0,1,0,1,0,.55,c.white,.12);B(.08,.92,.08,.92,.552,.553,c.water,.22,{r:.1});p.push({cy:[X(.04),Z(.5),.025,.55,.75],c:c.steel});break;
   case"shower":{B(0,1,0,1,0,.06,c.white);const g={op:.28,r:.05};B(0,1,0,.012/D,.06,2,c.glass,0,g);B(0,.012/W,0,1,.06,2,c.glass,0,g);B(1-.012/W,1,0,1,.06,2,c.glass,0,g);B(0,1,1-.012/D,1,.06,2,c.glass,0,g);
@@ -1500,24 +1500,28 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
       if(kh!==rk){if(rk)pushRun(1,i*c,ra*c,j*c,rk==="arc"?"arc":"wall",rk==="cr");ra=j;rk=kh;}
       const kv=j<10?(i===0?(colOf(j,0)?"wall":null):i===10?(colOf(j,9)?"wall":null):kindAt(colOf(j,i-1),colOf(j,i))):null;// 세로 선 x=i
       if(kv!==ck){if(ck)pushRun(0,i*c,ca*c,j*c,ck==="arc"?"arc":"wall",ck==="cr");ca=j;ck=kv;}}}
-  // ② 문·창을 벽 줄에 붙이기
-  //  - 회랑(복도)에 닿은 문은 무조건 회랑↔방 경계의 문
-  //  - 그 밖에는 그림에서 벽 쪽 변(문은 아래 변, 창은 가운데 선)에 가까운 벽 줄, 없으면 기호가 걸친 가장 가까운 벽 줄
+  // ② 문·창을 벽 줄에 붙이기 — 차례대로 찾음
+  //  외여닫이: 문짝 직선(그림의 왼쪽 변, 좌우 뒤집으면 오른쪽) → 호의 밑변 / 양여닫이: 밑변 / 미닫이·창: 가운데 선
+  //  위에서 못 찾은 문: 회랑(복도)↔방 경계를 따라 놓인 것이면 그 경계 → 그래도 없으면 걸친 가장 가까운 벽
   const doorPanels=[];
   const near=(r,box,pad)=>r.horiz?(r.line>=box.z0-pad&&r.line<=box.z1+pad&&r.b>box.x0&&r.a<box.x1):(r.line>=box.x0-pad&&r.line<=box.x1+pad&&r.b>box.z0&&r.a<box.z1);
-  for(const it of P.filter(i=>i.type==="sym"&&OPEN_KINDS[i.kind])){const vb=vbox(it),rot=((it.rot||0)%360+360)%360,horiz=rot%180===0,type=OPEN_KINDS[it.kind];
+  const ROT={L:"T",T:"R",R:"B",B:"L"};// 시계 방향 90°
+  const sideLine=(vb,side,rot)=>{for(let k=0;k<rot/90;k++)side=ROT[side];
+    return side==="T"?{horiz:true,line:u2m(vb.y)}:side==="B"?{horiz:true,line:u2m(vb.y+vb.h)}:side==="L"?{horiz:false,line:u2m(vb.x)}:{horiz:false,line:u2m(vb.x+vb.w)};};
+  const span=(r,box)=>r.horiz?[box.x0,box.x1]:[box.z0,box.z1];
+  const fits=(r,box)=>{const [a,b]=span(r,box),ov=Math.min(b,r.b)-Math.max(a,r.a);return ov>=Math.min(.5,(b-a)*.6)&&ov>=(b-a)*.5;};// 문 폭 절반 넘게 벽 줄에 걸침
+  for(const it of P.filter(i=>i.type==="sym"&&OPEN_KINDS[i.kind])){const vb=vbox(it),rot=((it.rot||0)%360+360)%360,type=OPEN_KINDS[it.kind];
     const box={x0:u2m(vb.x),x1:u2m(vb.x+vb.w),z0:u2m(vb.y),z1:u2m(vb.y+vb.h)},cxm=(box.x0+box.x1)/2,czm=(box.z0+box.z1)/2;
-    let line;if(type==="door"&&it.kind!=="slide"){const bottom=!it.fy;
-      line=u2m(rot===0?(bottom?vb.y+vb.h:vb.y):rot===180?(bottom?vb.y:vb.y+vb.h):rot===90?(bottom?vb.x:vb.x+vb.w):(bottom?vb.x+vb.w:vb.x));}
-    else line=horiz?czm:cxm;
-    const dist=r=>Math.abs(r.line-(r.horiz?czm:cxm));
+    const lines=it.kind==="door"?[sideLine(vb,it.fx?"R":"L",rot),sideLine(vb,it.fy?"T":"B",rot)]
+      :it.kind==="door2"?[sideLine(vb,it.fy?"T":"B",rot)]:[rot%180===0?{horiz:true,line:czm}:{horiz:false,line:cxm}];
     let target=null;
-    if(type==="door"){const cr=runs.filter(r=>r.cr&&near(r,box,.35)).sort((p,q)=>dist(p)-dist(q));if(cr.length)target=cr[0];}
-    if(!target)target=runs.filter(r=>r.kind==="wall"&&!!r.horiz===horiz&&Math.abs(r.line-line)<=.45&&(horiz?r.b>box.x0&&r.a<box.x1:r.b>box.z0&&r.a<box.z1))
-      .sort((p,q)=>Math.abs(p.line-line)-Math.abs(q.line-line))[0]||null;
-    if(!target&&type==="door")target=runs.filter(r=>r.kind==="wall"&&near(r,box,.2)).sort((p,q)=>dist(p)-dist(q))[0]||null;
+    for(const ln of lines){target=runs.filter(r=>r.kind==="wall"&&!!r.horiz===ln.horiz&&Math.abs(r.line-ln.line)<=.45&&fits(r,box))
+      .sort((p,q)=>Math.abs(p.line-ln.line)-Math.abs(q.line-ln.line))[0]||null;if(target)break;}
+    const dist=r=>Math.abs(r.line-(r.horiz?czm:cxm));
+    if(!target&&type==="door")target=runs.filter(r=>r.cr&&near(r,box,.35)&&fits(r,box)).sort((p,q)=>dist(p)-dist(q))[0]||null;
+    if(!target&&type==="door")target=runs.filter(r=>r.kind==="wall"&&near(r,box,.2)&&fits(r,box)).sort((p,q)=>dist(p)-dist(q))[0]||null;
     if(!target)continue;
-    const H0=target.horiz,a=H0?box.x0:box.z0,b=H0?box.x1:box.z1,L=target.line;
+    const H0=target.horiz,[a,b]=span(target,box),L=target.line;
     // 같은 자리에 겹친 벽 줄(네모 변·칸 경계)도 모두 비움
     for(const r of runs)if(r.kind==="wall"&&!!r.horiz===!!H0&&Math.abs(r.line-L)<=.25&&r.b>a&&r.a<b)r.opens.push({a:Math.max(a,r.a),b:Math.min(b,r.b),type});
     if(type==="door")doorPanels.push({horiz:H0,line:L,a:Math.max(a,target.a),b:Math.min(b,target.b),kind:it.kind});}
@@ -1544,11 +1548,11 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     // 닫힌 문짝: 벽 구멍을 채워 양쪽에서 보이게 (양여닫이는 두 짝, 미닫이는 겹친 두 장)
     const dm=mat3(C3.door),dm2=mat3(C3.lwood),hm=mat3(C3.steel),DT=.05,DH=Math.min(DOOR_H,H)-.01;
     for(const d of doorPanels){const {horiz,line}=d,gap=.006;
-      const leaf=(a,b,m=dm,off=0)=>{piece(horiz,line+off,a+gap,b-gap,0,DH,m,DT);
+      const leaf=(a,b,m=dm,off=0,t=DT)=>{piece(horiz,line+off,a+gap,b-gap,0,DH,m,t);
         const hx=b-a>.3?(a+b)/2+(b-a)*.35:(a+b)/2;// 손잡이 (양쪽 면)
-        for(const s of [-1,1]){const o=line+off+s*(DT/2+.02);if(horiz)add(new THREE.BoxGeometry(.12,.03,.03),hm,hx,1,o);else add(new THREE.BoxGeometry(.03,.03,.12),hm,o,1,hx);}};
+        for(const s of [-1,1]){const o=line+off+s*(t/2+.02);if(horiz)add(new THREE.BoxGeometry(.12,.03,.03),hm,hx,1,o);else add(new THREE.BoxGeometry(.03,.03,.12),hm,o,1,hx);}};
       if(d.kind==="door2"){const m=(d.a+d.b)/2;leaf(d.a,m);leaf(m,d.b);}
-      else if(d.kind==="slide"){const L=d.b-d.a;leaf(d.a,d.a+L*.55,dm2,-.03);leaf(d.a+L*.45,d.b,dm2,.03);}
+      else if(d.kind==="slide"){const L=d.b-d.a;leaf(d.a,d.a+L*.55,dm2,-.022,.03);leaf(d.a+L*.45,d.b,dm2,.022,.03);}// 두 장이 벽 두께(0.12) 안에서 앞뒤로
       else leaf(d.a,d.b);}}
   // 가구·설비 (창·문은 벽에서 처리, 아치 선 위의 가벽은 낮은 난간으로)
   for(const it of P.filter(i=>i.type==="sym"&&!OPEN_KINDS[i.kind])){
