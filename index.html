@@ -1224,7 +1224,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008002222";// 배포할 때 바뀜
+const BUILD="20261008003724";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1367,7 +1367,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
 // 설계도 시트의 항목·칸 색을 읽어 three.js로 그림 (탭을 처음 열 때 불러옴). 설계도가 바뀌면 다시 그림
 // 좌표: 보드 1 m = 55 → 3D 1 = 1 m. 보드 x → x, 보드 y(아래) → z
 var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true,roof:false,fenceH:1.4};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
-const DOOR_H=2.1,SILL=.9,SLIT=[.35,.75],WALL_T=.12,CAB_H=.5,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
+const DOOR_H=2.1,SILL=.9,WALL_T=.12,CAB_H=.5,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
 const OPEN_KINDS={door:"door",door2:"door",slide:"door",garage:"garage",window:"win",window2:"win",slit:"slit"};
 // 색: 벽·돌(회랑)·지붕
 const C3={wall:"#F4F1EA",stone:"#D9D0C1",roof:"#4A525C",gable:"#EDE7DA",wood:"#9A7350",lwood:"#C39A68",door:"#A67C52",
@@ -1394,7 +1394,7 @@ async function open3D(){
     const root=new THREE.Group();scene.add(root);
     // 해 모양·하루 길(호): 집 둘레 큰 반구 위에
     const sunBall=new THREE.Mesh(new THREE.SphereGeometry(1.3,24,16),new THREE.MeshBasicMaterial({color:"#FFD45A"}));
-    const sunPath=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:"#E0A21B",dashSize:.8,gapSize:.5}));scene.add(sunBall,sunPath);
+    const sunPath=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:"#E0A21B",dashSize:.8,gapSize:.5}));sunBall.visible=sunPath.visible=false;// 해와 해 길은 화면에 그리지 않음 (빛·그림자 방향만)
     Object.assign(T3,{r,scene,cam,ctl,root,box,sun,hemi,sunBall,sunPath});view3D("tilt");
     new ResizeObserver(size3D).observe(box);size3D();
     const loop=()=>{requestAnimationFrame(loop);if(!T3.on||!box.offsetWidth)return;ctl.update();r.render(scene,cam);};loop();
@@ -1571,7 +1571,10 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   const sideLine=(vb,side,rot)=>{for(let k=0;k<rot/90;k++)side=ROT[side];
     return side==="T"?{horiz:true,line:u2m(vb.y)}:side==="B"?{horiz:true,line:u2m(vb.y+vb.h)}:side==="L"?{horiz:false,line:u2m(vb.x)}:{horiz:false,line:u2m(vb.x+vb.w)};};
   const span=(r,box)=>r.horiz?[box.x0,box.x1]:[box.z0,box.z1];
-  const fits=(r,box)=>{const [a,b]=span(r,box),ov=Math.min(b,r.b)-Math.max(a,r.a);return ov>=Math.min(.5,(b-a)*.6)&&ov>=(b-a)*.5;};// 문 폭 절반 넘게 벽 줄에 걸침
+  // 같은 선 위에 이어진 벽 줄들(칸 색이 바뀌는 곳에서 나뉨)을 합쳐서, 문·창 폭의 절반 넘게 걸치면 그 선
+  const sameLine=r=>runs.filter(q=>q.kind==="wall"&&!!q.horiz===!!r.horiz&&Math.abs(q.line-r.line)<.05);
+  const fits=(r,box)=>{const [a,b]=span(r,box);let ov=0;for(const q of sameLine(r))ov+=Math.max(0,Math.min(b,q.b)-Math.max(a,q.a));
+    return ov>=Math.min(.5,(b-a)*.6)&&ov>=(b-a)*.5;};
   for(const it of P.filter(i=>i.type==="sym"&&OPEN_KINDS[i.kind])){const vb=vbox(it),rot=((it.rot||0)%360+360)%360,type=OPEN_KINDS[it.kind];
     const box={x0:u2m(vb.x),x1:u2m(vb.x+vb.w),z0:u2m(vb.y),z1:u2m(vb.y+vb.h)},cxm=(box.x0+box.x1)/2,czm=(box.z0+box.z1)/2;
     const lines=it.kind==="door"?[sideLine(vb,it.fx?"R":"L",rot),sideLine(vb,it.fy?"T":"B",rot)]
@@ -1587,18 +1590,20 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     const H0=target.horiz,[a,b]=span(target,box),L=target.line;
     // 같은 자리에 겹친 벽 줄(네모 변·칸 경계)도 모두 비움
     for(const r of runs)if(r.kind==="wall"&&!!r.horiz===!!H0&&Math.abs(r.line-L)<=.25&&r.b>a&&r.a<b)r.opens.push({a:Math.max(a,r.a),b:Math.min(b,r.b),type});
-    if(isDoor)doorPanels.push({horiz:H0,line:L,a:Math.max(a,target.a),b:Math.min(b,target.b),kind:it.kind});}
+    const grp=sameLine(target),ga=Math.min(...grp.map(q=>q.a)),gb=Math.max(...grp.map(q=>q.b));
+    if(isDoor)doorPanels.push({horiz:H0,line:L,a:Math.max(a,ga),b:Math.min(b,gb),kind:it.kind});}
   // ③ 세우기
   const wm=mat3(C3.wall),glass=mat3(C3.glass,{op:.45,r:.1}),GAR_H=()=>Math.max(.5,Math.min(2.3,H-.15));// 차고문 높이
   const blockers=[];// 햇빛을 막는 것 (벽·문·아치·지붕·천장) — 유리는 통과
   const piece=(horiz,line,a,b,y0,y1,m=wm,t=WALL_T)=>{if(b-a<.01||y1-y0<.01)return;const L=b-a,h=y1-y0,mid=(a+b)/2;
     const o=horiz?add(new THREE.BoxGeometry(L,h,t),m,mid,y0+h/2,line):add(new THREE.BoxGeometry(t,h,L),m,line,y0+h/2,mid);if(m!==glass)blockers.push(o);};
   // 한 줄 벽: 문·창·슬릿 경계로 잘라 구간마다 높이 띠를 계산 (겹쳐도 됨 — 창 아래 슬릿 등)
-  //  문 0~2.1 / 차고문 0~2.3 / 창 0.9~2.1 유리 / 슬릿 0.35~0.75 뚫림(유리 없음)
-  const band=o=>o.type==="door"?[0,Math.min(DOOR_H,H),0]:o.type==="garage"?[0,GAR_H(),0]:o.type==="win"?[Math.min(SILL,H),Math.min(DOOR_H,H),1]:[Math.min(SLIT[0],H),Math.min(SLIT[1],H),0];
+  //  문 0~2.1 / 차고문 0~2.3 / 창 0.9~2.1 유리 / 슬릿 0.9~2.1 뚫림(유리 없음)
+  const band=o=>o.type==="door"?[0,Math.min(DOOR_H,H),0]:o.type==="garage"?[0,GAR_H(),0]:[Math.min(SILL,H),Math.min(DOOR_H,H),o.type==="win"?1:0];
   const wallLine=r=>{const {horiz,line,a,b}=r,xs=[...new Set([a,b,...r.opens.flatMap(o=>[o.a,o.b])])].filter(v=>v>=a&&v<=b).sort((p,q)=>p-q);
     for(let i=0;i<xs.length-1;i++){const x0=xs[i],x1=xs[i+1];if(x1-x0<.005)continue;
-      const cov=r.opens.filter(o=>o.a<x1-.001&&o.b>x0+.001).map(band);
+      const here=r.opens.filter(o=>o.a<x1-.001&&o.b>x0+.001),slit=here.some(o=>o.type==="slit");
+      const cov=here.map(band).map(v=>slit&&v[2]?[v[0],v[1],0]:v);// 슬릿과 겹친 창은 유리 없이
       const cuts=cov.map(([y0,y1])=>[y0,y1]).sort((p,q)=>p[0]-q[0]);let y=0;
       for(const [y0,y1] of cuts){if(y0>y)piece(horiz,line,x0,x1,y,y0);y=Math.max(y,y1);}
       if(y<H)piece(horiz,line,x0,x1,y,H);
@@ -1775,7 +1780,7 @@ function sunUpdate(rebuilt){if(!T3.ready||!T3.sun)return;
       const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv)}));sp.scale.set(1.8,1.8,1);sp.userData.k=t;T3.compass.add(sp);}}
   {const n=north*Math.PI/180,R=C+13;for(const sp of T3.compass.children){const a=n+{N:0,E:Math.PI/2,S:Math.PI,W:-Math.PI/2}[sp.userData.k];
     sp.position.set(C+Math.sin(a)*R,1.2,C-Math.cos(a)*R);}}
-  T3.sunBall.visible=up;T3.sunBall.position.set(C+dir.x*34,Math.max(.5,dir.y*34),C+dir.z*34);
+  T3.sunBall.position.set(C+dir.x*34,Math.max(.5,dir.y*34),C+dir.z*34);
   const pts=[];for(let t=4;t<=20.01;t+=.25){const q=sunAt(doy,t,north);if(q.el>0)pts.push(new THREE.Vector3(C+q.dir.x*34,q.dir.y*34,C+q.dir.z*34));}
   T3.sunPath.geometry.dispose();T3.sunPath.geometry=new THREE.BufferGeometry().setFromPoints(pts);T3.sunPath.computeLineDistances();
   const deg=v=>Math.round(v*180/Math.PI),dirName=["북","북동","동","남동","남","남서","서","북서"][Math.round(((deg(az)%360)+360)%360/45)%8];
