@@ -1190,7 +1190,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261007225224";// 배포할 때 바뀜
+const BUILD="20261007225504";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1414,14 +1414,25 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   const H=T3.wallH,wm=mat3("#F7F6F2"),glass=new THREE.MeshStandardMaterial({color:"#A9DBF5",transparent:true,opacity:.45,roughness:.1});
   const piece=(horiz,line,a,b,y0,y1,m=wm)=>{if(b-a<.01||y1-y0<.01)return;const L=b-a,h=y1-y0,mid=(a+b)/2;
     if(horiz)add(new THREE.BoxGeometry(L,h,WALL_T),m,mid,y0+h/2,line);else add(new THREE.BoxGeometry(WALL_T,h,L),m,line,y0+h/2,mid);};
-  if(T3.walls&&H>0)for(const it of rects){const b=vbox(it),x0=u2m(b.x),z0=u2m(b.y),x1=u2m(b.x+b.w),z1=u2m(b.y+b.h);
-    for(const [horiz,line,a,bb] of [[1,z0,x0,x1],[1,z1,x0,x1],[0,x0,z0,z1],[0,x1,z0,z1]]){
+  // 한 줄의 벽 (a~bb), 그 선에 닿은 문·창 자리는 비움
+  const wallLine=(horiz,line,a,bb)=>{
       const hit=opens.filter(o=>!!o.horiz===!!horiz&&Math.abs(o.line-line)<=.33&&o.b>a&&o.a<bb).map(o=>({...o,a:Math.max(a,o.a),b:Math.min(bb,o.b)})).sort((p,q)=>p.a-q.a);
       let at=a;for(const o of hit){piece(horiz,line,at,o.a,0,H);
         if(o.type==="door")piece(horiz,line,o.a,o.b,Math.min(DOOR_H,H),H);
         else{piece(horiz,line,o.a,o.b,0,Math.min(SILL,H));piece(horiz,line,o.a,o.b,Math.min(DOOR_H,H),H);piece(horiz,line,o.a,o.b,Math.min(SILL,H),Math.min(DOOR_H,H),glass);}
         at=Math.max(at,o.b);}
-      piece(horiz,line,at,bb,0,H);}}
+      piece(horiz,line,at,bb,0,H);};
+  if(T3.walls&&H>0){
+    for(const it of rects){const b=vbox(it),x0=u2m(b.x),z0=u2m(b.y),x1=u2m(b.x+b.w),z1=u2m(b.y+b.h);
+      for(const [horiz,line,a,bb] of [[1,z0,x0,x1],[1,z1,x0,x1],[0,x0,z0,z1],[0,x1,z0,z1]])wallLine(horiz,line,a,bb);}
+    // 색이 다른 모눈종이 칸 사이 (색 없는 칸도 한 가지 색으로 침) — 같은 선에서 이어지는 벽은 한 줄로 합침
+    const colOf=(r,c)=>cells[r+","+c]||"";
+    for(let i=1;i<10;i++){let ra=null,ca=null;
+      for(let j=0;j<=10;j++){
+        const h=j<10&&colOf(i-1,j)!==colOf(i,j);// 가로 선 y=i, 칸 j
+        if(h&&ra===null)ra=j;if(!h&&ra!==null){wallLine(1,i*c,ra*c,j*c);ra=null;}
+        const v=j<10&&colOf(j,i-1)!==colOf(j,i);// 세로 선 x=i, 칸 j
+        if(v&&ca===null)ca=j;if(!v&&ca!==null){wallLine(0,i*c,ca*c,j*c);ca=null;}}}}
   // 가구·설비 아이콘: 바닥 모양을 높이만큼 세우고 윗면에 아이콘 그림
   for(const it of P.filter(i=>i.type==="sym"&&H3[i.kind])){const [hh,side,opt={}]=H3[it.kind];const ht=opt.wall?H||2.4:hh;if(!ht)continue;
     const W=u2m(it.w),D=u2m(it.h),fp=footprint(it.kind).map(([u,v])=>[((it.fx?1-u:u)-.5)*W,((it.fy?1-v:v)-.5)*D]);
