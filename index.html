@@ -49,7 +49,21 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .three .tools button[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:600}
 .three .tools label{height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:.82rem;display:inline-flex;align-items:center;gap:8px}
 .three .tools input[type=range]{width:110px}
-.three .hint{position:absolute;left:12px;bottom:12px;z-index:3;background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.78rem}
+/* 해: 아래 막대(날짜·시각·북쪽·재생) + 오른쪽 방별 햇빛 */
+.three .sunbar{position:absolute;left:12px;right:12px;bottom:12px;z-index:3;display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.8rem}
+.three .sunbar label{display:inline-flex;align-items:center;gap:6px;flex:1 1 220px;min-width:0}
+.three .sunbar input[type=range]{flex:1;min-width:80px}
+.three .sunbar output{min-width:7.5em;font-variant-numeric:tabular-nums;font-weight:600}
+.three .sunbar button,.three .sunbar select{height:30px;border-radius:7px;border:1px solid var(--line);background:var(--page);color:var(--ink);font:inherit;padding:0 10px;cursor:pointer}
+.three .sunbar .sunst{color:var(--muted);flex:1 0 100%;font-size:.76rem}
+.three .sunpanel{position:absolute;right:12px;top:56px;z-index:3;width:min(250px,calc(100% - 24px));max-height:calc(100% - 200px);overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.78rem}
+.three .sunpanel h3{margin:0 0 6px;font-size:.8rem}
+.three .sunpanel .row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;margin:5px 0}
+.three .sunpanel .bar{grid-column:1/3;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.three .sunpanel .bar i{display:block;height:100%;background:#F2B233}
+.three .sunpanel .hrs{color:var(--muted);font-variant-numeric:tabular-nums}
+.three .sunpanel[hidden]{display:none}
+.three .hint{display:none;position:absolute;left:12px;bottom:12px;z-index:3;background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.78rem}
 /* 설계도: 프리폼과 같은 보드에 10×10 모눈종이(100평 정사각형)를 깔고 항목은 시트별로 따로 */
 .content.plan-mode{background:#DDE2E0}
 .content.plan-mode .item .tx{color:#000}
@@ -250,6 +264,15 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" id="labelsBtn" aria-pressed="true" title="텍스트를 방 이름표로 띄우기">이름표</button>
     <label>담장 <input type="range" id="fenceH" min="0" max="3" step="0.1" value="1.4"><span id="fenceHv">1.4 m</span></label>
     <button type="button" id="roofBtn" aria-pressed="false" title="박공지붕 씌우기 (중정은 열어 둠)">지붕</button>
+  </div>
+  <div class="sunpanel" id="sunPanel"><h3>방별 햇빛</h3><div id="sunRooms"></div></div>
+  <div class="sunbar">
+    <label>날짜 <input type="range" id="sunDay" min="1" max="365" step="1"><output id="sunDayV"></output></label>
+    <label>시각 <input type="range" id="sunTime" min="5" max="20" step="0.25" value="15"><output id="sunTimeV"></output></label>
+    <button type="button" id="sunPlay" aria-pressed="false" title="하루 동안 해 움직이기">▶ 하루</button>
+    <select id="sunNorth" title="설계도에서 북쪽이 어느 쪽인지"><option value="0">북쪽: 위</option><option value="90">북쪽: 오른쪽</option><option value="180">북쪽: 아래</option><option value="270">북쪽: 왼쪽</option></select>
+    <button type="button" id="sunPanelBtn" aria-pressed="true" title="방별 햇빛 표 보기">방별 햇빛</button>
+    <div class="sunst" id="sunState"></div>
   </div>
   <div class="hint">끌어서 돌리기 · 휠/두 손가락으로 확대 · 오른쪽 버튼(두 손가락 끌기)으로 이동 — 설계도를 바꾸면 자동으로 다시 그려요</div>
 </section>
@@ -1200,7 +1223,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008000830";// 배포할 때 바뀜
+const BUILD="20261008001243";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1360,7 +1383,7 @@ async function open3D(){
     const scene=new THREE.Scene();scene.background=new THREE.Color("#DDE2E0");
     const cam=new THREE.PerspectiveCamera(45,1,.1,500);
     const ctl=new THREE.OrbitControls(cam,r.domElement);ctl.enableDamping=true;ctl.maxPolarAngle=Math.PI/2-.02;
-    scene.add(new THREE.HemisphereLight(0xffffff,0xb8c0be,.55));// 빛을 합쳐 1 안팎 — 넘치면 해 드는 바닥이 하얗게 날아감
+    const hemi=new THREE.HemisphereLight(0xffffff,0xb8c0be,.55);scene.add(hemi);// 빛을 합쳐 1 안팎 — 넘치면 해 드는 바닥이 하얗게 날아감
     // 거의 머리 위 해 — 방 안이 벽 그림자에 덜 가리게
     const sun=new THREE.DirectionalLight(0xffffff,.5);sun.position.set(-5,34,-6);sun.castShadow=true;
     sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-24,right:24,top:24,bottom:-24,near:1,far:90});
@@ -1368,7 +1391,10 @@ async function open3D(){
     const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),grassMat(200,200));// 바깥 땅은 잔디
     ground.rotation.x=-Math.PI/2;ground.position.y=-.01;ground.receiveShadow=true;scene.add(ground);
     const root=new THREE.Group();scene.add(root);
-    Object.assign(T3,{r,scene,cam,ctl,root,box});view3D("tilt");
+    // 해 모양·하루 길(호): 집 둘레 큰 반구 위에
+    const sunBall=new THREE.Mesh(new THREE.SphereGeometry(1.3,24,16),new THREE.MeshBasicMaterial({color:"#FFD45A"}));
+    const sunPath=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:"#E0A21B",dashSize:.8,gapSize:.5}));scene.add(sunBall,sunPath);
+    Object.assign(T3,{r,scene,cam,ctl,root,box,sun,hemi,sunBall,sunPath});view3D("tilt");
     new ResizeObserver(size3D).observe(box);size3D();
     const loop=()=>{requestAnimationFrame(loop);if(!T3.on||!box.offsetWidth)return;ctl.update();r.render(scene,cam);};loop();
   })().catch(e=>{T3.ready=null;note("3D를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.");throw e;});
@@ -1563,8 +1589,9 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     if(isDoor)doorPanels.push({horiz:H0,line:L,a:Math.max(a,target.a),b:Math.min(b,target.b),kind:it.kind});}
   // ③ 세우기
   const wm=mat3(C3.wall),glass=mat3(C3.glass,{op:.45,r:.1}),GAR_H=()=>Math.max(.5,Math.min(2.3,H-.15));// 차고문 높이
+  const blockers=[];// 햇빛을 막는 것 (벽·문·아치·지붕·천장) — 유리는 통과
   const piece=(horiz,line,a,b,y0,y1,m=wm,t=WALL_T)=>{if(b-a<.01||y1-y0<.01)return;const L=b-a,h=y1-y0,mid=(a+b)/2;
-    if(horiz)add(new THREE.BoxGeometry(L,h,t),m,mid,y0+h/2,line);else add(new THREE.BoxGeometry(t,h,L),m,line,y0+h/2,mid);};
+    const o=horiz?add(new THREE.BoxGeometry(L,h,t),m,mid,y0+h/2,line):add(new THREE.BoxGeometry(t,h,L),m,line,y0+h/2,mid);if(m!==glass)blockers.push(o);};
   const wallLine=r=>{const {horiz,line,a,b}=r,hit=r.opens.slice().sort((p,q)=>p.a-q.a);
     let at=a;for(const o of hit){piece(horiz,line,at,o.a,0,H);
       if(o.type==="door")piece(horiz,line,o.a,o.b,Math.min(DOOR_H,H),H);
@@ -1578,10 +1605,10 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   const arcadeLine=({horiz,line,a,b})=>{arcades.push({horiz,line,a,b});if(H<1.6){piece(horiz,line,a,b,0,H,stone);return;}
     const n=3,bw=(b-a)/n,AT=.3,p=.2,{sh,spring}=archShape(bw,H,p);
     const geo=new THREE.ExtrudeGeometry(sh,{depth:AT,bevelEnabled:false});
-    for(let i=0;i<n;i++){const u=a+i*bw,mesh=new THREE.Mesh(geo,stone);mesh.castShadow=mesh.receiveShadow=true;
+    for(let i=0;i<n;i++){const u=a+i*bw,mesh=new THREE.Mesh(geo,stone);mesh.castShadow=mesh.receiveShadow=true;blockers.push(mesh);
       if(horiz)mesh.position.set(u,0,line-AT/2);else{mesh.rotation.y=-Math.PI/2;mesh.position.set(line+AT/2,0,u);}g.add(mesh);}
     for(let i=0;i<=n;i++){const u=a+i*bw,[x,z]=horiz?[u,line]:[line,u];// 기둥 + 기둥머리 + 받침
-      add(new THREE.CylinderGeometry(.15,.17,spring,20),stone,x,spring/2,z);add(new THREE.BoxGeometry(.42,.14,.42),stone,x,spring+.07,z);add(new THREE.BoxGeometry(.42,.1,.42),stone,x,.05,z);}};
+      blockers.push(add(new THREE.CylinderGeometry(.15,.17,spring,20),stone,x,spring/2,z));add(new THREE.BoxGeometry(.42,.14,.42),stone,x,spring+.07,z);add(new THREE.BoxGeometry(.42,.1,.42),stone,x,.05,z);}};
   if(T3.walls&&H>0){for(const r of runs)r.kind==="arc"?arcadeLine(r):wallLine(r);
     // 닫힌 문짝: 벽 구멍을 채워 양쪽에서 보이게 (양여닫이는 두 짝, 미닫이는 겹친 두 장)
     const dm=mat3(C3.door),dm2=mat3(C3.lwood),hm=mat3(C3.steel),DT=.05,DH=Math.min(DOOR_H,H)-.01;
@@ -1677,7 +1704,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
         else{const xm=(O.x0+O.x1)/2;quad([ox0,H,oz1],[ox0,H,oz0],[xm,top,oz0],[xm,top,oz1]);quad([ox1,H,oz0],[ox1,H,oz1],[xm,top,oz1],[xm,top,oz0]);
           gab.push(ox0,H,oz0,ox1,H,oz0,xm,top,oz0, ox1,H,oz1,ox0,H,oz1,xm,top,oz1);}}
       const geo=new THREE.BufferGeometry();geo.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));geo.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));geo.computeVertexNormals();
-      const roof=new THREE.Mesh(geo,roofMat());roof.castShadow=roof.receiveShadow=true;g.add(roof);
+      const roof=new THREE.Mesh(geo,roofMat());roof.castShadow=roof.receiveShadow=true;g.add(roof);blockers.push(roof);
       if(gab.length){const gg=new THREE.BufferGeometry();gg.setAttribute("position",new THREE.Float32BufferAttribute(gab,3));gg.computeVertexNormals();// 박공 끝 세모는 벽색
         g.add(new THREE.Mesh(gg,new THREE.MeshStandardMaterial({color:C3.wall,side:THREE.DoubleSide})));}}}
   // 이름표: 글상자·글자를 방 위에 띄움
@@ -1690,7 +1717,77 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));sp.renderOrder=10;
     const hgt=.42;sp.scale.set(hgt*cv.width/cv.height,hgt,1);const b=vbox(it);
     sp.position.set(u2m(b.x+b.w/2),Math.max(T3.walls?H:0,roofTop)+.6,u2m(b.y+b.h/2));g.add(sp);}
+  // 보이지 않는 천장: 지붕을 걷어도 방 안 그림자·햇빛은 천장이 있는 것처럼 (중정은 열림)
+  if(T3.walls&&H>0){const inv=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false});
+    for(let r=0;r<10;r++){let st=null;for(let q=0;q<=10;q++){const on=q<10&&colOf(r,q)&&colOf(r,q)!==court;
+      if(on&&st===null)st=q;if(!on&&st!==null){const o=new THREE.Mesh(new THREE.BoxGeometry((q-st)*c,.05,c),inv);o.position.set((st+q)/2*c,H+.03,r*c+c/2);o.castShadow=true;g.add(o);blockers.push(o);st=null;}}}}
+  // 방: 이름표 자리의 네모(있으면) 또는 같은 색으로 이어진 칸들 — 바닥 위 점들에서 해 쪽으로 광선을 쏴 햇빛을 잼
+  const rooms=[];
+  for(const it of P.filter(i=>(i.type==="tbox"||i.type==="text")&&(i.text||"").trim())){const b=vbox(it),cx=b.x+b.w/2,cy=b.y+b.h/2,pts=[];
+    const rc=rects.filter(r=>{const q=vbox(r);return cx>q.x&&cx<q.x+q.w&&cy>q.y&&cy<q.y+q.h;}).sort((p,q)=>p.w*p.h-q.w*q.h)[0];
+    if(rc){const q=vbox(rc),nx=Math.max(2,Math.round(q.w/45)),nz=Math.max(2,Math.round(q.h/45));
+      for(let i=0;i<nx;i++)for(let j=0;j<nz;j++)pts.push([u2m(q.x+q.w*(i+.5)/nx),u2m(q.y+q.h*(j+.5)/nz)]);}
+    else{const r0=Math.floor(cy/CELL),c0=Math.floor(cx/CELL),col=colOf(r0,c0);if(!col)continue;
+      const seen=new Set([r0+","+c0]),st=[[r0,c0]];while(st.length){const [r,q]=st.pop();
+        for(const [u,v] of [[0,.25],[.5,.25],[0,.75],[.5,.75]].map(([a,bb])=>[a+.25,bb]))pts.push([(q+u)*c,(r+v)*c]);
+        for(const [dr,dq] of [[1,0],[-1,0],[0,1],[0,-1]]){const k=(r+dr)+","+(q+dq);if(!seen.has(k)&&colOf(r+dr,q+dq)===col){seen.add(k);st.push([r+dr,q+dq]);}}}}
+    const step=Math.max(1,Math.ceil(pts.length/40));rooms.push({name:it.text.trim().split("\n")[0],pts:pts.filter((_,i)=>i%step===0)});}
+  T3.blockers=blockers;T3.rooms=rooms;sunUpdate(true);
 }
+// ===== 해: 날짜·시각 → 해 높이·방위 (위도 37°, 경도 127.5° — 한국 표준시 기준) =====
+const LAT=37*Math.PI/180,LON=127.5;
+const SEASON={80:"춘분",172:"하지",266:"추분",355:"동지"};
+function doyLabel(n){const d=new Date(2026,0,n);let t=`${d.getMonth()+1}월 ${d.getDate()}일`;
+  for(const [k,v] of Object.entries(SEASON))if(Math.abs(n-k)<=3)t+=` · ${v}`;return t;}
+function timeLabel(h){const hh=Math.floor(h),mm=Math.round((h-hh)*60);return `${hh<12?"오전":"오후"} ${((hh+11)%12)+1}:${String(mm).padStart(2,"0")}`;}
+// 해의 방향 (단위 벡터, 월드 좌표) — 북쪽이 설계도의 위(-z)일 때 동쪽은 +x. north: 설계도에서 북쪽이 시계 방향으로 몇 도
+function sunAt(doy,clock,north){const decl=23.44*Math.PI/180*Math.sin(2*Math.PI*(284+doy)/365);
+  const B=2*Math.PI*(doy-81)/364,eot=(9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B))/60;// 균시차(시간)
+  const solar=clock+(LON-135)/15+eot,h=(solar-12)*15*Math.PI/180;
+  const el=Math.asin(Math.sin(LAT)*Math.sin(decl)+Math.cos(LAT)*Math.cos(decl)*Math.cos(h));
+  const az=Math.atan2(-Math.cos(decl)*Math.sin(h),Math.sin(decl)*Math.cos(LAT)-Math.cos(decl)*Math.sin(LAT)*Math.cos(h));// 북에서 동쪽으로
+  const n=north*Math.PI/180,N=[Math.sin(n),-Math.cos(n)],E=[Math.cos(n),Math.sin(n)];
+  const ce=Math.cos(el),dx=(E[0]*Math.sin(az)+N[0]*Math.cos(az))*ce,dz=(E[1]*Math.sin(az)+N[1]*Math.cos(az))*ce;
+  return{el,az,dir:new THREE.Vector3(dx,Math.sin(el),dz)};}
+const sunDay=document.getElementById("sunDay"),sunTime=document.getElementById("sunTime"),sunNorth=document.getElementById("sunNorth");
+{const now=new Date(),d0=new Date(now.getFullYear(),0,0);sunDay.value=Math.min(365,Math.floor((now-d0)/864e5));}
+const ray3=()=>T3.ray||(T3.ray=new THREE.Raycaster());
+// 점들 중 해가 직접 비치는 비율 (해가 지평선 아래면 0)
+function litShare(pts,dir){if(dir.y<=.01||!pts.length)return 0;const rc=ray3(),o=new THREE.Vector3();let lit=0;rc.far=60;
+  for(const [x,z] of pts){o.set(x,.4,z);rc.set(o,dir);if(!rc.intersectObjects(T3.blockers,false).length)lit++;}return lit/pts.length;}
+function sunUpdate(rebuilt){if(!T3.ready||!T3.sun)return;
+  const doy=+sunDay.value,clock=+sunTime.value,north=+sunNorth.value,{el,az,dir}=sunAt(doy,clock,north),C=SIDE_M/2;
+  document.getElementById("sunDayV").textContent=doyLabel(doy);document.getElementById("sunTimeV").textContent=timeLabel(clock);
+  const up=el>0,s=Math.max(0,Math.sin(el));
+  T3.sun.position.set(C+dir.x*40,dir.y*40,C+dir.z*40);T3.sun.target.position.set(C,0,C);
+  T3.sun.intensity=up?.3+.3*Math.min(1,s*1.8):0;T3.sun.color.set(s<.25?"#FFD2A1":"#FFFFFF");// 낮은 해는 노을빛
+  T3.hemi.intensity=up?.42+.15*Math.min(1,s*2):.25;
+  T3.scene.background.set(up?(s<.2?"#E9CDB0":"#DDE2E0"):"#5D6678");
+  T3.sunBall.visible=up;T3.sunBall.position.set(C+dir.x*34,Math.max(.5,dir.y*34),C+dir.z*34);
+  const pts=[];for(let t=4;t<=20.01;t+=.25){const q=sunAt(doy,t,north);if(q.el>0)pts.push(new THREE.Vector3(C+q.dir.x*34,q.dir.y*34,C+q.dir.z*34));}
+  T3.sunPath.geometry.dispose();T3.sunPath.geometry=new THREE.BufferGeometry().setFromPoints(pts);T3.sunPath.computeLineDistances();
+  const deg=v=>Math.round(v*180/Math.PI),dirName=["북","북동","동","남동","남","남서","서","북서"][Math.round(((deg(az)%360)+360)%360/45)%8];
+  document.getElementById("sunState").textContent=up?`해 높이 ${deg(el)}° · ${dirName}쪽 (방위 ${((deg(az)%360)+360)%360}°)`:"해가 졌어요 — 시각을 낮으로 옮겨 보세요";
+  // 방별: 지금 햇빛 비율 + 하루 일조 시간 (하루치는 날짜·북쪽·설계도가 바뀔 때만 다시)
+  const rooms=T3.rooms||[];for(const r of rooms)r.now=litShare(r.pts,dir);
+  const key=doy+"|"+north;if(rebuilt||T3.dayKey!==key){T3.dayKey=key;dailySun(doy,north);}
+  drawSunPanel();}
+function dailySun(doy,north){const job=T3.dayJob=(T3.dayJob||0)+1,rooms=T3.rooms||[];rooms.forEach(r=>r.hrs=null);
+  const times=[];for(let t=5;t<=20;t+=.5)times.push(t);let k=0;
+  const stepFn=()=>{if(job!==T3.dayJob)return;const t=times[k++];if(t===undefined){drawSunPanel();return;}
+    const {dir}=sunAt(doy,t,north);for(const r of rooms)r.acc=(k===1?0:r.acc||0)+litShare(r.pts,dir)*.5;
+    if(k===times.length)rooms.forEach(r=>r.hrs=r.acc);setTimeout(stepFn,0);};
+  rooms.forEach(r=>r.acc=0);stepFn();}
+function drawSunPanel(){const box=document.getElementById("sunRooms"),rooms=T3.rooms||[];
+  if(!T3.walls||!(T3.wallH>0)){box.innerHTML='<div class="hrs">벽을 켜야 방별 햇빛을 잴 수 있어요.</div>';return;}
+  if(!rooms.length){box.innerHTML='<div class="hrs">설계도에 방 이름(텍스트)을 넣으면 방마다 햇빛을 보여줘요.</div>';return;}
+  box.innerHTML=rooms.map(r=>`<div class="row"><span>${esc(r.name)}</span><span class="hrs">지금 ${Math.round((r.now||0)*100)}% · 하루 ${r.hrs==null?"…":r.hrs.toFixed(1)+"시간"}</span><div class="bar"><i style="width:${Math.round((r.now||0)*100)}%"></i></div></div>`).join("");}
+for(const el of [sunDay,sunTime])el.addEventListener("input",()=>sunUpdate());sunNorth.addEventListener("change",()=>sunUpdate());
+const sunPlay=document.getElementById("sunPlay");
+sunPlay.onclick=()=>{if(T3.playT){clearInterval(T3.playT);T3.playT=null;sunPlay.setAttribute("aria-pressed","false");sunPlay.textContent="▶ 하루";return;}
+  sunPlay.setAttribute("aria-pressed","true");sunPlay.textContent="❚❚ 멈춤";
+  T3.playT=setInterval(()=>{let v=+sunTime.value+.25;if(v>20)v=5;sunTime.value=v;sunUpdate();},150);};
+document.getElementById("sunPanelBtn").onclick=ev=>{const p=document.getElementById("sunPanel"),on=p.hidden;p.hidden=!on;ev.currentTarget.setAttribute("aria-pressed",on);};
 document.querySelectorAll("[data-v3]").forEach(b=>b.onclick=()=>T3.ready&&view3D(b.dataset.v3));
 for(const [id,key] of [["wallsBtn","walls"],["labelsBtn","labels"],["roofBtn","roof"]])
   document.getElementById(id).onclick=ev=>{T3[key]=!T3[key];ev.currentTarget.setAttribute("aria-pressed",T3[key]);build3D();};
