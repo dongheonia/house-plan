@@ -1200,7 +1200,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008000259";// 배포할 때 바뀜
+const BUILD="20261008000830";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1343,7 +1343,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
 // 설계도 시트의 항목·칸 색을 읽어 three.js로 그림 (탭을 처음 열 때 불러옴). 설계도가 바뀌면 다시 그림
 // 좌표: 보드 1 m = 55 → 3D 1 = 1 m. 보드 x → x, 보드 y(아래) → z
 var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true,roof:false,fenceH:1.4};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
-const DOOR_H=2.1,SILL=.9,WALL_T=.12,u2m=v=>v/M;
+const DOOR_H=2.1,SILL=.9,WALL_T=.12,CAB_H=.5,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
 const OPEN_KINDS={door:"door",door2:"door",slide:"door",garage:"garage",window:"win",window2:"win",slit:"slit"};
 // 색: 벽·돌(회랑)·지붕
 const C3={wall:"#F4F1EA",stone:"#D9D0C1",roof:"#4A525C",gable:"#EDE7DA",wood:"#9A7350",lwood:"#C39A68",door:"#A67C52",
@@ -1411,7 +1411,7 @@ function rboxGeo(w,d,r){const s=new THREE.Shape(),x=-w/2,z=-d/2;r=Math.min(r,w/2
 // ===== 가구·설비 모델: 아이콘 상자(W×D m) 안의 부품들 =====
 // 부품 좌표는 아이콘 왼쪽 위가 (0,0), x 오른쪽 · z 아래(그림의 아래쪽) · y 위. 단위 m
 // {b:[x0,x1,z0,z1,y0,y1],c,r(둥근 모서리),o(재질)} 상자 · {cy:[x,z,r,y0,y1],c,sx,sz} 세운 원기둥 · {cx:[x,y,z,r,len],ax:"x"|"z",sv} 누운 원기둥 · {sp:[x,y,z,r],s:[sx,sy,sz]} 공
-function model3D(kind,W,D,H){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
+function model3D(kind,W,D,H,opt={}){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
   const B=(x0,x1,z0,z1,y0,y1,col,r,o)=>p.push({b:[X(x0),X(x1),Z(z0),Z(z1),y0,y1],c:col,r,o});// 비율 좌표
   const Bm=(x0,x1,z0,z1,y0,y1,col,r,o)=>p.push({b:[x0,x1,z0,z1,y0,y1],c:col,r,o});// m 좌표
   const legs=(x0,x1,z0,z1,h,col,t=.05)=>{for(const x of [x0,x1-t])for(const z of [z0,z1-t])Bm(x,x+t,z,z+t,0,h,col);};
@@ -1450,15 +1450,18 @@ function model3D(kind,W,D,H){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
     Bm(cx-.22,cx+.22,cz+.18,cz+.24,.5,.95,"#2B2F2E",.03);break;}
   case"deskc":{B(0,1,0,.55,.72,.75,c.wood);legs(0,W,0,Z(.55),.72,c.wood,.05);chair(X(.5),Z(.74),"s",c.lwood,c.burg);break;}
   case"desk2":B(0,1,0,1,.72,.76,c.wood,.1);legs(X(.05),X(.95),Z(.08),Z(.92),.72,c.wood,.05);break;
-  case"storage":B(0,1,0,.97,0,2,c.gray,.01);B(.01,.495,.97,1,.02,1.98,"#BCC2C1");B(.505,.99,.97,1,.02,1.98,"#BCC2C1");
-    B(.44,.47,1,1.02,.9,1.2,c.dgray);B(.53,.56,1,1.02,.9,1.2,c.dgray);break;
+  case"storage":{const h=opt.low||2;// low: TV를 올려놓는 낮은 수납장
+    B(0,1,0,.97,0,h,c.gray,.01);B(.01,.495,.97,1,.02,h-.02,"#BCC2C1");B(.505,.99,.97,1,.02,h-.02,"#BCC2C1");
+    B(.44,.47,1,1.02,h*.45,h*.6,c.dgray);B(.53,.56,1,1.02,h*.45,h*.6,c.dgray);break;}
   case"closet":B(0,1,0,.97,0,2.1,c.wood,.01);B(.01,.495,.97,1,.02,2.08,"#A98260");B(.505,.99,.97,1,.02,2.08,"#A98260");
     B(.44,.47,1,1.02,.95,1.25,c.steel);B(.53,.56,1,1.02,.95,1.25,c.steel);break;
   case"sofa":B(0,1,0,1,.08,.42,c.burg,.05);B(.1,.9,0,.3,.42,.86,c.burg,.08);B(0,.1,0,1,.08,.64,c.burg,.06);B(.9,1,0,1,.08,.64,c.burg,.06);
     for(const [a,b] of [[.1,.367],[.367,.633],[.633,.9]])B(a+.005,b-.005,.3,.98,.42,.53,c.burg2,.05);legs(X(.02),X(.98),Z(.04),Z(.96),.08,c.dgray,.04);break;
   case"bench":B(0,1,0,1,.4,.45,c.lwood,.02);for(const u of [.05,.88])B(u,u+.07,.05,.95,0,.4,c.lwood);break;
   case"chair":chair(W/2,D/2,"n",c.lwood,c.burg);break;
-  case"tv":{const z0=Math.max(.13,D*.45);Bm(0,W,z0,z0+.05,.72,1.55,c.black,.01,{r:.3});Bm(W*.47,W*.53,z0+.05,z0+.1,.03,.8,"#2B2F2E");Bm(W*.3,W*.7,Math.max(.02,z0-.12),Math.min(D,z0+.2),0,.03,"#2B2F2E",.02);break;}// 벽에 묻히지 않게 화면을 앞으로
+  case"tv":{const z0=Math.max(.13,D*.45);// 화면 앞면은 방 쪽(그림 아래쪽), 받침 기둥은 화면 뒤(벽 쪽)
+    if(opt.on){Bm(0,W,z0,z0+.05,.1,.93,c.black,.01,{r:.3});Bm(W*.47,W*.53,z0-.05,z0,.01,.3,"#2B2F2E");Bm(W*.3,W*.7,Math.max(.02,z0-.16),Math.min(D,z0+.12),0,.02,"#2B2F2E",.02);break;}// 수납장 위: 낮은 받침
+    Bm(0,W,z0,z0+.05,.72,1.55,c.black,.01,{r:.3});Bm(W*.47,W*.53,z0-.05,z0,.03,.8,"#2B2F2E");Bm(W*.3,W*.7,Math.max(.02,z0-.2),Math.min(D,z0+.15),0,.03,"#2B2F2E",.02);break;}
   case"pwall":B(0,1,0,1,0,H||2.4,"#C9CECD");break;
   case"tub":B(0,1,0,1,0,.55,c.white,.12);B(.08,.92,.08,.92,.552,.553,c.water,.22,{r:.1});p.push({cy:[X(.04),Z(.5),.025,.55,.75],c:c.steel});break;
   case"shower":{B(0,1,0,1,0,.06,c.white);const g={op:.28,r:.05};B(0,1,0,.012/D,.06,2,c.glass,0,g);B(0,.012/W,0,1,.06,2,c.glass,0,g);B(1-.012/W,1,0,1,.06,2,c.glass,0,g);B(0,1,1-.012/D,1,.06,2,c.glass,0,g);
@@ -1594,7 +1597,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
       else leaf(d.a,d.b);}}
   // 가구·설비 (창·문은 벽에서 처리, 아치 선 위의 가벽은 낮은 난간으로)
   for(const it of P.filter(i=>i.type==="sym"&&!OPEN_KINDS[i.kind])){
-    const W=u2m(it.w),D=u2m(it.h);let parts;
+    const W=u2m(it.w),D=u2m(it.h);let parts,lift=0;
     // 환풍기: 벽에 닿아 있으면 벽 환풍구, 아니면 천장
     if(it.kind==="fan"&&H>0){const vb=vbox(it),box={x0:u2m(vb.x),x1:u2m(vb.x+vb.w),z0:u2m(vb.y),z1:u2m(vb.y+vb.h)},cx=(box.x0+box.x1)/2,cz=(box.z0+box.z1)/2;
       const w=runs.filter(r=>r.kind==="wall"&&near(r,box,.12)).sort((p,q)=>Math.abs(p.line-(p.horiz?cz:cx))-Math.abs(q.line-(q.horiz?cz:cx)))[0];
@@ -1606,10 +1609,14 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     if(it.kind==="pwall"){const b=vbox(it),horiz=b.w>=b.h,line=u2m(horiz?b.y+b.h/2:b.x+b.w/2),a=u2m(horiz?b.x:b.y),bb=u2m(horiz?b.x+b.w:b.y+b.h);
       const low=arcades.some(o=>!!o.horiz===horiz&&Math.abs(o.line-line)<.7&&o.b>a&&o.a<bb);
       parts=[{b:[0,W,0,D,0,low?.55:(H||2.4)],c:low?C3.stone:"#C9CECD"}];}
-    else parts=model3D(it.kind,W,D,H);
+    else{const ov=(a,b)=>{const p=vbox(a),q=vbox(b);return p.x<q.x+q.w&&q.x<p.x+p.w&&p.y<q.y+q.h&&q.y<p.y+p.h;};
+      const syms=P.filter(i=>i.type==="sym"),opt={};
+      if(it.kind==="storage"&&syms.some(o=>o.kind==="tv"&&ov(o,it)))opt.low=CAB_H;// TV와 겹친 수납장은 낮게
+      if(it.kind==="tv"&&syms.some(o=>o.kind==="storage"&&ov(o,it))){opt.on=1;lift=CAB_H;}// 그 위에 TV
+      parts=model3D(it.kind,W,D,H,opt);}
     if(!parts)continue;
     const inner=partsGroup(parts,W,D,!!it.fx,!!it.fy);inner.position.set(-W/2,0,-D/2);
-    const grp=new THREE.Group();grp.add(inner);grp.position.set(u2m(it.x+it.w/2),0,u2m(it.y+it.h/2));grp.rotation.y=-(it.rot||0)*Math.PI/180;g.add(grp);}
+    const grp=new THREE.Group();grp.add(inner);grp.position.set(u2m(it.x+it.w/2),lift,u2m(it.y+it.h/2));grp.rotation.y=-(it.rot||0)*Math.PI/180;g.add(grp);}
   // 마당(포장)·담장·길 — 바깥벽에 문·차가 가장 많은 쪽을 앞(정문 쪽)으로: 앞마당을 넓게, 그 밖에 길
   //  담장 앞쪽에는 가운데 사람 출입구(정문 맞춤)와 양옆 차 출입구(차고의 차 맞춤)를 냄
   {const sides=["top","bottom","left","right"],score={top:0,bottom:0,left:0,right:0},E=.4;
@@ -1634,9 +1641,10 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
       const u0=along?X0:Z0,u1=along?X1:Z1,onFront=d=>!!d.horiz===along&&(front==="top"||front==="left"?d.line<E:d.line>S-E);
       const carU=cars.filter(q=>(front==="top"?q.z<S/2:front==="bottom"?q.z>S/2:front==="left"?q.x<S/2:q.x>S/2)).map(q=>along?q.x:q.z);
       let carGates=carU.length?carU:[u0+(u1-u0)/6,u1-(u1-u0)/6];
-      const mid=(u0+u1)/2,fd=doorPanels.filter(onFront).map(d=>(d.a+d.b)/2).filter(u=>!carGates.some(c=>Math.abs(c-u)<2.5));
-      const walkU=fd.length?fd.sort((a,b)=>Math.abs(a-mid)-Math.abs(b-mid))[0]:mid;
-      let gates=[...carGates.map(u=>[u-1.9,u+1.9]),[walkU-.75,walkU+.75]].map(([a,b])=>[Math.max(u0+.5,a),Math.min(u1-.5,b)]).filter(([a,b])=>b-a>.5).sort((p,q)=>p[0]-q[0]);
+      const mid=(u0+u1)/2,fd=doorPanels.filter(onFront).filter(d=>!carGates.some(c=>Math.abs(c-(d.a+d.b)/2)<2.5));
+      const main=fd.sort((a,b)=>Math.abs((a.a+a.b)/2-mid)-Math.abs((b.a+b.b)/2-mid))[0];// 가운데에 가장 가까운 앞쪽 문 = 현관
+      const walkU=main?(main.a+main.b)/2:mid,walkW=main?Math.max(1,main.b-main.a):1.5;// 사람 출입구는 현관 문 폭만큼
+      let gates=[...carGates.map(u=>[u-1.9,u+1.9]),[walkU-walkW/2,walkU+walkW/2]].map(([a,b])=>[Math.max(u0+.5,a),Math.min(u1-.5,b)]).filter(([a,b])=>b-a>.5).sort((p,q)=>p[0]-q[0]);
       const merged=[];for(const gg of gates){const l=merged[merged.length-1];if(l&&gg[0]<=l[1]+.4)l[1]=Math.max(l[1],gg[1]);else merged.push([...gg]);}
       const fl=front==="top"?Z0:front==="bottom"?Z1:front==="left"?X0:X1;
       const P2=u=>along?[u,fl]:[fl,u];
