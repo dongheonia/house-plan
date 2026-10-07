@@ -53,6 +53,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 /* 설계도: 프리폼과 같은 보드에 10×10 모눈종이(100평 정사각형)를 깔고 항목은 시트별로 따로 */
 .content.plan-mode{background:#DDE2E0}
 .content.plan-mode .item .tx{color:#000}
+.content.plan-mode .item .rot{display:none!important}/* 설계도: 돌리기는 위쪽 막대로만 */
 .content.plan-mode .empty{display:none}
 .paper{position:absolute;pointer-events:none;overflow:visible;z-index:-1000000}
 .paper .sheet{fill:#fff;stroke:none}
@@ -801,9 +802,11 @@ function addSym(k){const [,,wm,hm]=SYMS.find(s=>s[0]===k),r=board.getBoundingCli
   items.push(tagSheet({id,type:"sym",kind:k,x:c.x-w/2,y:c.y-h/2,w,h,z:++topZ,rot:0}));selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}
 function flipSym(it,ax){if(ax==="fx")it.fx=!it.fx;else it.fy=!it.fy;if(!it[ax])delete it[ax];render(it);saveMeta();}
 const symTools=document.getElementById("symTools");
-symTools.querySelectorAll("button").forEach(b=>b.onclick=()=>{const it=items.find(i=>i.id===selId);if(!it||it.type!=="sym")return;
+symTools.querySelectorAll("button").forEach(b=>b.onclick=()=>{const it=items.find(i=>i.id===selId);if(!it||(b.dataset.symAct!=="rot"&&it.type!=="sym"))return;
   if(b.dataset.symAct==="rot")rotate(it,90);else flipSym(it,b.dataset.symAct);board.focus({preventScroll:true});});
-function updateSymTools(){const it=items.find(i=>i.id===selId);symTools.hidden=!(it&&it.type==="sym"&&!readOnly);}
+// 설계도에서는 모든 항목을 위쪽 막대의 ↻ 90°로만 돌림 (항목 위 ↻ 손잡이는 숨김). 뒤집기는 기호·아이콘만
+function updateSymTools(){const it=items.find(i=>i.id===selId),on=!!it&&!readOnly&&(it.type==="sym"||sheet==="plan");symTools.hidden=!on;
+  if(on)symTools.querySelectorAll('[data-sym-act="fx"],[data-sym-act="fy"]').forEach(b=>b.hidden=it.type!=="sym");}
 
 // ===== 펜 (검은 낙서) =====
 const penBtn=document.getElementById("penBtn");let penOn=false,stroke=null;
@@ -1187,7 +1190,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261007224328";// 배포할 때 바뀜
+const BUILD="20261007225224";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
