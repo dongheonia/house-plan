@@ -1348,7 +1348,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008133001";// 배포할 때 바뀜
+const BUILD="20261008140220";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1887,22 +1887,23 @@ function enterRoom(room){if(!T3.ready)return;T3.root.updateMatrixWorld(true);
   const p=new THREE.Vector3(room.x,EYE,room.z);let best=0,bd=-1;// 가장 트인 쪽을 보며 시작
   for(let k=0;k<8;k++){const a=k*Math.PI/4,d=new THREE.Vector3(-Math.sin(a),0,-Math.cos(a)),rc=ray3();rc.far=40;rc.set(new THREE.Vector3(p.x,1.1,p.z),d);
     const h=rc.intersectObjects(walkWalls(),false)[0],dist=h?h.distance:40;if(dist>bd){bd=dist;best=a;}}
+  if(room.yaw!=null)best=room.yaw;// 방위 글자로 들어오면 집을 바라봄
   T3.walk=true;showCeil(true);walk.yaw=best;
   // 안에서 볼 때는 늘 지붕을 씌움 (나오면 원래대로)
   if(!T3.roof){T3.roof=true;T3.walkRoof=true;build3D();}
   walk.pitch=-.05;T3.cam.fov=70;T3.cam.updateProjectionMatrix();T3.cam.position.copy(p);T3.ctl.enabled=false;
   // 방 조명: 천장 가운데 은은한 불 (그림자 없음) — 지붕·천장에 가려 어두운 실내를 밝힘
   if(!T3.roomLight){T3.roomLight=new THREE.PointLight(0xFFF4E2,.55,9,1.2);T3.scene.add(T3.roomLight);}
-  T3.roomLight.visible=true;T3.roomLight.position.set(room.x,Math.max(1.8,T3.wallH-.25),room.z);
+  T3.roomLight.visible=!room.out;T3.roomLight.position.set(room.x,Math.max(1.8,T3.wallH-.25),room.z);
   T3.cam.rotation.set(walk.pitch,walk.yaw,0,"YXZ");walk.last=performance.now();
-  (T3.labelSprites||[]).forEach(s=>s.visible=false);document.querySelector(".three").classList.add("walking");
+  (T3.labelSprites||[]).forEach(s=>s.visible=false);if(T3.compass)T3.compass.visible=false;document.querySelector(".three").classList.add("walking");
   document.getElementById("walkHud").hidden=false;document.getElementById("walkName").textContent=`${room.name} · 눈높이 ${EYE} m`;}
 // 걷는 동안은 천장을 보이게 (평소엔 그림자만 드리우는 보이지 않는 천장)
 const CEIL_MAT=()=>T3.ceilMat||(T3.ceilMat=Object.assign(new THREE.MeshStandardMaterial({color:"#F3F1EC",side:THREE.DoubleSide,roughness:.95}),{userData:{keep:1}}));
 function showCeil(on){for(const o of T3.ceils||[]){if(on){if(!o.userData.inv)o.userData.inv=o.material;o.material=CEIL_MAT();o.receiveShadow=true;}else if(o.userData.inv)o.material=o.userData.inv;}}
 function exitWalk(){if(!T3.walk)return;T3.walk=false;showCeil(false);if(T3.roomLight)T3.roomLight.visible=false;
   if(T3.walkRoof){T3.walkRoof=false;T3.roof=false;build3D();}T3.cam.fov=45;T3.cam.updateProjectionMatrix();T3.ctl.enabled=true;
-  (T3.labelSprites||[]).forEach(s=>s.visible=true);document.querySelector(".three").classList.remove("walking");document.getElementById("walkHud").hidden=true;view3D("tilt");}
+  (T3.labelSprites||[]).forEach(s=>s.visible=true);if(T3.compass)T3.compass.visible=true;document.querySelector(".three").classList.remove("walking");document.getElementById("walkHud").hidden=true;view3D("tilt");}
 function walkMove(fwd,side){const f=new THREE.Vector3(-Math.sin(walk.yaw),0,-Math.cos(walk.yaw)),r=new THREE.Vector3(Math.cos(walk.yaw),0,-Math.sin(walk.yaw));
   const v=f.multiplyScalar(fwd).add(r.multiplyScalar(side)),d=v.length();if(d<1e-4)return;v.normalize();
   if(walkFree(T3.cam.position,v,d))T3.cam.position.addScaledVector(v,d);}
@@ -1912,10 +1913,13 @@ function walkStep(){const now=performance.now(),dt=Math.min(.1,(now-walk.last)/1
 {const view=document.getElementById("threeView");let dn=null;
   view.addEventListener("pointerdown",ev=>{dn={x:ev.clientX,y:ev.clientY,t:Date.now(),lx:ev.clientX,ly:ev.clientY};if(T3.walk)view.setPointerCapture(ev.pointerId);});
   view.addEventListener("pointermove",ev=>{if(!T3.walk||!dn)return;walk.yaw+=(ev.clientX-dn.lx)*.004;walk.pitch=Math.max(-1.3,Math.min(1.3,walk.pitch+(ev.clientY-dn.ly)*.004));dn.lx=ev.clientX;dn.ly=ev.clientY;});
-  view.addEventListener("pointerup",ev=>{const d=dn;dn=null;if(!d||T3.walk||!T3.labelSprites||!T3.labels)return;
+  view.addEventListener("pointerup",ev=>{const d=dn;dn=null;if(!d||T3.walk||!T3.ready)return;
     if(Math.hypot(ev.clientX-d.x,ev.clientY-d.y)>6||Date.now()-d.t>500)return;// 끌기는 화면 돌리기 — 짧게 누른 것만
     const r=view.getBoundingClientRect(),m=new THREE.Vector2((ev.clientX-r.left)/r.width*2-1,-(ev.clientY-r.top)/r.height*2+1),rc=ray3();rc.far=500;
-    rc.setFromCamera(m,T3.cam);const h=rc.intersectObjects(T3.labelSprites,false)[0];if(h)enterRoom(h.object.userData.room);});
+    rc.setFromCamera(m,T3.cam);const h=rc.intersectObjects([...(T3.labels&&T3.labelSprites||[]),...(T3.compass?.children||[])],false)[0];if(!h)return;
+    const k=h.object.userData.k;if(!k)return enterRoom(h.object.userData.room);
+    // 방위 글자: 그쪽 바깥에 서서 집 가운데를 바라봄
+    const C=SIDE_M/2,{x,z}=h.object.position;enterRoom({name:{N:"북",E:"동",S:"남",W:"서"}[k]+"쪽 바깥",x,z,out:true,yaw:Math.atan2(x-C,z-C)});});
   view.addEventListener("wheel",ev=>{if(!T3.walk)return;ev.preventDefault();walkMove(-Math.sign(ev.deltaY)*.4,0);},{passive:false});
   document.addEventListener("keydown",ev=>{if(!T3.walk||isTyping(ev.target))return;if(ev.key==="Escape"){exitWalk();return;}
     if(/^(Key[WASD]|Arrow(Up|Down|Left|Right))$/.test(ev.code)){walk.keys[ev.code]=true;ev.preventDefault();}
