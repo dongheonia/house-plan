@@ -896,7 +896,7 @@ const M=55;// = 100 ÷ 1.818 m
 const SYMS=[
   ["door","여닫이",.9,.9,"door"],["door2","양여닫이",1.8,.9,"door"],["slide","미닫이",1.8,.18,"door"],
   ["garage","차고 롤업문",2.6,.25,"door"],["window","창문",1.8,.2,"win"],["slit","슬릿",1.2,.2,"win"],["window2","미서기창",1.8,.2],// 미서기창은 예전에 놓은 것만 그림
-  ["car","자동차",1.85,4.7,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
+  ["car","자동차",1.9,5,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
   ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["kitchen2","일자 주방",2.4,.6,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["desk2","네모 책상",1.4,.7,"icon"],["deskc","책상+의자",1.2,1.1,"icon"],["storage","수납장",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
   ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["fan","환풍기",.3,.3,"icon"]];
@@ -920,8 +920,19 @@ function symSVG(k,w,h){
   case"slide":return P(`M0 0V${h}M${w} 0V${h}`)+R(0,0,w*.55,h/2)+R(w*.45,h/2,w*.55,h/2);
   case"window":return R(0,0,w,h)+P(`M0 ${h/2}H${w}`);
   case"window2":return R(0,0,w,h)+P(`M0 ${h*.38}H${w*.55}M${w*.45} ${h*.62}H${w}`,"ln");
-  case"car":{const tw=w*.09,th=h*.13;return R(-tw*.4,h*.12,tw,th,"dk",tw*.3)+R(w-tw*.6,h*.12,tw,th,"dk",tw*.3)+R(-tw*.4,h*.72,tw,th,"dk",tw*.3)+R(w-tw*.6,h*.72,tw,th,"dk",tw*.3)
-    +R(0,0,w,h,"fl",w*.28,dgray)+P(`M${w*.1} ${h*.3}Q${w/2} ${h*.24} ${w*.9} ${h*.3}M${w*.12} ${h*.8}Q${w/2} ${h*.84} ${w*.88} ${h*.8}`,"tn",lite)+R(w*.16,h*.34,w*.68,h*.4,"tn",w*.1,0,lite);}
+  case"car":{// BMW 5 GT (스페이스 그레이) 위에서: 앞이 위쪽 — 긴 보닛, 높은 지붕, 길게 누운 뒷유리(패스트백)
+    const tw=w*.09,th=h*.13,sg="#5A5E62",gl="#262C33",f=v=>v.toFixed(2),X=v=>f(v*w),Y=v=>f(v*h);
+    const body=`M${X(.13)} ${Y(.008)}Q${X(.5)} ${Y(-.004)} ${X(.87)} ${Y(.008)}Q${X(.985)} ${Y(.025)} ${X(.995)} ${Y(.1)}L${X(1)} ${Y(.9)}Q${X(.99)} ${Y(.99)} ${X(.86)} ${Y(.997)}L${X(.14)} ${Y(.997)}Q${X(.01)} ${Y(.99)} ${X(0)} ${Y(.9)}L${X(.005)} ${Y(.1)}Q${X(.015)} ${Y(.025)} ${X(.13)} ${Y(.008)}Z`;
+    return R(-tw*.4,h*.12,tw,th,"dk",tw*.3)+R(w-tw*.6,h*.12,tw,th,"dk",tw*.3)+R(-tw*.4,h*.72,tw,th,"dk",tw*.3)+R(w-tw*.6,h*.72,tw,th,"dk",tw*.3)
+      +R(-w*.07,h*.3,w*.1,h*.028,"fl",w*.02,sg)+R(w*.97,h*.3,w*.1,h*.028,"fl",w*.02,sg)// 사이드 미러
+      +`<path class="fl" d="${body}" style="fill:${sg}"/>`
+      +`<path d="M${X(.3)} ${Y(.04)}Q${X(.32)} ${Y(.18)} ${X(.3)} ${Y(.29)}M${X(.7)} ${Y(.04)}Q${X(.68)} ${Y(.18)} ${X(.7)} ${Y(.29)}" style="fill:none;stroke:#7D8287;stroke-width:.8;vector-effect:non-scaling-stroke"/>`// 보닛 주름
+      +R(w*.06,h*.012,w*.22,h*.022,"fl",w*.02,"#E3E8EC")+R(w*.72,h*.012,w*.22,h*.022,"fl",w*.02,"#E3E8EC")// 전조등
+      +R(w*.39,h*.004,w*.1,h*.016,"fl",w*.02,"#16181A")+R(w*.51,h*.004,w*.1,h*.016,"fl",w*.02,"#16181A")// 키드니 그릴
+      +`<path class="fl" d="M${X(.12)} ${Y(.41)}L${X(.17)} ${Y(.3)}Q${X(.5)} ${Y(.285)} ${X(.83)} ${Y(.3)}L${X(.88)} ${Y(.41)}Q${X(.5)} ${Y(.395)} ${X(.12)} ${Y(.41)}Z" style="fill:${gl}"/>`// 앞유리
+      +R(w*.15,h*.41,w*.7,h*.21,"fl",w*.08,"#63676B")+R(w*.3,h*.44,w*.4,h*.1,"fl",w*.04,gl)// 지붕 + 선루프
+      +`<path class="fl" d="M${X(.15)} ${Y(.62)}L${X(.85)} ${Y(.62)}L${X(.8)} ${Y(.87)}Q${X(.5)} ${Y(.885)} ${X(.2)} ${Y(.87)}Z" style="fill:${gl}"/>`// 길게 누운 뒷유리
+      +R(w*.05,h*.975,w*.32,h*.016,"fl",w*.01,"#B3261E")+R(w*.63,h*.975,w*.32,h*.016,"fl",w*.01,"#B3261E");}// 후미등
   case"shelf":return R(0,0,w,h,"fl",0,brown)+P(`M${w/3} 0V${h}M${w*2/3} 0V${h}M0 ${h*.25}H${w}`);
   case"washer":return R(0,0,w,h,"fl",m*.06,gray)+P(`M0 ${h*.2}H${w}`)+C(w/2,h*.6,m*.3,"tn","#D5DADA")+C(w/2,h*.6,m*.17);
   case"toilet":return E(w/2,h*.6,w*.44,h*.38)+E(w/2,h*.63,w*.28,h*.25,"tn")+R(0,0,w,h*.24,"fl",m*.08);
@@ -1387,7 +1398,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008214458";// 배포할 때 바뀜
+const BUILD="20261008223459";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1622,9 +1633,20 @@ function model3D(kind,W,D,H,opt={}){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
   case"door":Bm(0,T,0,D,0,2.05,c.door);Bm(T,T+.03,D*.12,D*.12+.12,1,1.03,c.steel);break;// 경첩(왼쪽 아래)에서 열린 문짝
   case"door2":Bm(0,T,0,D,0,2.05,c.door);Bm(W-T,W,0,D,0,2.05,c.door);break;
   case"slide":B(0,.55,0,.5,0,2.05,c.lwood);B(.45,1,.5,1,0,2.05,c.lwood);break;
-  case"car":{const r=.33;for(const x of [X(.03),X(.97)])for(const z of [Z(.17),Z(.8)])p.push({cx:[x,r,z,r,.24],ax:"x",c:c.black});
-    B(0,1,.02,.98,.28,.78,c.dgray,.35);B(.06,.94,.3,.76,.78,1.22,"#2E3A42",.28,{r:.2,m:.3});B(.1,.9,.36,.7,1.22,1.36,c.dgray,.2);
-    B(.1,.3,.02,.04,.55,.65,"#F4F1D0");B(.7,.9,.02,.04,.55,.65,"#F4F1D0");B(.1,.3,.96,.98,.55,.65,"#C0392B");B(.7,.9,.96,.98,.55,.65,"#C0392B");break;}
+  case"car":{// BMW 5 GT (스페이스 그레이): 옆모습 윤곽을 차 폭만큼 밀어 만든 몸통 + 유리 실내 + 바퀴. 앞이 그림 위쪽(z=0)
+    const sg="#7A7F84",paint={r:.38,m:0},L=D,rw=.35,ra=.41,uF=.18*L,uR=.79*L,arch=(zc,a0,a1)=>{const o=[];for(let k=0;k<=12;k++){const a=a0+(a1-a0)*k/12;o.push([zc+ra*Math.cos(a),rw+ra*Math.sin(a)]);}return o;};
+    const U=(u,y)=>[u*L,y];
+    const body=[U(.005,.36),U(0,.48),U(.004,.6),U(.015,.68),U(.04,.74),U(.1,.79),U(.2,.85),U(.3,.93),U(.5,.97),U(.75,1),U(.9,1.02),U(.96,1),U(.99,.92),U(1,.8),U(1,.5),U(.99,.36),
+      [uR+ra+.05,.3],...arch(uR,0,Math.PI),[uF+ra,.3],...arch(uF,0,Math.PI),[uF-ra-.05,.3]].reverse();
+    p.push({xs:body,side:1,x:X(.5),d:W*.94,c:sg,o:paint,bv:.025});
+    p.push({xs:[U(.3,.92),U(.47,1.47),U(.55,1.535),U(.65,1.56),U(.72,1.54),U(.8,1.42),U(.88,1.2),U(.935,1),U(.6,.95)].reverse(),side:1,x:X(.5),d:W*.84,c:sg,o:paint,bv:.02});// 실내 지붕
+    p.push({xs:[U(.302,.95),U(.462,1.44),U(.55,1.5),U(.65,1.52),U(.72,1.505),U(.815,1.395),U(.895,1.18),U(.94,1),U(.6,.97)].reverse(),side:1,x:X(.5),d:W*.86,c:"#20262C",o:{r:.15,m:.3}});// 유리
+    Bm(X(.5)-W*.44,X(.5)+W*.44,Z(.56),Z(.58),.98,1.5,sg,0,paint);// B필러
+    for(const x of [X(.02)+.13,X(.98)-.13])for(const z of [uF,uR]){p.push({cx:[x,rw,z,rw,.24],ax:"x",c:"#151617"});p.push({cx:[x,rw,z,.23,.25],ax:"x",c:"#AEB3B8",o:{r:.3,m:.6}});}// 타이어 + 휠
+    B(-.035,.03,.33,.37,.98,1.08,sg,.01,paint);B(.97,1.035,.33,.37,.98,1.08,sg,.01,paint);// 사이드 미러
+    B(.07,.3,.004,.05,.62,.69,"#E3E8EC",.01);B(.7,.93,.004,.05,.62,.69,"#E3E8EC",.01);// 전조등
+    B(.39,.48,-.004,.03,.48,.6,"#16181A",.01);B(.52,.61,-.004,.03,.48,.6,"#16181A",.01);// 키드니 그릴
+    B(.05,.36,.975,1.006,.8,.88,"#B3261E",.01);B(.64,.95,.975,1.006,.8,.88,"#B3261E",.01);break;}// 후미등
   case"shelf":{B(0,1,0,.12,0,1.8,c.wood);B(0,.04,0,1,0,1.8,c.wood);B(.96,1,0,1,0,1.8,c.wood);
     const ys=[0,.44,.88,1.32,1.76],cols=["#7A1F2E","#3F6E9C","#C9A227","#2E7D32","#5E6B69","#C98A4B"];
     ys.forEach(y=>B(0,1,0,1,y,y+.04,c.wood));
@@ -1702,7 +1724,11 @@ function partsGroup(parts,W,D,fx,fy){const g=new THREE.Group();
     else if(q.cx){const [x,y,z,r,len]=q.cx;mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,24),m);mesh.position.set(mx(x),y,mz(z));
       if(q.ax==="x")mesh.rotation.z=Math.PI/2;else{mesh.rotation.x=Math.PI/2;if(q.sv)mesh.scale.z=q.sv;}}// sv: 앞에서 본 원을 세로로 늘임
     else if(q.xs){const sh=new THREE.Shape(q.xs.map(([x,y])=>new THREE.Vector2(x,y)).slice(0,1));sh.splineThru([...q.xs.slice(1),q.xs[0]].map(([x,y])=>new THREE.Vector2(x,y)));// 앞에서 본 윤곽을 두께만큼 밀어냄
-      mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:q.d,bevelEnabled:true,bevelThickness:.004,bevelSize:.004,bevelSegments:2,curveSegments:4}),m);mesh.position.set(mx(q.x),0,mz(q.z)-q.d/2);if(fx)mesh.scale.x=-1;}
+      if(q.side){// 옆모습 (z,y) 윤곽 → x 방향으로 폭 d 만큼 (z는 뒤집기 반영)
+        const s2=new THREE.Shape(q.xs.map(([z,y])=>new THREE.Vector2(mz(z),y))),bv=q.bv||.004;
+        mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(s2,{depth:q.d-2*bv,bevelEnabled:true,bevelThickness:bv,bevelSize:bv,bevelSegments:3,curveSegments:4}),m);
+        mesh.rotation.y=-Math.PI/2;mesh.position.set(mx(q.x)+q.d/2-bv,0,0);}
+      else{mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:q.d,bevelEnabled:true,bevelThickness:.004,bevelSize:.004,bevelSegments:2,curveSegments:4}),m);mesh.position.set(mx(q.x),0,mz(q.z)-q.d/2);if(fx)mesh.scale.x=-1;}}
     else if(q.sp){const [x,y,z,r]=q.sp;mesh=new THREE.Mesh(new THREE.SphereGeometry(r,28,18),m);mesh.position.set(mx(x),y,mz(z));if(q.s)mesh.scale.set(...q.s);}
     if(!mesh)continue;mesh.castShadow=!(q.o&&q.o.op);mesh.receiveShadow=true;g.add(mesh);}
   return g;}
