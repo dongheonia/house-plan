@@ -30,16 +30,16 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;overflow:hidden}
 .app{display:flex;flex-direction:column;height:100%;padding-top:env(safe-area-inset-top,0px)}
-.layout{display:grid;grid-template-columns:2fr 8fr;grid-template-rows:auto minmax(0,1fr);flex:1;min-height:0}
-/* 메모는 왼쪽에 고정, 오른쪽은 위쪽 막대로 고른 위치(지도)·프리폼(보드)·설계도 중 하나만 */
-.layout>.memo{grid-column:1;grid-row:1/3}
-.layout>.mapbox,.layout>.content,.layout>.three{grid-column:2;grid-row:2;min-width:0}
-.viewbar{grid-column:2;grid-row:1;display:flex;background:var(--panel);border-bottom:1px solid var(--line)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);flex:1;min-height:0}
+/* 위쪽 막대로 메모·위치(지도)·프리폼·설계도·3D 중 하나만 화면 가득 */
+.layout>.memo,.layout>.mapbox,.layout>.content,.layout>.three{grid-column:1;grid-row:2;min-width:0}
+.layout>.memo{border-right:0}
+.viewbar{grid-column:1;grid-row:1;display:flex;background:var(--panel);border-bottom:1px solid var(--line)}
 .viewbar button{flex:1 1 0;height:40px;border:0;background:none;color:var(--muted);font:inherit;font-size:.88rem;font-weight:600;cursor:pointer}
 .viewbar button+button{border-left:1px solid var(--line)}
 .viewbar button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--focus)}
 .viewbar button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
-@media (min-width:761px){.layout:not([data-view="map"])>.mapbox,.layout[data-view="map"]>.content,.layout[data-view="three"]>.content,.layout:not([data-view="three"])>.three{display:none}}
+@media (min-width:761px){.layout:not([data-view="map"])>.mapbox,.layout:not([data-view="board"]):not([data-view="plan"])>.content,.layout:not([data-view="three"])>.three,.layout:not([data-view="memo"])>.memo{display:none}}
 /* 3D */
 .three{position:relative;height:100%;background:#DDE2E0;overflow:hidden}
 #threeView{position:absolute;inset:0;touch-action:none}
@@ -259,7 +259,8 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
 </head><body>
 <div class="app">
 <div class="layout" id="layout" data-view="map">
-<nav class="viewbar" role="tablist" aria-label="오른쪽 화면">
+<nav class="viewbar" role="tablist" aria-label="화면">
+  <button type="button" role="tab" data-tab="memo" aria-selected="false">메모</button>
   <button type="button" role="tab" data-tab="map" aria-selected="true">위치</button>
   <button type="button" role="tab" data-tab="board" aria-selected="false">프리폼</button>
   <button type="button" role="tab" data-tab="plan" aria-selected="false">설계도</button>
@@ -1239,7 +1240,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008013840";// 배포할 때 바뀜
+const BUILD="20261008014311";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1250,9 +1251,9 @@ document.addEventListener("visibilitychange",checkUpdate);checkUpdate();
 
 // ===== 휴대폰 탭 (지도 · 메모 · 보드 · 설계도) =====
 const tabBtns=[...document.querySelectorAll("[data-tab]")];
-// 넓은 화면: 메모는 늘 보이고, 위쪽 막대(.viewbar)로 위치·프리폼 중 하나(data-view)만 오른쪽에
+// 넓은 화면: 위쪽 막대(.viewbar)로 메모·위치·프리폼·설계도·3D 중 하나(data-view)만 화면 가득
 const layout=document.getElementById("layout");
-function showTab(name){if(name!=="memo"){layout.dataset.view=name;try{localStorage.setItem("kr-view",name)}catch(e){}}
+function showTab(name){layout.dataset.view=name;try{localStorage.setItem("kr-view",name)}catch(e){}// 메모도 한 화면
   tabBtns.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===(b.closest(".viewbar")?layout.dataset.view:name)));
   if(name==="board"||name==="plan")setSheet(name==="plan"?"plan":"");
   document.querySelectorAll("[data-pane]").forEach(p=>p.classList.toggle("on",p.dataset.pane===(name==="plan"?"board":name)));
@@ -1260,7 +1261,7 @@ function showTab(name){if(name!=="memo"){layout.dataset.view=name;try{localStora
   closePop();try{localStorage.setItem("kr-tab",name)}catch(e){}}
 tabBtns.forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 try{const v=localStorage.getItem("kr-view"),t=localStorage.getItem("kr-tab");
-  if(v==="map"||v==="board"||v==="plan"||v==="three")showTab(v);
+  if(["memo","map","board","plan","three"].includes(v))showTab(v);
   if(t&&t!==v&&tabBtns.some(b=>b.dataset.tab===t))showTab(t);}catch(e){}
 
 // ===== 알림 한 줄 =====
