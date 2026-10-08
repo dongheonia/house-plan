@@ -906,8 +906,7 @@ function symSVG(k,w,h){
     +R(0,h*.26,w,h*.74,"fl",m*.03,burg)+P(`M${w*.68} ${h*.26}L${w} ${h*.4}`,"tn",lite);// 이불
   case"desk":return`<path class="fl" d="M0 0H${w}V${h}H${w/2}V${h/2}H0Z" style="fill:${brown}"/>`// ㄱ자 책상: 왼쪽 아래 사분면만 비움
     +R(w*.2,h*.62,w*.22,h*.22,"fl",m*.04)+P(`M${w*.17} ${h*.62}V${h*.87}H${w*.42}`,"ln");// 안쪽 모서리를 보는 의자
-  case"storage":return R(0,0,w,h*.88,"fl",0,gray)+R(0,h*.88,w/2,h*.12,"fl",0,"#C4C9C8")+R(w/2,h*.88,w/2,h*.12,"fl",0,"#C4C9C8")// 수납장: 몸통 + 앞쪽 문 두 짝 + 손잡이
-    +R(w*.42,h*.9,w*.04,h*.08,"dk")+R(w*.54,h*.9,w*.04,h*.08,"dk");
+  case"storage":return R(0,0,w,h,"fl",0,gray)+R(w*.06,h*.18,w*.88,h*.82,"fl",0,"#C4C9C8")// 문 없는 수납장: 몸통 + 트인 앞쪽 칸
   case"sofa":return R(0,0,w,h,"fl",m*.08,burg)+R(0,0,w,h*.3,"tn",m*.08,0,lite)+R(0,0,w*.1,h,"tn",m*.08,0,lite)+R(w*.9,0,w*.1,h,"tn",m*.08,0,lite)+P(`M${w*.367} ${h*.3}V${h}M${w*.633} ${h*.3}V${h}`,"tn",lite);
   case"bench":return R(0,0,w,h,"fl",m*.1,wood)+P(`M${w*.02} ${h/3}H${w*.98}M${w*.02} ${h*2/3}H${w*.98}`);
   case"closet":{let d=`M${w*.04} ${h/2}H${w*.96}`;for(let i=1;i<8;i++){const x=w*i/8;d+=`M${x-w*.035} ${h*.2}L${x+w*.035} ${h*.8}`;}// 옷걸이 봉 + 옷걸이
@@ -1348,7 +1347,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008144743";// 배포할 때 바뀜
+const BUILD="20261008145208";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1608,8 +1607,11 @@ function model3D(kind,W,D,H,opt={}){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
   case"deskc":{B(0,1,0,.55,.72,.75,c.wood);legs(0,W,0,Z(.55),.72,c.wood,.05);chair(X(.5),Z(.74),"s",c.lwood,c.burg);break;}
   case"desk2":B(0,1,0,1,.72,.76,c.wood,.1);legs(X(.05),X(.95),Z(.08),Z(.92),.72,c.wood,.05);break;
   case"storage":{const h=opt.low||2;// low: TV를 올려놓는 낮은 수납장
-    B(0,1,0,.97,0,h,c.gray,.01);B(.01,.495,.97,1,.02,h-.02,"#BCC2C1");B(.505,.99,.97,1,.02,h-.02,"#BCC2C1");
-    B(.44,.47,1,1.02,h*.45,h*.6,c.dgray);B(.53,.56,1,1.02,h*.45,h*.6,c.dgray);break;}
+    // 문 없는 열린 수납장: 뒤판·옆판·위아래판 + 선반 (앞쪽이 트임)
+    const t=.03,sx=t/W,sd=t/D;B(0,1,0,sd*1.5,0,h,"#AEB4B3");B(0,sx,0,1,0,h,c.gray);B(1-sx,1,0,1,0,h,c.gray);
+    B(0,1,0,1,0,.06,c.gray);B(0,1,0,1,h-t,h,c.gray);
+    const n=Math.max(1,Math.round(h/.38));for(let k=1;k<n;k++){const y=h*k/n;B(sx,1-sx,0,1,y-t/2,y+t/2,c.gray);}
+    if(W>1.2)B(.5-sx/2,.5+sx/2,0,1,0,h,c.gray);break;}
   case"closet":B(0,1,0,.97,0,2.1,c.wood,.01);B(.01,.495,.97,1,.02,2.08,"#A98260");B(.505,.99,.97,1,.02,2.08,"#A98260");
     B(.44,.47,1,1.02,.95,1.25,c.steel);B(.53,.56,1,1.02,.95,1.25,c.steel);break;
   case"sofa":B(0,1,0,1,.08,.42,c.burg,.05);B(.1,.9,0,.3,.42,.86,c.burg,.08);B(0,.1,0,1,.08,.64,c.burg,.06);B(.9,1,0,1,.08,.64,c.burg,.06);
