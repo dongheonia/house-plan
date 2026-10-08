@@ -308,7 +308,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   </div>
   <div class="walkhud" id="walkHud" hidden>
     <button type="button" id="walkExit">← 나가기</button><span id="walkName"></span>
-    <span class="walkhint">끌어서 둘러보기 · W/S·↑↓ 앞뒤 · A/D·←→ 옆으로 · 휠</span>
+    <span class="walkhint">끌어서 둘러보기 · W/S·↑↓ 앞뒤 · A/D·←→ 옆으로 · 왼쪽 Shift 빨리 · 휠</span>
     <span class="walkpad"><button type="button" data-walk="1" aria-label="앞으로">▲</button><button type="button" data-walk="-1" aria-label="뒤로">▼</button></span>
   </div>
   <div class="sunpanel" id="sunPanel" hidden><h3>방별 햇빛</h3><div id="sunRooms"></div></div>
@@ -1348,7 +1348,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008020035";// 배포할 때 바뀜
+const BUILD="20261008133001";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1906,7 +1906,7 @@ function exitWalk(){if(!T3.walk)return;T3.walk=false;showCeil(false);if(T3.roomL
 function walkMove(fwd,side){const f=new THREE.Vector3(-Math.sin(walk.yaw),0,-Math.cos(walk.yaw)),r=new THREE.Vector3(Math.cos(walk.yaw),0,-Math.sin(walk.yaw));
   const v=f.multiplyScalar(fwd).add(r.multiplyScalar(side)),d=v.length();if(d<1e-4)return;v.normalize();
   if(walkFree(T3.cam.position,v,d))T3.cam.position.addScaledVector(v,d);}
-function walkStep(){const now=performance.now(),dt=Math.min(.1,(now-walk.last)/1000);walk.last=now;const k=walk.keys,sp=1.4*dt;
+function walkStep(){const now=performance.now(),dt=Math.min(.1,(now-walk.last)/1000);walk.last=now;const k=walk.keys,sp=(k.ShiftLeft?3.5:1.4)*dt;// 왼쪽 Shift = 뛰기
   const fwd=((k.KeyW||k.ArrowUp)?1:0)-((k.KeyS||k.ArrowDown)?1:0)+walk.hold,side=((k.KeyD||k.ArrowRight)?1:0)-((k.KeyA||k.ArrowLeft)?1:0);
   if(fwd||side)walkMove(fwd*sp,side*sp);T3.cam.rotation.set(walk.pitch,walk.yaw,0,"YXZ");}
 {const view=document.getElementById("threeView");let dn=null;
@@ -1918,7 +1918,8 @@ function walkStep(){const now=performance.now(),dt=Math.min(.1,(now-walk.last)/1
     rc.setFromCamera(m,T3.cam);const h=rc.intersectObjects(T3.labelSprites,false)[0];if(h)enterRoom(h.object.userData.room);});
   view.addEventListener("wheel",ev=>{if(!T3.walk)return;ev.preventDefault();walkMove(-Math.sign(ev.deltaY)*.4,0);},{passive:false});
   document.addEventListener("keydown",ev=>{if(!T3.walk||isTyping(ev.target))return;if(ev.key==="Escape"){exitWalk();return;}
-    if(/^(Key[WASD]|Arrow(Up|Down|Left|Right))$/.test(ev.code)){walk.keys[ev.code]=true;ev.preventDefault();}});
+    if(/^(Key[WASD]|Arrow(Up|Down|Left|Right))$/.test(ev.code)){walk.keys[ev.code]=true;ev.preventDefault();}
+    if(ev.code==="ShiftLeft")walk.keys.ShiftLeft=true;});
   document.addEventListener("keyup",ev=>{walk.keys[ev.code]=false;});
   window.addEventListener("blur",()=>{walk.keys={};walk.hold=0;});
   document.getElementById("walkExit").onclick=exitWalk;
