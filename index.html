@@ -103,7 +103,13 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 /* 스티커 메모: 카드마다 색·글, 살짝 기울여 붙인 느낌 */
 .memo .add-note{margin-right:auto;margin-left:10px;height:28px;padding:0 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
 .memo .notes{flex:1;min-height:0;overflow:auto;padding:14px 16px 16px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;align-content:start;font-size:15px}
-.stk{background:var(--nc);color:#1D2524;border-radius:3px;box-shadow:0 2px 8px rgba(0,0,0,.28);display:flex;flex-direction:column;min-height:190px;transform:rotate(var(--tilt,0deg));transition:transform .15s}
+.stk{background:var(--nc);color:#1D2524;border-radius:3px;box-shadow:0 2px 8px rgba(0,0,0,.28);display:flex;flex-direction:column;min-height:190px;transform:rotate(var(--tilt,0deg));transition:transform .15s,translate .22s ease}
+/* 끌어서 순서 바꾸기: 위쪽 띠를 잡거나 카드를 길게 누름 */
+.stk .nh{cursor:grab;touch-action:none}
+.stk.ph{background:transparent;box-shadow:none;border:2px dashed var(--line);transform:none}
+.stk.ph>*{visibility:hidden}
+.stk.lift{position:fixed;z-index:50;pointer-events:none;transition:none;transform:rotate(2deg) scale(1.04);box-shadow:0 12px 28px rgba(0,0,0,.4);margin:0}
+.notes.dragging,.notes.dragging *{cursor:grabbing!important;-webkit-user-select:none;user-select:none}
 .stk:focus-within{transform:none;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 .stk .nh{display:flex;gap:5px;align-items:center;padding:8px 8px 0 12px}
 .stk .dot{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.25);background:var(--c);padding:0;cursor:pointer}
@@ -644,12 +650,13 @@ function saveMemo(){if(cloud.db){put("app/memo",{text:memo.value,html:memoHTML()
 // 클라우드는 notes/<id> {html,color,t} 하나씩, 아니면 이 기기(kr-notes). 예전 한 장 메모는 처음 한 번 첫 스티커로 옮김
 const NOTE_COLORS=[["yellow","#FFF1A6"],["pink","#FFD3DE"],["blue","#CFE6FF"],["green","#D6F2C9"],["purple","#E6DAFA"],["orange","#FFDDB8"]];
 const notesBox=document.getElementById("notes");let notes=[];const stkT={},noteSynced={},noteRecent={};
+const nkey=n=>n.o??-n.t;// 순서: o가 있으면 그것, 없으면 최근 것이 앞
 const noteColor=k=>(NOTE_COLORS.find(c=>c[0]===k)||NOTE_COLORS[0])[1];
 function saveNotesLocal(){if(cloud.db)return;try{localStorage.setItem("kr-notes",JSON.stringify(notes))}catch(e){}}
-function saveNote(n){if(cloud.db){const d={html:n.html,color:n.color,t:n.t};noteSynced[n.id]=JSON.stringify(d);noteRecent[n.id]=Date.now();put("notes/"+n.id,d);saved.textContent="저장됨 · 모든 기기";}
+function saveNote(n){if(cloud.db){const d={html:n.html,color:n.color,t:n.t};if(n.o!=null)d.o=n.o;noteSynced[n.id]=JSON.stringify(d);noteRecent[n.id]=Date.now();put("notes/"+n.id,d);saved.textContent="저장됨 · 모든 기기";}
   else{saveNotesLocal();saved.textContent="저장됨";}}
 function noteCard(n,i){const el=document.createElement("div");el.className="stk";el.dataset.id=n.id;
-  el.style.setProperty("--nc",noteColor(n.color));el.style.setProperty("--tilt",[-.7,.5,-.3,.8,-.5,.3][i%6]+"deg");
+  el.style.setProperty("--nc",noteColor(n.color));el.style.setProperty("--tilt",[-.7,.5,-.3,.8,-.5,.3][[...n.id].reduce((a,c)=>a+c.charCodeAt(0),0)%6]+"deg");
   const nh=document.createElement("div");nh.className="nh";
   for(const [k,c] of NOTE_COLORS){const b=document.createElement("button");b.type="button";b.className="dot";b.style.setProperty("--c",c);b.title=b.ariaLabel="색: "+k;
     b.setAttribute("aria-pressed",n.color===k);b.onclick=()=>{n.color=k;el.style.setProperty("--nc",c);nh.querySelectorAll(".dot").forEach(d=>d.setAttribute("aria-pressed",d===b));saveNote(n);};nh.append(b);}
@@ -661,19 +668,57 @@ function noteCard(n,i){const el=document.createElement("div");el.className="stk"
   body.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&!ev.isComposing){ev.preventDefault();document.execCommand("insertLineBreak");}
     if((ev.metaKey||ev.ctrlKey)&&ev.shiftKey&&ev.code==="KeyH"){ev.preventDefault();toggleHL();}});
   body.addEventListener("paste",ev=>{const t=ev.clipboardData?.getData("text/plain");if(t==null||ev.clipboardData.files?.length)return;ev.preventDefault();ev.stopPropagation();document.execCommand("insertText",false,t);});
-  el.append(nh,body);return el;}
-function drawNotes(){const act=document.activeElement,keep=act&&act.closest&&act.closest(".stk")?.dataset.id;
-  notes.sort((a,b)=>b.t-a.t);
+  el.append(nh,body);noteDrag(el,nh,body);return el;}
+function drawNotes(){if(ND)return void(ND.redraw=true);const act=document.activeElement,keep=act&&act.closest&&act.closest(".stk")?.dataset.id;
+  notes.sort((a,b)=>nkey(a)-nkey(b));
   // 쓰는 중인 카드는 그대로 두고 나머지만 다시 그림
   const els=notes.map((n,i)=>{if(n.id===keep){const e=notesBox.querySelector(`.stk[data-id="${n.id}"]`);if(e)return e;}return noteCard(n,i);});
   [...notesBox.children].forEach(c=>{if(!els.includes(c))c.remove();});els.forEach(e=>notesBox.append(e));}
+// ── 스티커 끌어서 순서 바꾸기 (폰 앱 아이콘처럼 다른 카드가 밀려 자리 생김) ──
+let ND=null,press=null;
+function noteDrag(el,nh,body){
+  const down=(ev,fromHead)=>{if(ev.button>0||ND)return;if(fromHead&&ev.target.closest("button"))return;
+    press={el,x:ev.clientX,y:ev.clientY,head:fromHead,t:fromHead?0:setTimeout(()=>{if(press&&press.el===el){dragStart(press);navigator.vibrate?.(15);}},380)};};
+  nh.addEventListener("pointerdown",ev=>down(ev,true));
+  body.addEventListener("pointerdown",ev=>down(ev,false));}
+function dragStart(pr){const el=pr.el;press=null;if(!el.isConnected)return;const r=el.getBoundingClientRect();window.getSelection()?.removeAllRanges();document.activeElement?.blur?.();
+  const ph=document.createElement("div");ph.className="stk ph";ph.style.height=r.height+"px";el.before(ph);
+  el.classList.add("lift");Object.assign(el.style,{width:r.width+"px",height:r.height+"px",left:r.left+"px",top:r.top+"px"});
+  notesBox.classList.add("dragging");ND={el,ph,dx:pr.x-r.left,dy:pr.y-r.top,x:pr.x,y:pr.y,id:el.dataset.id};scrollLoop();}
+document.addEventListener("pointermove",ev=>{
+  if(press&&!ND){const m=Math.hypot(ev.clientX-press.x,ev.clientY-press.y);
+    if(press.head&&m>4){ev.preventDefault();dragStart(press);}else if(!press.head&&m>8){clearTimeout(press.t);press=null;}}
+  if(ND){ev.preventDefault();ND.x=ev.clientX;ND.y=ev.clientY;dragMove();}},{passive:false});
+document.addEventListener("touchmove",ev=>{if(ND)ev.preventDefault();},{passive:false});// 끄는 중엔 화면 스크롤 막음
+{const up=()=>{if(press){clearTimeout(press.t);press=null;}if(ND)dragEnd();};
+  document.addEventListener("pointerup",up);document.addEventListener("pointercancel",up);
+  document.addEventListener("contextmenu",ev=>{if(ND)ev.preventDefault();});}
+function dragMove(){const {el,ph}=ND;el.style.left=ND.x-ND.dx+"px";el.style.top=ND.y-ND.dy+"px";
+  // 손가락 아래 카드 자리로 빈칸을 옮김 — 앞쪽 절반이면 그 앞, 뒤쪽 절반이면 그 뒤
+  const cards=[...notesBox.children].filter(c=>c!==el&&c!==ph);let tgt=null,after=false;
+  for(const c of cards){const r=c.getBoundingClientRect();if(ND.x>=r.left&&ND.x<=r.right&&ND.y>=r.top&&ND.y<=r.bottom){tgt=c;after=ND.x>r.left+r.width/2;break;}}
+  if(!tgt){const last=cards[cards.length-1];if(last){const r=last.getBoundingClientRect();if(ND.y>r.bottom||(ND.y>r.top&&ND.x>r.right)){tgt=last;after=true;}}}
+  if(!tgt)return;const ref=after?tgt.nextSibling:tgt;if(ref===ph||(after?tgt.nextSibling===ph:tgt.previousSibling===ph))return;
+  const before=new Map(cards.map(c=>[c,c.getBoundingClientRect()]));
+  notesBox.insertBefore(ph,ref);
+  for(const c of cards){const a=before.get(c),b=c.getBoundingClientRect();const dx=a.left-b.left,dy=a.top-b.top;if(!dx&&!dy)continue;
+    c.style.transition="none";c.style.translate=dx+"px "+dy+"px";c.offsetWidth;c.style.transition="";c.style.translate="0px 0px";}}
+function scrollLoop(){if(!ND)return;const r=notesBox.getBoundingClientRect(),e=50;
+  const v=ND.y<r.top+e?-12:ND.y>r.bottom-e?12:0;if(v){notesBox.scrollTop+=v;dragMove();}requestAnimationFrame(scrollLoop);}
+function dragEnd(){const {el,ph,id}=ND;ph.replaceWith(el);el.classList.remove("lift");el.style.width=el.style.height=el.style.left=el.style.top="";
+  notesBox.classList.remove("dragging");const redraw=ND.redraw;ND=null;
+  const order=[...notesBox.children].map(c=>c.dataset.id),i=order.indexOf(id),n=notes.find(o=>o.id===id);
+  const k=x=>{const m=notes.find(o=>o.id===x);return m?nkey(m):null;},p=i>0?k(order[i-1]):null,q=i<order.length-1?k(order[i+1]):null;
+  const no=p==null&&q==null?0:p==null?q-1:q==null?p+1:(p+q)/2;
+  if(n&&!((p==null||nkey(n)>p)&&(q==null||nkey(n)<q))){n.o=no;saveNote(n);}
+  [...notesBox.children].forEach(c=>c.style.translate="");if(redraw)drawNotes();}
 function addNote(html=""){const n={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),html,color:"yellow",t:Date.now()};
-  notes.unshift(n);drawNotes();saveNote(n);return n;}
+  n.o=(notes.length?Math.min(...notes.map(nkey)):0)-1;notes.unshift(n);drawNotes();saveNote(n);return n;}
 document.getElementById("addNote").onclick=()=>{const n=addNote();notesBox.querySelector(`.stk[data-id="${n.id}"] .nbody`)?.focus();};
 function applyNotes(snap){const seen=new Set();
-  for(const d of snap.docs){const data=d.data(),id=d.id,js=JSON.stringify({html:data.html,color:data.color,t:data.t});seen.add(id);noteSynced[id]=js;
+  for(const d of snap.docs){const data=d.data(),id=d.id,js=JSON.stringify({html:data.html,color:data.color,t:data.t,...(data.o!=null&&{o:data.o})});seen.add(id);noteSynced[id]=js;
     let n=notes.find(o=>o.id===id);const typing=document.activeElement&&document.activeElement.closest?.(`.stk[data-id="${id}"]`);
-    if(n){if(!typing){n.html=data.html||"";n.color=data.color||"yellow";}n.t=data.t||n.t;}else notes.push({id,html:data.html||"",color:data.color||"yellow",t:data.t||0});}
+    if(n){if(!typing){n.html=data.html||"";n.color=data.color||"yellow";}n.t=data.t||n.t;if(data.o!=null)n.o=data.o;}else notes.push({id,html:data.html||"",color:data.color||"yellow",t:data.t||0,...(data.o!=null&&{o:data.o})});}
   for(const n of [...notes])if(!seen.has(n.id)&&noteSynced[n.id]!==undefined&&Date.now()-(noteRecent[n.id]||0)>4000){notes=notes.filter(o=>o!==n);delete noteSynced[n.id];}
   drawNotes();}
 // 예전 한 장 메모 → 첫 스티커 (스티커가 하나도 없고 아직 옮긴 적 없을 때 한 번)
@@ -1303,7 +1348,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008015212";// 배포할 때 바뀜
+const BUILD="20261008015448";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
