@@ -1239,7 +1239,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008011806";// 배포할 때 바뀜
+const BUILD="20261008013116";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1382,6 +1382,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
 // 설계도 시트의 항목·칸 색을 읽어 three.js로 그림 (탭을 처음 열 때 불러옴). 설계도가 바뀌면 다시 그림
 // 좌표: 보드 1 m = 55 → 3D 1 = 1 m. 보드 x → x, 보드 y(아래) → z
 var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true,roof:false,fenceH:1.4};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
+const ROOF_DEG=40;// 지붕 기울기
 const DOOR_H=2.1,SILL=.9,SLIT=[1.2,1.8],WALL_T=.12,CAB_H=.5,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
 const OPEN_KINDS={door:"door",door2:"door",slide:"door",garage:"garage",window:"win",window2:"win",slit:"slit"};
 // 색: 벽·돌(회랑)·지붕
@@ -1708,7 +1709,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   let roofTop=0;
   if(T3.roof){const cl=[],cc=[];for(const [k,v] of Object.entries(cells)){if(!v)continue;const [r,q]=k.split(",").map(Number);(v===court?cc:cl).push([r,q]);}
     const bb=a=>a.length?{x0:Math.min(...a.map(p=>p[1]))*c,x1:(Math.max(...a.map(p=>p[1]))+1)*c,z0:Math.min(...a.map(p=>p[0]))*c,z1:(Math.max(...a.map(p=>p[0]))+1)*c}:null;
-    const O=bb(cl.concat(cc)),I=bb(cc),o=.35,pitch=Math.tan(32*Math.PI/180);
+    const O=bb(cl.concat(cc)),I=bb(cc),o=.35,pitch=Math.tan(ROOF_DEG*Math.PI/180);
     // 비탈마다 처마 방향(u)·오르막(v)으로 무늬 좌표를 붙여 기와 줄이 처마와 나란하게
     if(O){const pos=[],uv=[],gab=[],sub=(a,b)=>a.map((v,i)=>v-b[i]),dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
       const quad=(p1,p2,p3,p4)=>{const e=sub(p2,p1),el=Math.hypot(...e),d=e.map(v=>v/el);
@@ -1772,14 +1773,16 @@ function enterRoom(room){if(!T3.ready)return;T3.root.updateMatrixWorld(true);
   const p=new THREE.Vector3(room.x,EYE,room.z);let best=0,bd=-1;// 가장 트인 쪽을 보며 시작
   for(let k=0;k<8;k++){const a=k*Math.PI/4,d=new THREE.Vector3(-Math.sin(a),0,-Math.cos(a)),rc=ray3();rc.far=40;rc.set(new THREE.Vector3(p.x,1.1,p.z),d);
     const h=rc.intersectObjects(walkWalls(),false)[0],dist=h?h.distance:40;if(dist>bd){bd=dist;best=a;}}
-  T3.walk=true;showCeil(true);walk.yaw=best;walk.pitch=-.05;T3.cam.fov=70;T3.cam.updateProjectionMatrix();T3.cam.position.copy(p);T3.ctl.enabled=false;
+  T3.walk=true;showCeil(true);walk.yaw=best;
+  if(!T3.roof){T3.roof=true;T3.walkRoof=true;build3D();}// 안에서 볼 때는 늘 지붕을 씌움 (나오면 원래대로)walk.pitch=-.05;T3.cam.fov=70;T3.cam.updateProjectionMatrix();T3.cam.position.copy(p);T3.ctl.enabled=false;
   T3.cam.rotation.set(walk.pitch,walk.yaw,0,"YXZ");walk.last=performance.now();
   (T3.labelSprites||[]).forEach(s=>s.visible=false);document.querySelector(".three").classList.add("walking");
   document.getElementById("walkHud").hidden=false;document.getElementById("walkName").textContent=`${room.name} · 눈높이 ${EYE} m`;}
 // 걷는 동안은 천장을 보이게 (평소엔 그림자만 드리우는 보이지 않는 천장)
 const CEIL_MAT=()=>T3.ceilMat||(T3.ceilMat=Object.assign(new THREE.MeshStandardMaterial({color:"#F3F1EC",side:THREE.DoubleSide,roughness:.95}),{userData:{keep:1}}));
 function showCeil(on){for(const o of T3.ceils||[]){if(on){if(!o.userData.inv)o.userData.inv=o.material;o.material=CEIL_MAT();o.receiveShadow=true;}else if(o.userData.inv)o.material=o.userData.inv;}}
-function exitWalk(){if(!T3.walk)return;T3.walk=false;showCeil(false);T3.cam.fov=45;T3.cam.updateProjectionMatrix();T3.ctl.enabled=true;
+function exitWalk(){if(!T3.walk)return;T3.walk=false;showCeil(false);
+  if(T3.walkRoof){T3.walkRoof=false;T3.roof=false;build3D();}T3.cam.fov=45;T3.cam.updateProjectionMatrix();T3.ctl.enabled=true;
   (T3.labelSprites||[]).forEach(s=>s.visible=true);document.querySelector(".three").classList.remove("walking");document.getElementById("walkHud").hidden=true;view3D("tilt");}
 function walkMove(fwd,side){const f=new THREE.Vector3(-Math.sin(walk.yaw),0,-Math.cos(walk.yaw)),r=new THREE.Vector3(Math.cos(walk.yaw),0,-Math.sin(walk.yaw));
   const v=f.multiplyScalar(fwd).add(r.multiplyScalar(side)),d=v.length();if(d<1e-4)return;v.normalize();
