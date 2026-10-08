@@ -64,6 +64,16 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .three .sunpanel .bar i{display:block;height:100%;background:#F2B233}
 .three .sunpanel .hrs{color:var(--muted);font-variant-numeric:tabular-nums}
 .three .sunpanel[hidden]{display:none}
+/* 사람 눈높이로 걷기 */
+.three .walkhud{position:absolute;left:12px;right:12px;top:12px;z-index:4;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.82rem}
+.three .walkhud[hidden]{display:none}
+.three .walkhud button{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--page);color:var(--ink);font:inherit;cursor:pointer}
+.three .walkhud #walkName{font-weight:700}
+.three .walkhud .walkhint{color:var(--muted);font-size:.76rem;flex:1}
+.three .walkhud .walkpad{display:inline-flex;gap:6px}
+.three .walkhud .walkpad button{width:44px;touch-action:none}
+.three.walking .tools,.three.walking .sunpanel{display:none}
+.three.walking #threeView{cursor:grab}
 .three .hint{display:none;position:absolute;left:12px;bottom:12px;z-index:3;background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.78rem}
 /* 설계도: 프리폼과 같은 보드에 10×10 모눈종이(100평 정사각형)를 깔고 항목은 시트별로 따로 */
 .content.plan-mode{background:#DDE2E0}
@@ -262,7 +272,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" data-v3="top">위에서</button>
     <button type="button" id="wallsBtn" aria-pressed="true" title="네모(방) 둘레에 벽 세우기">벽</button>
     <label>벽 높이 <input type="range" id="wallH" min="0.3" max="3.5" step="0.1" value="2.4"><span id="wallHv">2.4 m</span></label>
-    <button type="button" id="labelsBtn" aria-pressed="true" title="텍스트를 방 이름표로 띄우기">이름표</button>
+    <button type="button" id="labelsBtn" aria-pressed="true" title="텍스트를 방 이름표로 띄우기 — 이름표를 누르면 그 방에 들어가 사람 눈높이로 둘러봐요">이름표</button>
     <label>담장 <input type="range" id="fenceH" min="0" max="3" step="0.1" value="1.4"><span id="fenceHv">1.4 m</span></label>
     <button type="button" id="roofBtn" aria-pressed="false" title="박공지붕 씌우기 (중정은 열어 둠)">지붕</button>
     <button type="button" id="sunBtn" aria-expanded="false" title="날짜·시각에 따른 해와 방별 햇빛">☀ 일조량</button>
@@ -273,6 +283,11 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
       <select id="sunNorth" title="설계도에서 북쪽이 어느 쪽인지"><option value="auto">북쪽: 정문 쪽(자동)</option><option value="0">북쪽: 위</option><option value="90">북쪽: 오른쪽</option><option value="180">북쪽: 아래</option><option value="270">북쪽: 왼쪽</option></select>
       <div class="sunst" id="sunState"></div>
     </div>
+  </div>
+  <div class="walkhud" id="walkHud" hidden>
+    <button type="button" id="walkExit">← 나가기</button><span id="walkName"></span>
+    <span class="walkhint">끌어서 둘러보기 · W/S·↑↓ 앞뒤 · A/D·←→ 옆으로 · 휠</span>
+    <span class="walkpad"><button type="button" data-walk="1" aria-label="앞으로">▲</button><button type="button" data-walk="-1" aria-label="뒤로">▼</button></span>
   </div>
   <div class="sunpanel" id="sunPanel" hidden><h3>방별 햇빛</h3><div id="sunRooms"></div></div>
   <div class="hint">끌어서 돌리기 · 휠/두 손가락으로 확대 · 오른쪽 버튼(두 손가락 끌기)으로 이동 — 설계도를 바꾸면 자동으로 다시 그려요</div>
@@ -1224,7 +1239,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008004609";// 배포할 때 바뀜
+const BUILD="20261008011806";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1397,7 +1412,7 @@ async function open3D(){
     const sunPath=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:"#E0A21B",dashSize:.8,gapSize:.5}));sunBall.visible=sunPath.visible=false;// 해와 해 길은 화면에 그리지 않음 (빛·그림자 방향만)
     Object.assign(T3,{r,scene,cam,ctl,root,box,sun,hemi,sunBall,sunPath});view3D("tilt");
     new ResizeObserver(size3D).observe(box);size3D();
-    const loop=()=>{requestAnimationFrame(loop);if(!T3.on||!box.offsetWidth)return;ctl.update();r.render(scene,cam);};loop();
+    const loop=()=>{requestAnimationFrame(loop);if(!T3.on||!box.offsetWidth)return;if(T3.walk)walkStep();else ctl.update();r.render(scene,cam);};loop();
   })().catch(e=>{T3.ready=null;note("3D를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.");throw e;});
   await T3.ready;size3D();if(T3.dirty)build3D();}
 function size3D(){const b=T3.box;if(!b||!b.offsetWidth)return;T3.r.setSize(b.offsetWidth,b.offsetHeight);T3.cam.aspect=b.offsetWidth/b.offsetHeight;T3.cam.updateProjectionMatrix();}
@@ -1527,7 +1542,7 @@ function archShape(bw,H,p){const s=bw-2*p,r=.8*s,rise=Math.sqrt(r*r-(r-s/2)**2),
   for(let k=1;k<=14;k++){const a=(Math.PI-a1)-(Math.PI-a1)*k/14;sh.lineTo(bw-p-r+r*Math.cos(a),spring+r*Math.sin(a));}// 오른쪽 호: 중심 (bw-p-r, spring)
   sh.lineTo(bw-p,0);sh.lineTo(bw,0);sh.lineTo(bw,H);sh.lineTo(0,H);return{sh,spring};}
 function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;clear3D(g);
-  const P=items.filter(i=>i.sheet==="plan"),S=SIDE_M,c=CELL/M,H=T3.wallH;
+  const P=items.filter(i=>i.sheet==="plan"),S=SIDE_M,c=CELL/M,H=T3.wallH;T3.labelSprites=[];
   const add=(geo,m,x,y,z,sh=true)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=sh;o.receiveShadow=true;g.add(o);return o;};
   const colOf=(r,cl)=>cells[r+","+cl]||"";
   // 종이 + 칸 색
@@ -1597,7 +1612,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
   const wm=mat3(C3.wall),glass=mat3(C3.glass,{op:.45,r:.1}),GAR_H=()=>Math.max(.5,Math.min(2.3,H-.15));// 차고문 높이
   const blockers=[];// 햇빛을 막는 것 (벽·문·아치·지붕·천장) — 유리는 통과
   const piece=(horiz,line,a,b,y0,y1,m=wm,t=WALL_T)=>{if(b-a<.01||y1-y0<.01)return;const L=b-a,h=y1-y0,mid=(a+b)/2;
-    const o=horiz?add(new THREE.BoxGeometry(L,h,t),m,mid,y0+h/2,line):add(new THREE.BoxGeometry(t,h,L),m,line,y0+h/2,mid);if(m!==glass)blockers.push(o);};
+    const o=horiz?add(new THREE.BoxGeometry(L,h,t),m,mid,y0+h/2,line):add(new THREE.BoxGeometry(t,h,L),m,line,y0+h/2,mid);if(m!==glass)blockers.push(o);return o;};
   // 한 줄 벽: 문·창·슬릿 경계로 잘라 구간마다 높이 띠를 계산 (겹쳐도 됨 — 창 아래 슬릿 등)
   //  문 0~2.1 / 차고문 0~2.3 / 창 0.9~2.1 유리 / 슬릿 1.2~1.8 길게 뚫린 띠(유리·선반 없이 구멍만)
   const band=o=>o.type==="door"?[0,Math.min(DOOR_H,H),0]:o.type==="garage"?[0,GAR_H(),0]:o.type==="slit"?[Math.min(SLIT[0],H),Math.min(SLIT[1],H),0]:[Math.min(SILL,H),Math.min(DOOR_H,H),1];
@@ -1622,12 +1637,12 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     // 닫힌 문짝: 벽 구멍을 채워 양쪽에서 보이게 (양여닫이는 두 짝, 미닫이는 겹친 두 장)
     const dm=mat3(C3.door),dm2=mat3(C3.lwood),hm=mat3(C3.steel),DT=.05,DH=Math.min(DOOR_H,H)-.01;
     for(const d of doorPanels){const {horiz,line}=d,gap=.006;
-      const leaf=(a,b,m=dm,off=0,t=DT,hp="end")=>{piece(horiz,line+off,a+gap,b-gap,0,DH,m,t);
+      const leaf=(a,b,m=dm,off=0,t=DT,hp="end")=>{const lo=piece(horiz,line+off,a+gap,b-gap,0,DH,m,t);if(lo)lo.userData.door=1;// 걸어서 지나갈 수 있게
         const hx=b-a>.3?(hp==="start"?a+(b-a)*.12:b-(b-a)*.12):(a+b)/2;// 손잡이 (양쪽 면) — hp: 문짝의 어느 끝에
         for(const s of [-1,1]){const o=line+off+s*(t/2+.02);if(horiz)add(new THREE.BoxGeometry(.12,.03,.03),hm,hx,1,o);else add(new THREE.BoxGeometry(.03,.03,.12),hm,o,1,hx);}};
       if(d.kind==="door2"){const m=(d.a+d.b)/2;leaf(d.a,m,dm,0,DT,"end");leaf(m,d.b,dm,0,DT,"start");}// 양문: 손잡이는 가운데 맞닿는 쪽에 모아서
       else if(d.kind==="garage"){const GH=GAR_H(),sl=mat3("#B4BAB9"),sl2=mat3("#9EA4A3");// 롤업 셔터: 가로 날개를 쌓고 아래 손잡이
-        for(let y=0,k=0;y<GH-.01;y+=.12,k++)piece(horiz,line,d.a+gap,d.b-gap,y,Math.min(GH,y+.115),k%2?sl:sl2,.04);
+        for(let y=0,k=0;y<GH-.01;y+=.12,k++){const so=piece(horiz,line,d.a+gap,d.b-gap,y,Math.min(GH,y+.115),k%2?sl:sl2,.04);if(so)so.userData.door=1;}
         const hx=(d.a+d.b)/2;for(const s of [-1,1]){const o=line+s*.04;if(horiz)add(new THREE.BoxGeometry(.3,.03,.03),hm,hx,.25,o);else add(new THREE.BoxGeometry(.03,.03,.3),hm,o,.25,hx);}}
       else if(d.kind==="slide"){const L=d.b-d.a;leaf(d.a,d.a+L*.55,dm2,-.022,.03);leaf(d.a+L*.45,d.b,dm2,.022,.03);}// 두 장이 벽 두께(0.12) 안에서 앞뒤로
       else leaf(d.a,d.b);}}
@@ -1725,11 +1740,14 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     x.fillStyle="#1D2524";x.textAlign="center";x.textBaseline="middle";x.fillText(t,tw/2,(f+28)/2+2);
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false}));sp.renderOrder=10;
     const hgt=.42;sp.scale.set(hgt*cv.width/cv.height,hgt,1);const b=vbox(it);
-    sp.position.set(u2m(b.x+b.w/2),Math.max(T3.walls?H:0,roofTop)+.6,u2m(b.y+b.h/2));g.add(sp);}
+    sp.position.set(u2m(b.x+b.w/2),Math.max(T3.walls?H:0,roofTop)+.6,u2m(b.y+b.h/2));g.add(sp);
+    sp.userData.room={name:t,x:u2m(b.x+b.w/2),z:u2m(b.y+b.h/2)};sp.visible=!T3.walk;T3.labelSprites.push(sp);}
   // 보이지 않는 천장: 지붕을 걷어도 방 안 그림자·햇빛은 천장이 있는 것처럼 (중정은 열림)
+  const ceils=[];
   if(T3.walls&&H>0){const inv=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false});
     for(let r=0;r<10;r++){let st=null;for(let q=0;q<=10;q++){const on=q<10&&colOf(r,q)&&colOf(r,q)!==court;
-      if(on&&st===null)st=q;if(!on&&st!==null){const o=new THREE.Mesh(new THREE.BoxGeometry((q-st)*c,.05,c),inv);o.position.set((st+q)/2*c,H+.03,r*c+c/2);o.castShadow=true;g.add(o);blockers.push(o);st=null;}}}}
+      if(on&&st===null)st=q;if(!on&&st!==null){const o=new THREE.Mesh(new THREE.BoxGeometry((q-st)*c,.05,c),inv);o.position.set((st+q)/2*c,H+.03,r*c+c/2);o.castShadow=true;g.add(o);blockers.push(o);ceils.push(o);st=null;}}}}
+  T3.ceilInv=null;T3.ceils=ceils;if(T3.walk)showCeil(true);
   // 방: 이름표 자리의 네모(있으면) 또는 같은 색으로 이어진 칸들 — 바닥 위 점들에서 해 쪽으로 광선을 쏴 햇빛을 잼
   const rooms=[];
   for(const it of P.filter(i=>(i.type==="tbox"||i.type==="text")&&(i.text||"").trim())){const b=vbox(it),cx=b.x+b.w/2,cy=b.y+b.h/2,pts=[];
@@ -1743,6 +1761,47 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     const step=Math.max(1,Math.ceil(pts.length/40));rooms.push({name:it.text.trim().split("\n")[0],pts:pts.filter((_,i)=>i%step===0)});}
   T3.blockers=blockers;T3.rooms=rooms;sunUpdate(true);
 }
+// ===== 사람 눈높이 둘러보기 (키 175 cm → 눈 1.63 m) =====
+// 이름표를 누르면 그 방 가운데에 서서, 끌어서 고개를 돌리고 키·단추로 걷기. 벽은 못 지나가고 문은 지나감
+const EYE=1.63;
+const walk={yaw:0,pitch:0,keys:{},hold:0,last:0};
+function walkWalls(){return (T3.blockers||[]).filter(o=>!o.userData.door);}
+function walkFree(pos,dir,dist){const rc=ray3();rc.far=dist+.3;let hit=false;
+  for(const y of [.4,1.1]){rc.set(new THREE.Vector3(pos.x,y,pos.z),dir);if(rc.intersectObjects(walkWalls(),false).length){hit=true;break;}}return !hit;}
+function enterRoom(room){if(!T3.ready)return;T3.root.updateMatrixWorld(true);
+  const p=new THREE.Vector3(room.x,EYE,room.z);let best=0,bd=-1;// 가장 트인 쪽을 보며 시작
+  for(let k=0;k<8;k++){const a=k*Math.PI/4,d=new THREE.Vector3(-Math.sin(a),0,-Math.cos(a)),rc=ray3();rc.far=40;rc.set(new THREE.Vector3(p.x,1.1,p.z),d);
+    const h=rc.intersectObjects(walkWalls(),false)[0],dist=h?h.distance:40;if(dist>bd){bd=dist;best=a;}}
+  T3.walk=true;showCeil(true);walk.yaw=best;walk.pitch=-.05;T3.cam.fov=70;T3.cam.updateProjectionMatrix();T3.cam.position.copy(p);T3.ctl.enabled=false;
+  T3.cam.rotation.set(walk.pitch,walk.yaw,0,"YXZ");walk.last=performance.now();
+  (T3.labelSprites||[]).forEach(s=>s.visible=false);document.querySelector(".three").classList.add("walking");
+  document.getElementById("walkHud").hidden=false;document.getElementById("walkName").textContent=`${room.name} · 눈높이 ${EYE} m`;}
+// 걷는 동안은 천장을 보이게 (평소엔 그림자만 드리우는 보이지 않는 천장)
+const CEIL_MAT=()=>T3.ceilMat||(T3.ceilMat=Object.assign(new THREE.MeshStandardMaterial({color:"#F3F1EC",side:THREE.DoubleSide,roughness:.95}),{userData:{keep:1}}));
+function showCeil(on){for(const o of T3.ceils||[]){if(on){if(!o.userData.inv)o.userData.inv=o.material;o.material=CEIL_MAT();o.receiveShadow=true;}else if(o.userData.inv)o.material=o.userData.inv;}}
+function exitWalk(){if(!T3.walk)return;T3.walk=false;showCeil(false);T3.cam.fov=45;T3.cam.updateProjectionMatrix();T3.ctl.enabled=true;
+  (T3.labelSprites||[]).forEach(s=>s.visible=true);document.querySelector(".three").classList.remove("walking");document.getElementById("walkHud").hidden=true;view3D("tilt");}
+function walkMove(fwd,side){const f=new THREE.Vector3(-Math.sin(walk.yaw),0,-Math.cos(walk.yaw)),r=new THREE.Vector3(Math.cos(walk.yaw),0,-Math.sin(walk.yaw));
+  const v=f.multiplyScalar(fwd).add(r.multiplyScalar(side)),d=v.length();if(d<1e-4)return;v.normalize();
+  if(walkFree(T3.cam.position,v,d))T3.cam.position.addScaledVector(v,d);}
+function walkStep(){const now=performance.now(),dt=Math.min(.1,(now-walk.last)/1000);walk.last=now;const k=walk.keys,sp=1.4*dt;
+  const fwd=((k.KeyW||k.ArrowUp)?1:0)-((k.KeyS||k.ArrowDown)?1:0)+walk.hold,side=((k.KeyD||k.ArrowRight)?1:0)-((k.KeyA||k.ArrowLeft)?1:0);
+  if(fwd||side)walkMove(fwd*sp,side*sp);T3.cam.rotation.set(walk.pitch,walk.yaw,0,"YXZ");}
+{const view=document.getElementById("threeView");let dn=null;
+  view.addEventListener("pointerdown",ev=>{dn={x:ev.clientX,y:ev.clientY,t:Date.now(),lx:ev.clientX,ly:ev.clientY};if(T3.walk)view.setPointerCapture(ev.pointerId);});
+  view.addEventListener("pointermove",ev=>{if(!T3.walk||!dn)return;walk.yaw+=(ev.clientX-dn.lx)*.004;walk.pitch=Math.max(-1.3,Math.min(1.3,walk.pitch+(ev.clientY-dn.ly)*.004));dn.lx=ev.clientX;dn.ly=ev.clientY;});
+  view.addEventListener("pointerup",ev=>{const d=dn;dn=null;if(!d||T3.walk||!T3.labelSprites||!T3.labels)return;
+    if(Math.hypot(ev.clientX-d.x,ev.clientY-d.y)>6||Date.now()-d.t>500)return;// 끌기는 화면 돌리기 — 짧게 누른 것만
+    const r=view.getBoundingClientRect(),m=new THREE.Vector2((ev.clientX-r.left)/r.width*2-1,-(ev.clientY-r.top)/r.height*2+1),rc=ray3();rc.far=500;
+    rc.setFromCamera(m,T3.cam);const h=rc.intersectObjects(T3.labelSprites,false)[0];if(h)enterRoom(h.object.userData.room);});
+  view.addEventListener("wheel",ev=>{if(!T3.walk)return;ev.preventDefault();walkMove(-Math.sign(ev.deltaY)*.4,0);},{passive:false});
+  document.addEventListener("keydown",ev=>{if(!T3.walk||isTyping(ev.target))return;if(ev.key==="Escape"){exitWalk();return;}
+    if(/^(Key[WASD]|Arrow(Up|Down|Left|Right))$/.test(ev.code)){walk.keys[ev.code]=true;ev.preventDefault();}});
+  document.addEventListener("keyup",ev=>{walk.keys[ev.code]=false;});
+  window.addEventListener("blur",()=>{walk.keys={};walk.hold=0;});
+  document.getElementById("walkExit").onclick=exitWalk;
+  document.querySelectorAll("[data-walk]").forEach(b=>{const v=+b.dataset.walk;
+    b.addEventListener("pointerdown",ev=>{ev.preventDefault();walk.hold=v;});for(const e of ["pointerup","pointerleave","pointercancel"])b.addEventListener(e,()=>walk.hold=0);});}
 // ===== 해: 날짜·시각 → 해 높이·방위 (위도 37°, 경도 127.5° — 한국 표준시 기준) =====
 const LAT=37*Math.PI/180,LON=127.5;
 const SEASON={80:"춘분",172:"하지",266:"추분",355:"동지"};
@@ -1764,7 +1823,8 @@ const sunDay=document.getElementById("sunDay"),sunTime=document.getElementById("
 const northDeg=()=>sunNorth.value==="auto"?{top:0,right:90,bottom:180,left:270}[T3.front||"top"]:+sunNorth.value;
 const ray3=()=>T3.ray||(T3.ray=new THREE.Raycaster());
 // 점들 중 해가 직접 비치는 비율 (해가 지평선 아래면 0)
-function litShare(pts,dir){if(dir.y<=.01||!pts.length)return 0;T3.root.updateMatrixWorld(true);// 방금 만든 벽도 제자리에서 맞도록const rc=ray3(),o=new THREE.Vector3();let lit=0;rc.far=60;
+// (방금 만든 벽도 제자리에서 맞도록 먼저 위치 갱신)
+function litShare(pts,dir){if(dir.y<=.01||!pts.length)return 0;T3.root.updateMatrixWorld(true);const rc=ray3(),o=new THREE.Vector3();let lit=0;rc.far=60;
   for(const [x,z] of pts){o.set(x,.4,z);rc.set(o,dir);if(!rc.intersectObjects(T3.blockers,false).length)lit++;}return lit/pts.length;}
 function sunUpdate(rebuilt){if(!T3.ready||!T3.sun)return;
   const doy=+sunDay.value,clock=+sunTime.value,north=northDeg(),{el,az,dir}=sunAt(doy,clock,north),C=SIDE_M/2;
