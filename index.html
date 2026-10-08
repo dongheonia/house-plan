@@ -293,9 +293,9 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" data-v3="tilt">비스듬히</button>
     <button type="button" data-v3="top">위에서</button>
     <button type="button" id="wallsBtn" aria-pressed="true" title="네모(방) 둘레에 벽 세우기">벽</button>
-    <label>벽 높이 <input type="range" id="wallH" min="0.3" max="3.5" step="0.1" value="2.4"><span id="wallHv">2.4 m</span></label>
+    <label>벽 높이 <input type="range" id="wallH" min="0.3" max="5" step="0.1" value="3.5" autocomplete="off"><span id="wallHv">3.5 m</span></label>
     <button type="button" id="labelsBtn" aria-pressed="true" title="텍스트를 방 이름표로 띄우기 — 이름표를 누르면 그 방에 들어가 사람 눈높이로 둘러봐요">이름표</button>
-    <label>담장 <input type="range" id="fenceH" min="0" max="3" step="0.1" value="1.4"><span id="fenceHv">1.4 m</span></label>
+    <label>담장 <input type="range" id="fenceH" min="0" max="3" step="0.1" value="1.8" autocomplete="off"><span id="fenceHv">1.8 m</span></label>
     <button type="button" id="roofBtn" aria-pressed="false" title="박공지붕 씌우기 (중정은 열어 둠)">지붕</button>
     <button type="button" id="sunBtn" aria-expanded="false" title="날짜·시각에 따른 해와 방별 햇빛">☀ 일조량</button>
     <div class="sunbar" id="sunBar" hidden>
@@ -1362,7 +1362,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008213002";// 배포할 때 바뀜
+const BUILD="20261008213201";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1508,7 +1508,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
 // ===== 3D: 설계도를 입체로 =====
 // 설계도 시트의 항목·칸 색을 읽어 three.js로 그림 (탭을 처음 열 때 불러옴). 설계도가 바뀌면 다시 그림
 // 좌표: 보드 1 m = 55 → 3D 1 = 1 m. 보드 x → x, 보드 y(아래) → z
-var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true,roof:false,fenceH:1.4};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
+var T3={on:false,ready:null,dirty:true,wallH:3.5,walls:true,labels:true,roof:false,fenceH:1.8};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
 const ROOF_DEG=40;// 지붕 기울기
 const DOOR_H=2.1,SILL=1.1,WIN_TOP=2.3,SLIT=[1.2,1.8],WALL_T=.12,CAB_H=.75,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
 const OPEN_KINDS={door:"door",door2:"door",slide:"door",garage:"garage",window:"win",window2:"win",slit:"slit"};
