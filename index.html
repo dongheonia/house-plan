@@ -71,6 +71,8 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .three .walkhud #walkName{font-weight:700}
 .three .walkhud .walkhint{color:var(--muted);font-size:.76rem;flex:1}
 .three .walkhud .walkpad{display:inline-flex;gap:6px}
+.three .walkhud label{height:32px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--page);display:inline-flex;align-items:center;gap:8px}
+.three .walkhud input[type=range]{width:100px}
 .three .walkhud .walkpad button{width:44px;touch-action:none}
 .three.walking .tools,.three.walking .sunpanel{display:none}
 .three.walking #threeView{cursor:grab}
@@ -1362,7 +1364,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008213201";// 배포할 때 바뀜
+const BUILD="20261008213534";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1904,7 +1906,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
         for(const [u,v] of [[0,.25],[.5,.25],[0,.75],[.5,.75]].map(([a,bb])=>[a+.25,bb]))pts.push([(q+u)*c,(r+v)*c]);
         for(const [dr,dq] of [[1,0],[-1,0],[0,1],[0,-1]]){const k=(r+dr)+","+(q+dq);if(!seen.has(k)&&colOf(r+dr,q+dq)===col){seen.add(k);st.push([r+dr,q+dq]);}}}}
     const step=Math.max(1,Math.ceil(pts.length/40));rooms.push({name:it.text.trim().split("\n")[0],pts:pts.filter((_,i)=>i%step===0)});}
-  T3.blockers=blockers;T3.rooms=rooms;sunUpdate(true);
+  T3.blockers=blockers;T3.rooms=rooms;if(T3.walk)showCeil(true);sunUpdate(true);
 }
 // ===== 사람 눈높이 둘러보기 (키 175 cm → 눈 1.63 m) =====
 // 이름표를 누르면 그 방 가운데에 서서, 끌어서 고개를 돌리고 키·단추로 걷기. 벽은 못 지나가고 문은 지나감
@@ -1919,7 +1921,7 @@ function enterRoom(room){if(!T3.ready)return;T3.root.updateMatrixWorld(true);
   for(let k=0;k<8;k++){const a=k*Math.PI/4,d=new THREE.Vector3(-Math.sin(a),0,-Math.cos(a)),rc=ray3();rc.far=40;rc.set(new THREE.Vector3(p.x,1.1,p.z),d);
     const h=rc.intersectObjects(walkWalls(),false)[0],dist=h?h.distance:40;if(dist>bd){bd=dist;best=a;}}
   if(room.yaw!=null)best=room.yaw;// 방위 글자로 들어오면 집을 바라봄
-  T3.walk=true;showCeil(true);walk.yaw=best;
+  T3.walk=true;showCeil(true);walk.yaw=best;hudSliders(true);
   // 안에서 볼 때는 늘 지붕을 씌움 (나오면 원래대로)
   if(!T3.roof){T3.roof=true;T3.walkRoof=true;build3D();}
   walk.pitch=-.05;T3.cam.fov=70;T3.cam.updateProjectionMatrix();T3.cam.position.copy(p);T3.ctl.enabled=false;
@@ -1933,7 +1935,11 @@ function walkLabel(y){document.getElementById("walkName").textContent=`${walk.na
 // 걷는 동안은 천장을 보이게 (평소엔 그림자만 드리우는 보이지 않는 천장)
 const CEIL_MAT=()=>T3.ceilMat||(T3.ceilMat=Object.assign(new THREE.MeshStandardMaterial({color:"#F3F1EC",side:THREE.DoubleSide,roughness:.95}),{userData:{keep:1}}));
 function showCeil(on){for(const o of T3.ceils||[]){if(on){if(!o.userData.inv)o.userData.inv=o.material;o.material=CEIL_MAT();o.receiveShadow=true;}else if(o.userData.inv)o.material=o.userData.inv;}}
-function exitWalk(){if(!T3.walk)return;T3.walk=false;showCeil(false);if(T3.roomLight)T3.roomLight.visible=false;
+// 걷는 동안엔 벽 높이·담장 막대를 위쪽 안내줄로 옮겨 그대로 조정 (나오면 제자리)
+function hudSliders(on){const hud=document.getElementById("walkHud"),pad=hud.querySelector(".walkpad");
+  for(const id of ["wallH","fenceH"]){const lb=document.getElementById(id).closest("label");
+    if(on){if(!lb._home)lb._home={p:lb.parentNode,n:lb.nextSibling};hud.insertBefore(lb,pad);}else if(lb._home)lb._home.p.insertBefore(lb,lb._home.n);}}
+function exitWalk(){if(!T3.walk)return;T3.walk=false;hudSliders(false);showCeil(false);if(T3.roomLight)T3.roomLight.visible=false;
   if(T3.walkRoof){T3.walkRoof=false;T3.roof=false;build3D();}T3.cam.fov=45;T3.cam.updateProjectionMatrix();T3.ctl.enabled=true;
   (T3.labelSprites||[]).forEach(s=>s.visible=true);if(T3.compass)T3.compass.visible=true;document.querySelector(".three").classList.remove("walking");document.getElementById("walkHud").hidden=true;view3D("tilt");}
 function walkMove(fwd,side){const f=new THREE.Vector3(-Math.sin(walk.yaw),0,-Math.cos(walk.yaw)),r=new THREE.Vector3(Math.cos(walk.yaw),0,-Math.sin(walk.yaw));
@@ -2045,7 +2051,7 @@ const wallHIn=document.getElementById("wallH");
 if(layout.dataset.view==="three"||document.querySelector(".three.on"))show3D(true);// 3D 탭을 열어 둔 채 다시 들어온 경우
 const fenceIn=document.getElementById("fenceH");
 fenceIn.oninput=()=>{T3.fenceH=+fenceIn.value;document.getElementById("fenceHv").textContent=T3.fenceH?T3.fenceH.toFixed(1)+" m":"없음";clearTimeout(T3.ft);T3.ft=setTimeout(build3D,120);};
-wallHIn.oninput=()=>{T3.wallH=+wallHIn.value;document.getElementById("wallHv").textContent=T3.wallH.toFixed(1)+" m";clearTimeout(T3.ht);T3.ht=setTimeout(build3D,120);};
+wallHIn.oninput=()=>{T3.wallH=+wallHIn.value;if(T3.walk&&T3.roomLight)T3.roomLight.position.y=Math.max(1.8,T3.wallH-.25);document.getElementById("wallHv").textContent=T3.wallH.toFixed(1)+" m";clearTimeout(T3.ht);T3.ht=setTimeout(build3D,120);};
 
 // ===== 옮기기: 컴퓨터 파일에서 내보내기 → claude.ai에서 가져오기 =====
 const readAsDataURL=b=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r(null);fr.readAsDataURL(b)});
