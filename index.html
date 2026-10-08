@@ -803,7 +803,10 @@ function render(it){
     for(const r of c.children){const k=r.getAttribute("class")==="hit"?Math.max(bw*3,10/cam.z):bw;
       Object.entries({x:bw/2,y:bw/2,width:Math.max(0,it.w-bw),height:Math.max(0,it.h-bw),"stroke-width":k}).forEach(([a,v])=>r.setAttribute(a,v));}
     c.lastChild.setAttribute("stroke",col);}
-  if(it.type==="sym"){const c=el.firstChild;c.setAttribute("viewBox",`0 0 ${it.w} ${it.h}`);c.innerHTML=symSVG(it.kind,it.w,it.h);
+  if(it.type==="sym"){const c=el.firstChild;c.setAttribute("viewBox",`0 0 ${it.w} ${it.h}`);
+    if(KITCH.has(it.kind)){c.innerHTML=kitchenSVG(it);// 주방끼리는 겹친 곳 경계선을 지움 — 다른 주방도 다시 그림
+      for(const o of items)if(o!==it&&o.type==="sym"&&KITCH.has(o.kind)&&(o.sheet||"")===(it.sheet||"")){const s=world.querySelector(`[data-iid="${o.id}"] svg.sym`);if(s)s.innerHTML=kitchenSVG(o);}}
+    else c.innerHTML=symSVG(it.kind,it.w,it.h);
     c.style.transform=it.fx||it.fy?`scale(${it.fx?-1:1},${it.fy?-1:1})`:"";}
   if(it.type==="rect"){const col=RECT_COLORS.find(c=>c[0]===it.color),bx=el.querySelector(".box");
     bx.style.background=col?col[2]:"";bx.classList.toggle("light",!!col&&!col[3]);}
@@ -816,6 +819,25 @@ function render(it){
 }
 const inkPath=pts=>"M"+pts.map(p=>p.join(" ")).join("L");
 // 회전을 반영한 화면상 상자 (90°/270°면 가로세로가 바뀜)
+// ── 주방 조리대: 여러 개가 겹치거나 맞닿으면 하나로 이어진 것처럼 (겹친 안쪽 경계선 없음) ──
+const KITCH=new Set(["kitchen","kitchen2"]);
+function kShape(it){const {w,h}=it;if(it.kind==="kitchen"){const dx=w*.25,dy=h*.25;return{poly:[[0,0],[w,0],[w,h],[w-dx,h],[w-dx,dy],[0,dy]],rects:[[0,0,w,dy],[w-dx,dy,w,h]]};}
+  return{poly:[[0,0],[w,0],[w,h],[0,h]],rects:[[0,0,w,h]]};}
+function kWorld(it,lx,ly){if(it.fx)lx=it.w-lx;if(it.fy)ly=it.h-ly;const a=(it.rot||0)*Math.PI/180,ox=lx-it.w/2,oy=ly-it.h/2;
+  return[it.x+it.w/2+ox*Math.cos(a)-oy*Math.sin(a),it.y+it.h/2+ox*Math.sin(a)+oy*Math.cos(a)];}
+function kitchenSVG(it){const all=[];
+  for(const o of items)if(o.type==="sym"&&KITCH.has(o.kind)&&(o.sheet||"")===(it.sheet||""))for(const [a,b,c,d] of kShape(o).rects){const p=kWorld(o,a,b),q=kWorld(o,c,d);
+    all.push([Math.min(p[0],q[0]),Math.min(p[1],q[1]),Math.max(p[0],q[0]),Math.max(p[1],q[1])]);}
+  const inU=(x,y)=>all.some(r=>x>r[0]&&x<r[2]&&y>r[1]&&y<r[3]);
+  const {poly}=kShape(it);let d="";
+  for(let i=0;i<poly.length;i++){const p=poly[i],q=poly[(i+1)%poly.length],P=kWorld(it,...p),Q=kWorld(it,...q),hz=Math.abs(P[1]-Q[1])<1e-6,ax=hz?0:1;
+    const lo=Math.min(P[ax],Q[ax]),hi=Math.max(P[ax],Q[ax]),cuts=[lo,hi];for(const r of all)for(const v of hz?[r[0],r[2]]:[r[1],r[3]])if(v>lo&&v<hi)cuts.push(v);
+    cuts.sort((a,b)=>a-b);
+    for(let k=0;k<cuts.length-1;k++){const a=cuts[k],b=cuts[k+1];if(b-a<1e-6)continue;const m=(a+b)/2,e=.5,M=hz?[m,P[1]]:[P[0],m];
+      const s1=hz?inU(M[0],M[1]-e):inU(M[0]-e,M[1]),s2=hz?inU(M[0],M[1]+e):inU(M[0]+e,M[1]);if(s1===s2)continue;// 양쪽 다 조리대면 안쪽 선
+      const t=v=>(v-P[ax])/(Q[ax]-P[ax]),L=v=>[p[0]+(q[0]-p[0])*t(v),p[1]+(q[1]-p[1])*t(v)],A=L(a),B=L(b);
+      d+=`M${A[0].toFixed(2)} ${A[1].toFixed(2)}L${B[0].toFixed(2)} ${B[1].toFixed(2)}`;}}
+  return`<path class="fl" style="stroke:none" d="M${poly.map(q=>q.join(" ")).join("L")}Z"/><path class="tn" style="stroke-width:1.6;stroke-linecap:square" d="${d}"/>`;}
 function vbox(it){if(!((it.rot||0)%180))return{x:it.x,y:it.y,w:it.w,h:it.h};
   return{x:it.x+(it.w-it.h)/2,y:it.y+(it.h-it.w)/2,w:it.h,h:it.w};}
 function rotate(it,deg){it.rot=(((it.rot||0)+deg)%360+360)%360;render(it);saveMeta();}
@@ -875,7 +897,7 @@ const SYMS=[
   ["door","여닫이",.9,.9,"door"],["door2","양여닫이",1.8,.9,"door"],["slide","미닫이",1.8,.18,"door"],
   ["garage","차고 롤업문",2.6,.25,"door"],["window","창문",1.8,.2,"win"],["slit","슬릿",1.2,.2,"win"],["window2","미서기창",1.8,.2],// 미서기창은 예전에 놓은 것만 그림
   ["car","자동차",1.85,4.7,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
-  ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
+  ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["kitchen2","일자 주방",2.4,.6,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["desk2","네모 책상",1.4,.7,"icon"],["deskc","책상+의자",1.2,1.1,"icon"],["storage","수납장",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
   ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["fan","환풍기",.3,.3,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
@@ -906,6 +928,7 @@ function symSVG(k,w,h){
   case"dining":{const cw=w*.28,ch=h*.2;let o="";for(const x of [w*.14,w*.58])o+=R(x,0,cw,ch,"fl",cw*.15,brown)+R(x,h-ch,cw,ch,"fl",cw*.15,brown);
     return o+R(0,h*.15,w,h*.7,"fl",m*.03,brown);}
   case"kitchen":{const dx=w*.25,dy=h*.25;return`<path class="fl" d="M0 0H${w}V${h}H${w-dx}V${dy}H0Z"/>`;}// ㄱ자 조리대 (깊이 0.6 m)
+  case"kitchen2":return R(0,0,w,h,"fl");// 일자 조리대
   case"cooktop":{const r=Math.min(w,h)*.17;// 인덕션: 검은 유리판 + 4구
     return R(0,0,w,h,"fl",m*.06,black)+C(w*.28,h*.3,r,"tn",0,lite)+C(w*.72,h*.3,r,"tn",0,lite)+C(w*.28,h*.7,r,"tn",0,lite)+C(w*.72,h*.7,r,"tn",0,lite);}
   case"fridge":return R(0,0,w,h,"fl",0,gray)+P(`M0 ${h*.85}H${w}M${w/2} ${h*.85}V${h}`)+P(`M0 0L${w} ${h*.85}M${w} 0L0 ${h*.85}`,"tn ds");
@@ -1364,7 +1387,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008213534";// 배포할 때 바뀜
+const BUILD="20261008214458";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1532,7 +1555,8 @@ async function open3D(){
     const hemi=new THREE.HemisphereLight(0xffffff,0xb8c0be,.55);scene.add(hemi);// 빛을 합쳐 1 안팎 — 넘치면 해 드는 바닥이 하얗게 날아감
     // 거의 머리 위 해 — 방 안이 벽 그림자에 덜 가리게
     const sun=new THREE.DirectionalLight(0xffffff,.5);sun.position.set(-5,34,-6);sun.castShadow=true;
-    sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-24,right:24,top:24,bottom:-24,near:1,far:90});
+    sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0005;sun.shadow.normalBias=.03;// 그림자 줄무늬(셀프 섀도) 방지
+    Object.assign(sun.shadow.camera,{left:-24,right:24,top:24,bottom:-24,near:1,far:90});
     const C=SIDE_M/2;sun.target.position.set(C,0,C);scene.add(sun,sun.target);
     const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),grassMat(200,200));// 바깥 땅은 잔디
     ground.rotation.x=-Math.PI/2;ground.position.y=-.01;ground.receiveShadow=true;scene.add(ground);
@@ -1611,7 +1635,8 @@ function model3D(kind,W,D,H,opt={}){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
   case"dining":{B(0,1,.17,.83,.72,.76,c.wood,.02);legs(X(.04),X(.96),Z(.2),Z(.8),.72,c.wood,.06);
     for(const fx of [.28,.72]){chair(X(fx),Z(.1),"n",c.wood);chair(X(fx),Z(.9),"s",c.wood);}break;}
   case"kitchen":B(0,1,0,.25,0,.86,c.white);B(.75,1,.25,1,0,.86,c.white);B(0,1,0,.26,.86,.9,"#D9DEDD");B(.74,1,.26,1,.86,.9,"#D9DEDD");
-    B(0,1,.245,.25,.05,.82,"#E9ECEB");B(.745,.75,.25,1,.05,.82,"#E9ECEB");break;
+    B(0,.745,.25,.26,.05,.82,"#E9ECEB");B(.745,.75,.25,1,.05,.82,"#E9ECEB");break;
+  case"kitchen2":B(0,1,0,1,0,.86,c.white);B(0,1,0,1,.86,.9,"#D9DEDD");B(0,1,1,1.012,.05,.82,"#E9ECEB");break;
   case"cooktop":B(0,1,0,1,.9,.915,c.black,0,{r:.15});for(const [u,v] of [[.28,.3],[.72,.3],[.28,.7],[.72,.7]])p.push({cy:[X(u),Z(v),Math.min(W,D)*.17,.915,.917],c:"#3A3A3A"});break;
   case"fridge":B(0,1,0,1,0,1.8,c.gray,.03);B(.495,.505,.98,1.005,.05,1.75,c.dgray);B(.42,.46,1,1.03,.9,1.4,c.steel);B(.54,.58,1,1.03,.9,1.4,c.steel);break;
   case"sink":B(0,1,0,1,0,.85,c.gray);B(0,1,0,1,.85,.9,"#D9DEDD");B(.17,.83,.2,.8,.9,.904,c.water,.04,{r:.1});
