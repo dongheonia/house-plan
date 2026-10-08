@@ -1348,7 +1348,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008144151";// 배포할 때 바뀜
+const BUILD="20261008144347";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1496,7 +1496,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
 // 좌표: 보드 1 m = 55 → 3D 1 = 1 m. 보드 x → x, 보드 y(아래) → z
 var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true,roof:false,fenceH:1.4};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
 const ROOF_DEG=40;// 지붕 기울기
-const DOOR_H=2.1,SILL=1.1,WIN_TOP=2.3,SLIT=[1.2,1.8],WALL_T=.12,CAB_H=.5,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
+const DOOR_H=2.1,SILL=1.1,WIN_TOP=2.3,SLIT=[1.2,1.8],WALL_T=.12,CAB_H=.75,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
 const OPEN_KINDS={door:"door",door2:"door",slide:"door",garage:"garage",window:"win",window2:"win",slit:"slit"};
 // 색: 벽·돌(회랑)·지붕
 const C3={wall:"#F4F1EA",stone:"#D9D0C1",roof:"#4A525C",gable:"#EDE7DA",wood:"#9A7350",lwood:"#C39A68",door:"#A67C52",
