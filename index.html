@@ -1239,7 +1239,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008013116";// 배포할 때 바뀜
+const BUILD="20261008013840";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1417,7 +1417,8 @@ async function open3D(){
   })().catch(e=>{T3.ready=null;note("3D를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.");throw e;});
   await T3.ready;size3D();if(T3.dirty)build3D();}
 function size3D(){const b=T3.box;if(!b||!b.offsetWidth)return;T3.r.setSize(b.offsetWidth,b.offsetHeight);T3.cam.aspect=b.offsetWidth/b.offsetHeight;T3.cam.updateProjectionMatrix();}
-function view3D(k){const C=SIDE_M/2;T3.ctl.target.set(C,0,C);
+function view3D(k){if(T3.walk)return;// 방 안에서 걷는 중에는 시점을 바꾸지 않음
+  const C=SIDE_M/2;T3.ctl.target.set(C,0,C);
   const f=T3.front||"bottom",[dx,dz]=f==="top"?[10,-36]:f==="bottom"?[-10,36]:f==="left"?[-36,-10]:[36,10];// 비스듬히: 앞(정문) 쪽에서
   if(k==="top")T3.cam.position.set(C,38,C+.01);else T3.cam.position.set(C+dx,30,C+dz);T3.ctl.update();}
 // 잔디: 초록 점을 흩뿌린 무늬 (한 장 GRASS_M m)
@@ -1774,14 +1775,19 @@ function enterRoom(room){if(!T3.ready)return;T3.root.updateMatrixWorld(true);
   for(let k=0;k<8;k++){const a=k*Math.PI/4,d=new THREE.Vector3(-Math.sin(a),0,-Math.cos(a)),rc=ray3();rc.far=40;rc.set(new THREE.Vector3(p.x,1.1,p.z),d);
     const h=rc.intersectObjects(walkWalls(),false)[0],dist=h?h.distance:40;if(dist>bd){bd=dist;best=a;}}
   T3.walk=true;showCeil(true);walk.yaw=best;
-  if(!T3.roof){T3.roof=true;T3.walkRoof=true;build3D();}// 안에서 볼 때는 늘 지붕을 씌움 (나오면 원래대로)walk.pitch=-.05;T3.cam.fov=70;T3.cam.updateProjectionMatrix();T3.cam.position.copy(p);T3.ctl.enabled=false;
+  // 안에서 볼 때는 늘 지붕을 씌움 (나오면 원래대로)
+  if(!T3.roof){T3.roof=true;T3.walkRoof=true;build3D();}
+  walk.pitch=-.05;T3.cam.fov=70;T3.cam.updateProjectionMatrix();T3.cam.position.copy(p);T3.ctl.enabled=false;
+  // 방 조명: 천장 가운데 은은한 불 (그림자 없음) — 지붕·천장에 가려 어두운 실내를 밝힘
+  if(!T3.roomLight){T3.roomLight=new THREE.PointLight(0xFFF4E2,.55,9,1.2);T3.scene.add(T3.roomLight);}
+  T3.roomLight.visible=true;T3.roomLight.position.set(room.x,Math.max(1.8,T3.wallH-.25),room.z);
   T3.cam.rotation.set(walk.pitch,walk.yaw,0,"YXZ");walk.last=performance.now();
   (T3.labelSprites||[]).forEach(s=>s.visible=false);document.querySelector(".three").classList.add("walking");
   document.getElementById("walkHud").hidden=false;document.getElementById("walkName").textContent=`${room.name} · 눈높이 ${EYE} m`;}
 // 걷는 동안은 천장을 보이게 (평소엔 그림자만 드리우는 보이지 않는 천장)
 const CEIL_MAT=()=>T3.ceilMat||(T3.ceilMat=Object.assign(new THREE.MeshStandardMaterial({color:"#F3F1EC",side:THREE.DoubleSide,roughness:.95}),{userData:{keep:1}}));
 function showCeil(on){for(const o of T3.ceils||[]){if(on){if(!o.userData.inv)o.userData.inv=o.material;o.material=CEIL_MAT();o.receiveShadow=true;}else if(o.userData.inv)o.material=o.userData.inv;}}
-function exitWalk(){if(!T3.walk)return;T3.walk=false;showCeil(false);
+function exitWalk(){if(!T3.walk)return;T3.walk=false;showCeil(false);if(T3.roomLight)T3.roomLight.visible=false;
   if(T3.walkRoof){T3.walkRoof=false;T3.roof=false;build3D();}T3.cam.fov=45;T3.cam.updateProjectionMatrix();T3.ctl.enabled=true;
   (T3.labelSprites||[]).forEach(s=>s.visible=true);document.querySelector(".three").classList.remove("walking");document.getElementById("walkHud").hidden=true;view3D("tilt");}
 function walkMove(fwd,side){const f=new THREE.Vector3(-Math.sin(walk.yaw),0,-Math.cos(walk.yaw)),r=new THREE.Vector3(Math.cos(walk.yaw),0,-Math.sin(walk.yaw));
