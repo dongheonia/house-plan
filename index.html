@@ -103,7 +103,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 /* 스티커 메모: 카드마다 색·글, 살짝 기울여 붙인 느낌 */
 .memo .add-note{margin-right:auto;margin-left:10px;height:28px;padding:0 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
 .memo .notes{flex:1;min-height:0;overflow:auto;padding:14px 16px 16px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;align-content:start;font-size:15px}
-.stk{background:var(--nc);color:#1D2524;border-radius:3px;box-shadow:0 2px 8px rgba(0,0,0,.28);display:flex;flex-direction:column;height:220px;transform:rotate(var(--tilt,0deg));transition:transform .15s,translate .22s ease}
+.stk{background:var(--nc);color:#1D2524;border-radius:3px;box-shadow:0 2px 8px rgba(0,0,0,.28);display:flex;flex-direction:column;min-height:190px;transform:rotate(var(--tilt,0deg));transition:transform .15s,translate .22s ease}
 /* 끌어서 순서 바꾸기: 위쪽 띠를 잡거나 카드를 길게 누름 */
 .stk .nh{cursor:grab;touch-action:none}
 .stk.ph{background:transparent;box-shadow:none;border:2px dashed var(--line);transform:none}
@@ -116,7 +116,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .stk .dot[aria-pressed="true"]{outline:2px solid #1D2524;outline-offset:1px}
 .stk .nx{margin-left:auto;width:26px;height:26px;border:0;border-radius:50%;background:none;font-size:18px;line-height:1;cursor:pointer;color:rgba(0,0,0,.45)}
 .stk .nx:hover{background:rgba(0,0,0,.08);color:#000}
-.stk .nbody{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.25) transparent;padding:6px 14px 14px;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;-webkit-user-select:text;user-select:text;cursor:text}
+.stk .nbody{flex:1;padding:6px 14px 14px;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;-webkit-user-select:text;user-select:text;cursor:text}
 .stk .nbody:empty::before{content:"메모를 적으세요";color:rgba(0,0,0,.35);pointer-events:none}
 .stk .nbody mark{background:rgba(255,196,0,.8);color:#000;border-radius:2px;padding:0 1px}
 .memo .text:empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none}
@@ -1348,7 +1348,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008015841";// 배포할 때 바뀜
+const BUILD="20261008020035";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
