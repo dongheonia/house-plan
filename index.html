@@ -900,10 +900,11 @@ const SYMS=[
   ["car","자동차",1.9,5,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
   ["dining","식탁",2.1,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["kitchen2","일자 주방",2.4,.6,"icon"],["kitchen3","ㄷ자 주방",2.4,2.4,"icon"],["oven","오븐",.6,.6,"icon"],["dishwasher","식기세척기",.6,.6,"icon"],["microwave","전자레인지",.5,.4,"icon"],["purifier","정수기",.2,.45,"icon"],["ricecooker","밥솥",.28,.36,"icon"],["upper","상부수납장",1.2,.35,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["desk2","네모 책상",1.4,.7,"icon"],["deskc","책상+의자",1.2,1.1,"icon"],["storage","수납장",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
-  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["fan","환풍기",.3,.3,"icon"]];
+  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["amp","앰프",.55,.28,"icon"],["fan","환풍기",.3,.3,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
-// 뮤직맨 마제스티 몸통 윤곽 (앞에서 본 모양): u -1~1 = 좌우, v 0~1 = 아래→위. 위 왼쪽 뿔이 더 길게 뻗은 각진 비대칭
-const MAJ=[[0,0],[.55,.03],[.88,.14],[1,.32],[.93,.47],[.74,.57],[.8,.74],[.84,.93],[.62,.86],[.26,.8],[-.26,.8],[-.56,.92],[-.8,1.06],[-.86,.84],[-.77,.6],[-.95,.47],[-1,.32],[-.88,.14],[-.55,.03]];
+// 기타 몸통 윤곽 (앞에서 본 모양): u -1~1 = 좌우, v 0~1 = 아래→위
+const MAJ=[[0,0],[.5,.02],[.85,.12],[1,.3],[.95,.45],[.78,.56],[.8,.67],[.88,.8],[.86,.93],[.72,.9],[.46,.76],[.2,.78],[-.2,.78],[-.42,.8],[-.6,.94],[-.73,1.04],[-.87,.96],[-.87,.79],[-.8,.62],[-.95,.48],[-1,.3],[-.87,.12],[-.5,.02]];// 스트라토캐스터 몸통 (위 왼쪽 뿔이 더 길게)
+const STRAT_PG=[[-.6,.8],[-.2,.76],[.22,.74],[.45,.68],[.56,.52],[.5,.34],[.3,.2],[0,.24],[-.38,.3],[-.62,.44],[-.72,.62]];// 흰 픽가드
 // 닫힌 점들을 부드럽게 잇는 SVG 경로 (캣멀롬 → 베지어)
 function smoothPath(pts){const n=pts.length,f=v=>v.toFixed(2);let d=`M${f(pts[0][0])} ${f(pts[0][1])}`;
   for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
@@ -975,15 +976,16 @@ function symSVG(k,w,h){
       +`<ellipse class="fl" cx="${X(.5)}" cy="${Y(.3)}" rx="${X(.17)}" ry="${Y(.2)}" style="fill:${mb}"/>`
       +`<path class="tn" d="M${pt(.33,.3)}C${pt(.31,.1)} ${pt(.69,.1)} ${pt(.67,.3)}C${pt(.6,.2)} ${pt(.4,.2)} ${pt(.33,.3)}Z" style="fill:#D9D3C4"/>`
       +`<path class="tn" d="M${pt(.5,.3)}L${pt(.48,.37)}H${X(.52)}"/>`;}
-  case"guitar":{// 위에서 내려다본 뮤직맨 마제스티 (검정 전기기타, 헤드가 위) — 4+2 헤드, 픽업 2개
-    const bl=.45,body=smoothPath(MAJ.map(([u,v])=>[w/2+u*w/2,h*(1-bl*v)])),str=[];for(let i=0;i<6;i++){const x=w*(.45+i*.02);str.push(`M${x.toFixed(2)} ${(h*.06).toFixed(2)}V${(h*.9).toFixed(2)}`);}
-    let tun="";for(let i=0;i<4;i++)tun+=C(w*.3,h*(.015+i*.025),w*.035,"fl","#9AA0A0");for(let i=0;i<2;i++)tun+=C(w*.7,h*(.04+i*.03),w*.035,"fl","#9AA0A0");
-    return `<path class="fl" d="M${w*.36} 0H${w*.64}L${w*.6} ${h*.13}H${w*.4}Z" style="fill:#151617"/>`+tun
-      +R(w*.43,h*.1,w*.14,h*.48,"fl",0,"#1E1A17")+`<path class="fl" d="${body}" style="fill:#0E0F10"/>`
-      +R(w*.44,h*.5,w*.12,h*.46,"fl",0,"#1B1C1E")// 몸통을 관통하는 넥 띠
-      +R(w*.33,h*.68,w*.34,h*.05,"fl",w*.02,"#2B2F2E")+R(w*.33,h*.77,w*.34,h*.05,"fl",w*.02,"#2B2F2E")+R(w*.36,h*.86,w*.28,h*.035,"fl",w*.01,"#8E9694")
-      +C(w*.76,h*.84,w*.04,"fl","#5E6B69")+C(w*.84,h*.9,w*.04,"fl","#5E6B69")
-      +`<path d="${str.join("")}" style="fill:none;stroke:#D9DEDD;stroke-width:.6;vector-effect:non-scaling-stroke"/>`;}
+  case"guitar":{// 위에서 내려다본 스트라토캐스터 (검정 몸통 + 흰 픽가드, 메이플 넥, 한쪽 6줄감개 헤드가 위)
+    const bl=.45,M=pts=>smoothPath(pts.map(([u,v])=>[w/2+u*w/2,h*(1-bl*v)])),str=[];for(let i=0;i<6;i++){const x=w*(.45+i*.02);str.push(`M${x.toFixed(2)} ${(h*.06).toFixed(2)}V${(h*.9).toFixed(2)}`);}
+    let tun="";for(let i=0;i<6;i++)tun+=C(w*.3,h*(.012+i*.02),w*.035,"fl","#C9CED2");
+    return `<path class="fl" d="M${w*.36} ${h*.005}Q${w*.42} 0 ${w*.6} ${h*.02}Q${w*.66} ${h*.06} ${w*.6} ${h*.13}H${w*.4}Z" style="fill:#E2C58F"/>`+tun
+      +R(w*.43,h*.1,w*.14,h*.48,"fl",0,"#E2C58F")+`<path class="fl" d="${M(MAJ)}" style="fill:#0E0F10"/>`+`<path class="fl" d="${M(STRAT_PG)}" style="fill:#F4F2EC"/>`
+      +[.69,.75,.81].map(y=>R(w*.37,h*y,w*.26,h*.025,"fl",w*.03,"#FFFFFF")).join("")+R(w*.36,h*.865,w*.28,h*.04,"fl",w*.01,"#B9BEC2")
+      +[[.68,.82],[.74,.86],[.78,.9]].map(([x,y])=>C(w*x,h*y,w*.04,"fl","#FFFFFF")).join("")
+      +`<path d="${str.join("")}" style="fill:none;stroke:#5E6B69;stroke-width:.6;vector-effect:non-scaling-stroke"/>`;}
+  case"amp":return R(0,0,w,h,"fl",m*.02,"#1A1B1C")+R(w*.06,h*.8,w*.88,h*.16,"fl",0,"#B9B3A3")+R(w*.06,h*.08,w*.88,h*.14,"fl",0,"#2F3133")// 기타 앰프: 검은 몸통 + 앞 그릴 + 조작부
+      +[.2,.32,.44,.56,.68,.8].map(x=>C(w*x,h*.15,m*.03,"fl","#E8E8E8")).join("")+R(w*.32,h*.4,w*.36,h*.14,"fl",m*.03,"#3A3D40");
   case"piano":{// 업라이트 피아노 위에서: 검은 몸통 + 앞쪽(아래) 건반
     const ky=h*.62,kh=h*.3,n=36,kw=w*.92/n,x0=w*.04;let keys="",blk="";
     for(let i=1;i<n;i++)keys+=`M${(x0+i*kw).toFixed(2)} ${ky.toFixed(2)}V${(ky+kh).toFixed(2)}`;
@@ -1408,7 +1410,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008231414";// 배포할 때 바뀜
+const BUILD="20261008232550";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1718,17 +1720,20 @@ function model3D(kind,W,D,H,opt={}){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
   case"utility":B(0,1,0,1,0,1.2,"#D9DEDD",.02);B(.1,.9,.98,1.01,.6,1.1,c.dgray,.02);p.push({cy:[X(.3),Z(.5),.05,1.2,1.6],c:c.steel});p.push({cy:[X(.7),Z(.5),.05,1.2,1.6],c:c.steel});break;
   case"bust":{const m="#F4F1EA",cx=X(.5),cz=Z(.5);B(.2,.8,.2,.8,0,1,"#C9CFCE",.02);B(.15,.85,.15,.85,1,1.04,"#BFC5C4",.02);
     p.push({sp:[cx,1.14,cz,.14],s:[1.6,.75,.95],c:m});p.push({cy:[cx,cz,.05,1.15,1.32],c:m});p.push({sp:[cx,1.4,cz,.1],s:[.85,1.12,.95],c:m});break;}
-  case"guitar":{const cx=X(.5),cz=Z(.5),bk="#0E0F10",st="#2B2F2E",gl={r:.25},y0=.12,BL=.46,BW=.18,t=.045,f=cz+t/2;// 스탠드에 세운 뮤직맨 마제스티 (앞면이 그림 아래쪽)
+  case"guitar":{const cx=X(.5),cz=Z(.5),bk="#0E0F10",st="#2B2F2E",gl={r:.25},mp="#E2C58F",y0=.12,BL=.46,BW=.17,t=.045,f=cz+t/2;// 스탠드에 세운 스트라토캐스터 (앞면이 그림 아래쪽)
     p.push({xs:MAJ.map(([u,v])=>[u*BW,y0+v*BL]),x:cx,z:cz,d:t,c:bk,o:gl});
-    Bm(cx-.032,cx+.032,f-.002,f+.002,y0+.02,y0+BL*.8,"#1B1C1E",0,gl);// 관통 넥 띠
-    for(const y of [y0+BL*.42,y0+BL*.55])Bm(cx-.06,cx+.06,f,f+.012,y,y+.035,st,.005);// 픽업 2개
-    Bm(cx-.05,cx+.05,f,f+.01,y0+BL*.25,y0+BL*.31,"#8E9694",.004);// 브리지
-    for(const [dx,y] of [[.1,y0+BL*.2],[.13,y0+BL*.29]])p.push({cx:[cx+dx,y,f+.01,.014,.02],ax:"z",c:"#5E6B69"});
-    Bm(cx-.024,cx+.024,cz-.012,cz+.022,y0+BL*.78,1.2,"#1E1A17");// 넥 (지판 흑단)
-    Bm(cx-.042,cx+.042,cz-.012,cz+.016,1.2,1.37,bk,.01,gl);// 헤드
-    for(let i=0;i<4;i++)Bm(cx-.06,cx-.042,cz-.006,cz+.006,1.23+i*.035,1.24+i*.035,"#9AA0A0");for(let i=0;i<2;i++)Bm(cx+.042,cx+.06,cz-.006,cz+.006,1.25+i*.05,1.26+i*.05,"#9AA0A0");// 4+2 줄감개
+    p.push({xs:STRAT_PG.map(([u,v])=>[u*BW,y0+v*BL]),x:cx,z:f+.003,d:.003,c:"#F4F2EC",o:{r:.4}});// 흰 픽가드
+    for(const v of [.38,.5,.62])Bm(cx-.04,cx+.04,f+.004,f+.014,y0+BL*v,y0+BL*v+.018,"#FFFFFF",.006);// 싱글 픽업 3개
+    Bm(cx-.045,cx+.045,f,f+.01,y0+BL*.2,y0+BL*.26,"#B9BEC2",.004,{r:.3,m:.5});// 브리지
+    for(const [dx,v] of [[.07,.3],[.09,.22],[.105,.14]])p.push({cx:[cx+dx,y0+BL*v,f+.012,.012,.018],ax:"z",c:"#FFFFFF"});// 노브 3개
+    Bm(cx-.024,cx+.024,cz-.012,cz+.022,y0+BL*.76,1.2,mp);// 메이플 넥
+    Bm(cx-.03,cx+.05,cz-.012,cz+.012,1.2,1.4,mp,.012);// 헤드 (줄감개 한쪽)
+    for(let i=0;i<6;i++)Bm(cx-.05,cx-.03,cz-.006,cz+.006,1.22+i*.03,1.23+i*.03,"#C9CED2");
     Bm(cx-.2,cx+.2,cz-.06,cz+.14,0,.03,st);Bm(cx-.18,cx-.11,cz+.03,cz+.1,.03,y0+.03,st);Bm(cx+.11,cx+.18,cz+.03,cz+.1,.03,y0+.03,st);// 받침 + 앞 걸이
     p.push({cy:[cx,cz-.1,.012,0,1.02],c:st});Bm(cx-.05,cx+.05,cz-.11,cz-.012,.99,1.03,st);break;}// 뒤 기둥 + 목 걸이
+  case"amp":{const h=.48;B(0,1,0,1,0,h,"#1A1B1C",.015,{r:.6});B(.05,.95,.99,1.006,.04,h*.72,"#B9B3A3",0,{r:.9});// 기타 앰프: 검은 가죽 몸통 + 앞 그릴천
+    B(.05,.95,.99,1.006,h*.76,h-.03,"#2F3133");for(let i=0;i<6;i++)p.push({cx:[X(.2+i*.12),h*.86,Z(1)+.012,.012,.02],ax:"z",c:"#E8E8E8"});// 조작부 + 노브
+    B(.32,.68,.4,.6,h,h+.03,"#2B2D2F",.01);break;}// 손잡이
   case"piano":{const bk="#111",gl={r:.25};// 업라이트 피아노: 건반이 앞(그림 아래쪽)
     B(0,1,0,.58,0,1.25,bk,.008,gl);B(.04,.96,.58,.64,0,.64,bk,0,gl);B(0,.04,.58,1,0,.8,bk,.005,gl);B(.96,1,.58,1,0,.8,bk,.005,gl);
     B(.04,.96,.62,1,.64,.71,bk,0,gl);B(.04,.96,.66,.98,.71,.735,"#F4F1EA");// 건반 받침 + 흰 건반
