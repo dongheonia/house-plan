@@ -898,7 +898,7 @@ const SYMS=[
   ["door","여닫이",.9,.9,"door"],["door2","양여닫이",1.8,.9,"door"],["slide","미닫이",1.8,.18,"door"],
   ["garage","차고 롤업문",2.6,.25,"door"],["window","창문",1.8,.2,"win"],["slit","슬릿",1.2,.2,"win"],["window2","미서기창",1.8,.2],// 미서기창은 예전에 놓은 것만 그림
   ["car","자동차",1.9,5,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
-  ["dining","식탁",1.4,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["kitchen2","일자 주방",2.4,.6,"icon"],["kitchen3","ㄷ자 주방",2.4,2.4,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
+  ["dining","식탁",2.1,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["kitchen2","일자 주방",2.4,.6,"icon"],["kitchen3","ㄷ자 주방",2.4,2.4,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["desk2","네모 책상",1.4,.7,"icon"],["deskc","책상+의자",1.2,1.1,"icon"],["storage","수납장",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
   ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["fan","환풍기",.3,.3,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
@@ -937,7 +937,7 @@ function symSVG(k,w,h){
   case"shelf":return R(0,0,w,h,"fl",0,brown)+P(`M${w/3} 0V${h}M${w*2/3} 0V${h}M0 ${h*.25}H${w}`);
   case"washer":return R(0,0,w,h,"fl",m*.06,gray)+P(`M0 ${h*.2}H${w}`)+C(w/2,h*.6,m*.3,"tn","#D5DADA")+C(w/2,h*.6,m*.17);
   case"toilet":return E(w/2,h*.6,w*.44,h*.38)+E(w/2,h*.63,w*.28,h*.25,"tn")+R(0,0,w,h*.24,"fl",m*.08);
-  case"dining":{const cw=w*.28,ch=h*.2;let o="";for(const x of [w*.14,w*.58])o+=R(x,0,cw,ch,"fl",cw*.15,brown)+R(x,h-ch,cw,ch,"fl",cw*.15,brown);
+  case"dining":{const cw=w*.2,ch=h*.2;let o="";for(const c of [.19,.5,.81])o+=R(w*c-cw/2,0,cw,ch,"fl",cw*.15,brown)+R(w*c-cw/2,h-ch,cw,ch,"fl",cw*.15,brown);// 6인용: 양쪽에 의자 3개씩
     return o+R(0,h*.15,w,h*.7,"fl",m*.03,brown);}
   case"kitchen":{const dx=w*.25,dy=h*.25;return`<path class="fl" d="M0 0H${w}V${h}H${w-dx}V${dy}H0Z"/>`;}// ㄱ자 조리대 (깊이 0.6 m)
   case"kitchen2":return R(0,0,w,h,"fl");// 일자 조리대
@@ -1400,7 +1400,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008225444";// 배포할 때 바뀜
+const BUILD="20261008225953";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1657,7 +1657,7 @@ function model3D(kind,W,D,H,opt={}){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
   case"toilet":B(.1,.9,0,.25,.32,.8,c.white,.03);p.push({cy:[X(.5),Z(.6),X(.42),0,.4],sz:(D*.36)/(W*.42),c:c.white});
     p.push({cy:[X(.5),Z(.6),X(.42),.4,.43],sz:(D*.36)/(W*.42),c:"#E9ECEB"});break;
   case"dining":{B(0,1,.17,.83,.72,.76,c.wood,.02);legs(X(.04),X(.96),Z(.2),Z(.8),.72,c.wood,.06);
-    for(const fx of [.28,.72]){chair(X(fx),Z(.1),"n",c.wood);chair(X(fx),Z(.9),"s",c.wood);}break;}
+    for(const fx of [.19,.5,.81]){chair(X(fx),Z(.1),"n",c.wood);chair(X(fx),Z(.9),"s",c.wood);}break;}// 6인용
   case"kitchen":B(0,1,0,.25,0,.86,c.white);B(.75,1,.25,1,0,.86,c.white);B(0,1,0,.26,.86,.9,"#D9DEDD");B(.74,1,.26,1,.86,.9,"#D9DEDD");
     B(0,.745,.25,.26,.05,.82,"#E9ECEB");B(.745,.75,.25,1,.05,.82,"#E9ECEB");break;
   case"kitchen3":B(0,1,0,.25,0,.86,c.white);B(0,.25,.25,1,0,.86,c.white);B(.75,1,.25,1,0,.86,c.white);// ㄷ자: 위·왼쪽·오른쪽 조리대
