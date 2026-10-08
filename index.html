@@ -99,6 +99,20 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .fs button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .fs span{min-width:34px;text-align:center;font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .memo .text{flex:1;min-height:0;width:100%;overflow-y:auto;border:0;outline:none;background:transparent;color:var(--ink);font:inherit;font-size:15px;line-height:1.65;padding:10px 16px 16px;white-space:pre-wrap;overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
+.memo>.text{display:none}/* 예전 한 장 메모 — 스티커로 옮긴 뒤 숨김 */
+/* 스티커 메모: 카드마다 색·글, 살짝 기울여 붙인 느낌 */
+.memo .add-note{margin-right:auto;margin-left:10px;height:28px;padding:0 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
+.memo .notes{flex:1;min-height:0;overflow:auto;padding:14px 16px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;align-content:start;font-size:15px}
+.stk{background:var(--nc);color:#1D2524;border-radius:3px;box-shadow:0 2px 8px rgba(0,0,0,.28);display:flex;flex-direction:column;min-height:190px;transform:rotate(var(--tilt,0deg));transition:transform .15s}
+.stk:focus-within{transform:none;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.stk .nh{display:flex;gap:5px;align-items:center;padding:8px 8px 0 12px}
+.stk .dot{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.25);background:var(--c);padding:0;cursor:pointer}
+.stk .dot[aria-pressed="true"]{outline:2px solid #1D2524;outline-offset:1px}
+.stk .nx{margin-left:auto;width:26px;height:26px;border:0;border-radius:50%;background:none;font-size:18px;line-height:1;cursor:pointer;color:rgba(0,0,0,.45)}
+.stk .nx:hover{background:rgba(0,0,0,.08);color:#000}
+.stk .nbody{flex:1;padding:6px 14px 14px;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;-webkit-user-select:text;user-select:text;cursor:text}
+.stk .nbody:empty::before{content:"메모를 적으세요";color:rgba(0,0,0,.35);pointer-events:none}
+.stk .nbody mark{background:rgba(255,196,0,.8);color:#000;border-radius:2px;padding:0 1px}
 .memo .text:empty::before{content:attr(data-placeholder);color:var(--muted);pointer-events:none}
 .memo .text mark{background:#FFE45C;color:#000;border-radius:2px;padding:0 1px}
 .memo .text:focus-visible{outline:none}
@@ -313,6 +327,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
 <section class="memo" data-pane="memo">
   <div class="head">
     <label id="memoLbl">메모</label>
+    <button type="button" id="addNote" class="add-note">+ 새 메모</button>
     <div class="fs" role="group" aria-label="글자 크기">
       <button type="button" class="hl-btn" id="hlBtn" title="형광펜: 고른 글자에 칠하기·지우기 (⌘⇧H)" aria-label="형광펜"></button>
       <button type="button" id="fsDown" aria-label="글자 작게">A−</button>
@@ -321,6 +336,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     </div>
   </div>
   <div id="memo" class="text" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="memoLbl" data-placeholder="여기에 메모를 적으세요" spellcheck="false" autocorrect="off" autocapitalize="off"></div>
+  <div class="notes" id="notes" aria-label="스티커 메모"></div>
   <div class="saved" id="saved"></div>
 </section>
 <main class="content" id="board" tabindex="0" aria-label="설계도 보드" data-pane="board">
@@ -551,7 +567,7 @@ const memo=document.getElementById("memo"),saved=document.getElementById("saved"
 // 메모: 글자 + 노란 형광펜(<mark>)만 담는 편집 영역. 저장은 정리한 HTML(html)과 글자만(text) 둘 다
 const esc=t=>t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 const noBg=/^(transparent|rgba\(0, 0, 0, 0\)|initial|inherit)?$/;
-function memoHTML(){let out="";
+function memoHTML(el=memo){let out="";
   const walk=(n,hl)=>{for(const c of n.childNodes){
     if(c.nodeType===3){if(c.data)out+=hl?`<mark>${esc(c.data)}</mark>`:esc(c.data);}
     else if(c.nodeName==="BR")out+="<br>";
@@ -559,7 +575,8 @@ function memoHTML(){let out="";
       if(/^(DIV|P|LI)$/.test(c.nodeName)&&out&&!out.endsWith("<br>"))out+="<br>";// 줄 나눔
       const bg=c.style&&c.style.backgroundColor;
       walk(c,c.nodeName==="MARK"?!(bg&&noBg.test(bg)&&bg!==""):bg?!noBg.test(bg):hl);}}};
-  walk(memo,false);return out.replace(/<\/mark><mark>/g,"");}
+  walk(el,false);return out.replace(/<\/mark><mark>/g,"");}
+let HL=null;// 형광펜을 칠할 곳: 고른 글자가 있는 스티커 메모(없으면 예전 메모)
 function setMemoHTML(h){memo.innerHTML=h;}
 Object.defineProperty(memo,"value",{get(){return memo.innerText.replace(/\n$/,"")},set(v){setMemoHTML(esc(v||"").replace(/\n/g,"<br>"))}});
 try{const h=localStorage.getItem("kr-map-memo-html");if(h!==null)setMemoHTML(h);else memo.value=localStorage.getItem("kr-map-memo")||"";}catch(e){}
@@ -570,31 +587,32 @@ memo.addEventListener("paste",ev=>{const t=ev.clipboardData?.getData("text/plain
   ev.preventDefault();ev.stopPropagation();document.execCommand("insertText",false,t);});
 // 형광펜: 고른 부분이 모두 칠해져 있으면 지우고, 아니면 칠함.
 // 브라우저 기본 명령(hiliteColor)은 줄을 넘는 선택·Safari에서 들쭉날쭉해서, 글자마다 칠함 여부를 직접 바꾼 뒤 다시 그림
-const isHLn=n=>{for(;n&&n!==memo;n=n.parentNode)if(n.nodeType===1){const bg=n.style.backgroundColor;
+const isHLn=n=>{for(;n&&n!==HL;n=n.parentNode)if(n.nodeType===1){const bg=n.style.backgroundColor;
     if(bg)return !noBg.test(bg);if(n.nodeName==="MARK")return true;}return false;};
 function memoModel(){const ch=[];memoWalk(n=>{if(n.nodeType===3){const h=isHLn(n);for(let i=0;i<n.data.length;i++)ch.push([n.data[i],h]);}else ch.push(["\n",false]);});return ch;}
 function modelHTML(ch){let out="",open=false;
   for(const [c,h] of ch){if(c==="\n"){if(open){out+="</mark>";open=false;}out+="<br>";continue;}
     if(h!==open){out+=h?"<mark>":"</mark>";open=h;}out+=esc(c);}
   return out+(open?"</mark>":"");}
-function toggleHL(){const sel=getSelection();
-  if(!sel.rangeCount||sel.isCollapsed||!memo.contains(sel.getRangeAt(0).commonAncestorContainer)){note("메모에서 칠할 글자를 먼저 고르세요.");return;}
+function toggleHL(){const sel=getSelection(),anc=sel.rangeCount&&sel.getRangeAt(0).commonAncestorContainer;
+  HL=[...document.querySelectorAll(".stk .nbody")].find(b=>anc&&b.contains(anc))||memo;
+  if(!sel.rangeCount||sel.isCollapsed||!HL.contains(anc)){note("메모에서 칠할 글자를 먼저 고르세요.");return;}
   const o=memoOffsets(),ch=memoModel(),part=ch.slice(o[0],o[1]).filter(([c])=>c!=="\n");
   const on=part.length&&part.every(([,h])=>h);
   for(let i=o[0];i<o[1]&&i<ch.length;i++)if(ch[i][0]!=="\n")ch[i][1]=!on;
-  setMemoHTML(modelHTML(ch));memoSelect(o);
-  memo.dispatchEvent(new Event("input"));}
+  HL.innerHTML=modelHTML(ch);memoSelect(o);
+  HL.dispatchEvent(new Event("input"));}
 const hlBtn=document.getElementById("hlBtn");
 hlBtn.addEventListener("pointerdown",ev=>ev.preventDefault());// 버튼을 눌러도 메모의 선택이 풀리지 않게
 hlBtn.addEventListener("mousedown",ev=>ev.preventDefault());
 hlBtn.onclick=toggleHL;
 // 메모 안 선택 위치를 글자 수로 기억했다가 다시 고르기 (줄바꿈 <br>은 한 글자로 셈)
-function memoWalk(fn){const w=document.createTreeWalker(memo,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);let n,pos=0;
+function memoWalk(fn){const w=document.createTreeWalker(HL,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);let n,pos=0;
   while(n=w.nextNode()){const len=n.nodeType===3?n.data.length:n.nodeName==="BR"?1:0;if(len&&fn(n,pos,len))return;pos+=len;}}
 function memoOffsets(){const sel=getSelection();if(!sel.rangeCount)return null;const r=sel.getRangeAt(0),out=[0,0];
   [[r.startContainer,r.startOffset,0],[r.endContainer,r.endOffset,1]].forEach(([c,off,k])=>{
     if(c.nodeType===3){memoWalk((n,pos)=>{if(n===c){out[k]=pos+off;return true;}});}
-    else{const pre=document.createRange();pre.selectNodeContents(memo);pre.setEnd(c,off);
+    else{const pre=document.createRange();pre.selectNodeContents(HL);pre.setEnd(c,off);
       const f=pre.cloneContents(),t=document.createTreeWalker(f,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);let n,p=0;
       while(n=t.nextNode())p+=n.nodeType===3?n.data.length:n.nodeName==="BR"?1:0;out[k]=p;}});
   return out;}
@@ -603,7 +621,7 @@ function memoSelect(o){if(!o)return;const r=document.createRange();let set=[fals
       if(n.nodeType===3)(k?r.setEnd:r.setStart).call(r,n,o[k]-pos);
       else(k?r.setEndAfter:r.setStartAfter).call(r,n);set[k]=true;}
     return set[0]&&set[1];});
-  if(!set[0])r.setStart(memo,memo.childNodes.length);if(!set[1])r.setEnd(memo,memo.childNodes.length);
+  if(!set[0])r.setStart(HL,HL.childNodes.length);if(!set[1])r.setEnd(HL,HL.childNodes.length);
   const sel=getSelection();sel.removeAllRanges();sel.addRange(r);}
 let memoT;
 // 글자 크기
@@ -611,7 +629,8 @@ const fsDown=document.getElementById("fsDown"),fsUp=document.getElementById("fsU
 let fsz=15;try{fsz=+localStorage.getItem("kr-map-memo-fs")||15}catch(e){}
 // 터치 기기에서는 16px 미만이면 입력할 때 화면이 확대되므로 표시만 16px 이상으로
 const coarse=matchMedia("(pointer:coarse)").matches;
-function setFs(v,remote){fsz=Math.max(10,Math.min(40,v));memo.style.fontSize=Math.max(fsz,coarse?16:0)+"px";fsVal.textContent=fsz+"px";
+function setFs(v,remote){fsz=Math.max(10,Math.min(40,v));memo.style.fontSize=Math.max(fsz,coarse?16:0)+"px";
+  const nb=document.getElementById("notes");if(nb)nb.style.fontSize=Math.max(fsz,coarse?16:0)+"px";fsVal.textContent=fsz+"px";
   fsDown.disabled=fsz<=10;fsUp.disabled=fsz>=40;try{localStorage.setItem("kr-map-memo-fs",fsz)}catch(e){}
   if(cloud.db&&!remote)put("app/memo",{text:memo.value,html:memoHTML(),fs:fsz});}
 fsDown.onclick=()=>setFs(fsz-1);fsUp.onclick=()=>setFs(fsz+1);
@@ -619,6 +638,49 @@ setFs(fsz);
 memo.addEventListener("input",()=>{clearTimeout(memoT);saved.textContent="";memoT=setTimeout(saveMemo,cloud.db?600:400)});
 function saveMemo(){if(cloud.db){put("app/memo",{text:memo.value,html:memoHTML(),fs:fsz});saved.textContent="저장됨 · 모든 기기";return;}
   try{localStorage.setItem("kr-map-memo",memo.value);localStorage.setItem("kr-map-memo-html",memoHTML());saved.textContent="저장됨"}catch(e){saved.textContent="저장 안 됨"}}
+
+// ===== 스티커 메모: 카드마다 따로 (글·색), 새 메모는 맨 앞 =====
+// 클라우드는 notes/<id> {html,color,t} 하나씩, 아니면 이 기기(kr-notes). 예전 한 장 메모는 처음 한 번 첫 스티커로 옮김
+const NOTE_COLORS=[["yellow","#FFF1A6"],["pink","#FFD3DE"],["blue","#CFE6FF"],["green","#D6F2C9"],["purple","#E6DAFA"],["orange","#FFDDB8"]];
+const notesBox=document.getElementById("notes");let notes=[];const stkT={},noteSynced={},noteRecent={};
+const noteColor=k=>(NOTE_COLORS.find(c=>c[0]===k)||NOTE_COLORS[0])[1];
+function saveNotesLocal(){if(cloud.db)return;try{localStorage.setItem("kr-notes",JSON.stringify(notes))}catch(e){}}
+function saveNote(n){if(cloud.db){const d={html:n.html,color:n.color,t:n.t};noteSynced[n.id]=JSON.stringify(d);noteRecent[n.id]=Date.now();put("notes/"+n.id,d);saved.textContent="저장됨 · 모든 기기";}
+  else{saveNotesLocal();saved.textContent="저장됨";}}
+function noteCard(n,i){const el=document.createElement("div");el.className="stk";el.dataset.id=n.id;
+  el.style.setProperty("--nc",noteColor(n.color));el.style.setProperty("--tilt",[-.7,.5,-.3,.8,-.5,.3][i%6]+"deg");
+  const nh=document.createElement("div");nh.className="nh";
+  for(const [k,c] of NOTE_COLORS){const b=document.createElement("button");b.type="button";b.className="dot";b.style.setProperty("--c",c);b.title=b.ariaLabel="색: "+k;
+    b.setAttribute("aria-pressed",n.color===k);b.onclick=()=>{n.color=k;el.style.setProperty("--nc",c);nh.querySelectorAll(".dot").forEach(d=>d.setAttribute("aria-pressed",d===b));saveNote(n);};nh.append(b);}
+  const x=document.createElement("button");x.type="button";x.className="nx";x.textContent="×";x.title=x.ariaLabel="이 메모 지우기";
+  x.onclick=()=>{if(body.textContent.trim()&&!confirm("이 메모를 지울까요?"))return;notes=notes.filter(o=>o!==n);el.remove();
+    if(cloud.db){delete noteSynced[n.id];noteRecent[n.id]=Date.now();del("notes/"+n.id);}else saveNotesLocal();};nh.append(x);
+  const body=document.createElement("div");body.className="nbody";body.contentEditable="true";body.spellcheck=false;body.setAttribute("role","textbox");body.setAttribute("aria-multiline","true");body.innerHTML=n.html||"";
+  body.addEventListener("input",()=>{n.html=memoHTML(body);clearTimeout(stkT[n.id]);saved.textContent="";stkT[n.id]=setTimeout(()=>saveNote(n),cloud.db?600:400);});
+  body.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&!ev.isComposing){ev.preventDefault();document.execCommand("insertLineBreak");}
+    if((ev.metaKey||ev.ctrlKey)&&ev.shiftKey&&ev.code==="KeyH"){ev.preventDefault();toggleHL();}});
+  body.addEventListener("paste",ev=>{const t=ev.clipboardData?.getData("text/plain");if(t==null||ev.clipboardData.files?.length)return;ev.preventDefault();ev.stopPropagation();document.execCommand("insertText",false,t);});
+  el.append(nh,body);return el;}
+function drawNotes(){const act=document.activeElement,keep=act&&act.closest&&act.closest(".stk")?.dataset.id;
+  notes.sort((a,b)=>b.t-a.t);
+  // 쓰는 중인 카드는 그대로 두고 나머지만 다시 그림
+  const els=notes.map((n,i)=>{if(n.id===keep){const e=notesBox.querySelector(`.stk[data-id="${n.id}"]`);if(e)return e;}return noteCard(n,i);});
+  [...notesBox.children].forEach(c=>{if(!els.includes(c))c.remove();});els.forEach(e=>notesBox.append(e));}
+function addNote(html=""){const n={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),html,color:"yellow",t:Date.now()};
+  notes.unshift(n);drawNotes();saveNote(n);return n;}
+document.getElementById("addNote").onclick=()=>{const n=addNote();notesBox.querySelector(`.stk[data-id="${n.id}"] .nbody`)?.focus();};
+function applyNotes(snap){const seen=new Set();
+  for(const d of snap.docs){const data=d.data(),id=d.id,js=JSON.stringify({html:data.html,color:data.color,t:data.t});seen.add(id);noteSynced[id]=js;
+    let n=notes.find(o=>o.id===id);const typing=document.activeElement&&document.activeElement.closest?.(`.stk[data-id="${id}"]`);
+    if(n){if(!typing){n.html=data.html||"";n.color=data.color||"yellow";}n.t=data.t||n.t;}else notes.push({id,html:data.html||"",color:data.color||"yellow",t:data.t||0});}
+  for(const n of [...notes])if(!seen.has(n.id)&&noteSynced[n.id]!==undefined&&Date.now()-(noteRecent[n.id]||0)>4000){notes=notes.filter(o=>o!==n);delete noteSynced[n.id];}
+  drawNotes();}
+// 예전 한 장 메모 → 첫 스티커 (스티커가 하나도 없고 아직 옮긴 적 없을 때 한 번)
+function migrateMemo(done){if(done||notes.length)return false;const h=memoHTML(memo);if(!memo.textContent.trim())return false;addNote(h);return true;}
+if(!(window.claude?.use)&&!/^https?:/.test(location.protocol)){// 파일로 연 경우: 이 기기에만
+  try{notes=JSON.parse(localStorage.getItem("kr-notes")||"[]")||[]}catch(e){notes=[]}
+  let done=false;try{done=!!localStorage.getItem("kr-notes-migrated")}catch(e){}
+  drawNotes();if(migrateMemo(done))try{localStorage.setItem("kr-notes-migrated","1")}catch(e){}}
 
 // ===== 설계도 보드 (프리폼) =====
 const board=document.getElementById("board"),world=document.getElementById("world"),emptyEl=document.getElementById("empty");
@@ -1240,7 +1302,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008014311";// 배포할 때 바뀜
+const BUILD="20261008014811";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1372,6 +1434,10 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
       if(typeof d.html==="string"){if(d.html!==memoHTML())setMemoHTML(d.html);}
       else if(typeof d.text==="string"&&d.text!==memo.value)memo.value=d.text;}
     if(d.fs&&d.fs!==fsz)setFs(d.fs,true);arrived("m");});
+  {let nf=0,mig=null,memoOK=false;const tryMig=()=>{if(nf&&mig!==null&&memoOK&&!mig&&migrateMemo(false))put("app/notesmig",{v:1});};
+    db.collection("notes").onSnapshot(snap=>{applyNotes(snap);nf=1;tryMig();},()=>note("동기화가 끊겼어요. 새로고침해 주세요."));
+    subscribe("app/notesmig",snap=>{mig=!!snap.exists;tryMig();});
+    subscribe("app/memo",()=>{memoOK=true;setTimeout(tryMig);});}
   subscribe("app/plan",snap=>{cells={...(snap.exists?snap.data().cells||{}:{})};drawCells();});
   // 이 기기에서 처음 열면 보드 전체가 보이게 (보드 칸이 숨겨진 휴대폰 탭이면 보드 탭을 처음 열 때)
   let fitted=hasCam;const fitOnce=()=>{if(fitted||sheet||!vis().length||!board.getBoundingClientRect().width)return;fitted=true;fit();};
@@ -1891,7 +1957,7 @@ const readAsDataURL=b=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r
 document.getElementById("exportBtn").onclick=async()=>{
   const images={};
   for(const it of items)if(!it.type){const b=await idb("blobs","readonly",s=>s.get(it.id));if(b)images[it.id]=await readAsDataURL(b);}
-  const out={v:1,colors:state,memo:memo.value,memoHtml:memoHTML(),memoFs:fsz,cam,items,images,cells};
+  const out={v:1,colors:state,memo:memo.value,memoHtml:memoHTML(),memoFs:fsz,cam,items,images,cells,notes};
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"}));
   a.download="주택설계-옮기기.json";document.body.append(a);a.click();a.remove();
   note("‘주택설계-옮기기.json’ 파일을 받았어요. claude.ai 페이지의 보드에서 ‘가져오기’로 넣어 주세요.");};
@@ -1902,6 +1968,7 @@ document.getElementById("importIn").addEventListener("change",async ev=>{
   let d;try{d=JSON.parse(await f.text());}catch(e){note("이 파일은 읽을 수 없어요. 컴퓨터에서 ‘내보내기’로 받은 파일을 골라 주세요.");return;}
   document.getElementById("importLbl").hidden=true;note("가져오는 중…");
   if(d.colors){state={...d.colors};Object.keys(els).forEach(paint);save();}
+  if(Array.isArray(d.notes)){for(const n of d.notes)if(!notes.some(o=>o.id===n.id)){notes.push(n);saveNote(n);}drawNotes();}
   if(typeof d.memo==="string"){if(typeof d.memoHtml==="string")setMemoHTML(d.memoHtml);else memo.value=d.memo;if(d.memoFs)setFs(d.memoFs,true);saveMemo();}
   if(d.cam&&d.cam.z)putCam("",d.cam);
   if(d.cells){cells={...d.cells};drawCells();saveCells();}
