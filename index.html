@@ -1362,7 +1362,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008211148";// 배포할 때 바뀜
+const BUILD="20261008213002";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1873,7 +1873,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
         else{const xm=(O.x0+O.x1)/2;quad([ox0,H,oz1],[ox0,H,oz0],[xm,top,oz0],[xm,top,oz1]);quad([ox1,H,oz0],[ox1,H,oz1],[xm,top,oz1],[xm,top,oz0]);
           gab.push(ox0,H,oz0,ox1,H,oz0,xm,top,oz0, ox1,H,oz1,ox0,H,oz1,xm,top,oz1);}}
       const geo=new THREE.BufferGeometry();geo.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));geo.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));geo.computeVertexNormals();
-      const roof=new THREE.Mesh(geo,roofMat());roof.castShadow=roof.receiveShadow=true;g.add(roof);blockers.push(roof);
+      const roof=new THREE.Mesh(geo,roofMat());roof.castShadow=roof.receiveShadow=true;roof.userData.roof=1;g.add(roof);blockers.push(roof);
       if(gab.length){const gg=new THREE.BufferGeometry();gg.setAttribute("position",new THREE.Float32BufferAttribute(gab,3));gg.computeVertexNormals();// 박공 끝 세모는 벽색
         g.add(new THREE.Mesh(gg,new THREE.MeshStandardMaterial({color:C3.wall,side:THREE.DoubleSide})));}}}
   // 이름표: 글상자·글자를 방 위에 띄움
@@ -1910,9 +1910,10 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
 // 이름표를 누르면 그 방 가운데에 서서, 끌어서 고개를 돌리고 키·단추로 걷기. 벽은 못 지나가고 문은 지나감
 const EYE=1.63;
 const walk={yaw:0,pitch:0,keys:{},hold:0,last:0};
-function walkWalls(){return (T3.blockers||[]).filter(o=>!o.userData.door);}
+function walkWalls(){return (T3.blockers||[]).filter(o=>!o.userData.door&&!o.userData.roof);}// 지붕은 막지 않음 (위로 넘어가기)
 function walkFree(pos,dir,dist){const rc=ray3();rc.far=dist+.3;let hit=false;
-  for(const y of [.4,1.1]){rc.set(new THREE.Vector3(pos.x,y,pos.z),dir);if(rc.intersectObjects(walkWalls(),false).length){hit=true;break;}}return !hit;}
+  // 발·무릎 높이는 지금 눈높이 기준 — Space로 올라가면 벽·지붕 위로 넘어갈 수 있음
+  for(const y of [pos.y-EYE+.4,pos.y-EYE+1.1]){rc.set(new THREE.Vector3(pos.x,y,pos.z),dir);if(rc.intersectObjects(walkWalls(),false).length){hit=true;break;}}return !hit;}
 function enterRoom(room){if(!T3.ready)return;T3.root.updateMatrixWorld(true);
   const p=new THREE.Vector3(room.x,EYE,room.z);let best=0,bd=-1;// 가장 트인 쪽을 보며 시작
   for(let k=0;k<8;k++){const a=k*Math.PI/4,d=new THREE.Vector3(-Math.sin(a),0,-Math.cos(a)),rc=ray3();rc.far=40;rc.set(new THREE.Vector3(p.x,1.1,p.z),d);
