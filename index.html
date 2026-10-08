@@ -1348,7 +1348,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008140220";// 배포할 때 바뀜
+const BUILD="20261008144151";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1496,7 +1496,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
 // 좌표: 보드 1 m = 55 → 3D 1 = 1 m. 보드 x → x, 보드 y(아래) → z
 var T3={on:false,ready:null,dirty:true,wallH:2.4,walls:true,labels:true,roof:false,fenceH:1.4};// var: 위쪽 코드가 먼저 불러도 오류 나지 않게
 const ROOF_DEG=40;// 지붕 기울기
-const DOOR_H=2.1,SILL=.9,SLIT=[1.2,1.8],WALL_T=.12,CAB_H=.5,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
+const DOOR_H=2.1,SILL=1.1,WIN_TOP=2.3,SLIT=[1.2,1.8],WALL_T=.12,CAB_H=.5,u2m=v=>v/M;// CAB_H: TV 받침 수납장 높이
 const OPEN_KINDS={door:"door",door2:"door",slide:"door",garage:"garage",window:"win",window2:"win",slit:"slit"};
 // 색: 벽·돌(회랑)·지붕
 const C3={wall:"#F4F1EA",stone:"#D9D0C1",roof:"#4A525C",gable:"#EDE7DA",wood:"#9A7350",lwood:"#C39A68",door:"#A67C52",
@@ -1730,7 +1730,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const g=T3.root;
     const o=horiz?add(new THREE.BoxGeometry(L,h,t),m,mid,y0+h/2,line):add(new THREE.BoxGeometry(t,h,L),m,line,y0+h/2,mid);if(m!==glass)blockers.push(o);return o;};
   // 한 줄 벽: 문·창·슬릿 경계로 잘라 구간마다 높이 띠를 계산 (겹쳐도 됨 — 창 아래 슬릿 등)
   //  문 0~2.1 / 차고문 0~2.3 / 창 0.9~2.1 유리 / 슬릿 1.2~1.8 길게 뚫린 띠(유리·선반 없이 구멍만)
-  const band=o=>o.type==="door"?[0,Math.min(DOOR_H,H),0]:o.type==="garage"?[0,GAR_H(),0]:o.type==="slit"?[Math.min(SLIT[0],H),Math.min(SLIT[1],H),0]:[Math.min(SILL,H),Math.min(DOOR_H,H),1];
+  const band=o=>o.type==="door"?[0,Math.min(DOOR_H,H),0]:o.type==="garage"?[0,GAR_H(),0]:o.type==="slit"?[Math.min(SLIT[0],H),Math.min(SLIT[1],H),0]:[Math.min(SILL,H),Math.min(WIN_TOP,H-.1),1];// 창: 1.1~2.3 m (벽 위 10 cm는 남김)
   const wallLine=r=>{const {horiz,line,a,b}=r,xs=[...new Set([a,b,...r.opens.flatMap(o=>[o.a,o.b])])].filter(v=>v>=a&&v<=b).sort((p,q)=>p-q);
     for(let i=0;i<xs.length-1;i++){const x0=xs[i],x1=xs[i+1];if(x1-x0<.005)continue;
       const here=r.opens.filter(o=>o.a<x1-.001&&o.b>x0+.001),slit=here.some(o=>o.type==="slit");
