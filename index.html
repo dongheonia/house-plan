@@ -1362,7 +1362,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008205259";// 배포할 때 바뀜
+const BUILD="20261008211148";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1540,7 +1540,7 @@ async function open3D(){
     const sunPath=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:"#E0A21B",dashSize:.8,gapSize:.5}));sunBall.visible=sunPath.visible=false;// 해와 해 길은 화면에 그리지 않음 (빛·그림자 방향만)
     Object.assign(T3,{r,scene,cam,ctl,root,box,sun,hemi,sunBall,sunPath});view3D("tilt");
     new ResizeObserver(size3D).observe(box);size3D();
-    const loop=()=>{requestAnimationFrame(loop);if(!T3.on||!box.offsetWidth)return;if(T3.walk)walkStep();else ctl.update();r.render(scene,cam);};loop();
+    const loop=()=>{requestAnimationFrame(loop);if(!T3.on||!box.offsetWidth)return;if(T3.walk)walkStep();else{orbitStep();ctl.update();}r.render(scene,cam);};loop();
   })().catch(e=>{T3.ready=null;note("3D를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.");throw e;});
   await T3.ready;size3D();if(T3.dirty)build3D();}
 function size3D(){const b=T3.box;if(!b||!b.offsetWidth)return;T3.r.setSize(b.offsetWidth,b.offsetHeight);T3.cam.aspect=b.offsetWidth/b.offsetHeight;T3.cam.updateProjectionMatrix();}
@@ -1938,6 +1938,12 @@ function exitWalk(){if(!T3.walk)return;T3.walk=false;showCeil(false);if(T3.roomL
 function walkMove(fwd,side){const f=new THREE.Vector3(-Math.sin(walk.yaw),0,-Math.cos(walk.yaw)),r=new THREE.Vector3(Math.cos(walk.yaw),0,-Math.sin(walk.yaw));
   const v=f.multiplyScalar(fwd).add(r.multiplyScalar(side)),d=v.length();if(d<1e-4)return;v.normalize();
   if(walkFree(T3.cam.position,v,d))T3.cam.position.addScaledVector(v,d);}
+// 바깥(돌려보기) 시점: W/S 앞뒤, A/D 좌우로 카메라와 중심을 함께 옮김 (땅과 나란히, 멀리 볼수록 빠르게)
+function orbitStep(){const k=walk.keys,now=performance.now(),dt=Math.min(.1,(now-(walk.olast||now))/1000);walk.olast=now;
+  const fwd=((k.KeyW||k.ArrowUp)?1:0)-((k.KeyS||k.ArrowDown)?1:0),side=((k.KeyD||k.ArrowRight)?1:0)-((k.KeyA||k.ArrowLeft)?1:0);if(!fwd&&!side)return;
+  const cam=T3.cam,t=T3.ctl.target,f=new THREE.Vector3().subVectors(t,cam.position);f.y=0;if(f.lengthSq()<1e-6)cam.getWorldDirection(f),f.y=0;f.normalize();
+  const r=new THREE.Vector3(-f.z,0,f.x),sp=Math.max(2,cam.position.distanceTo(t)*.35)*(k.ShiftLeft?2.5:1)*dt,v=f.multiplyScalar(fwd*sp).add(r.multiplyScalar(side*sp));
+  cam.position.add(v);t.add(v);}
 function walkStep(){const now=performance.now(),dt=Math.min(.1,(now-walk.last)/1000);walk.last=now;const k=walk.keys,sp=(k.ShiftLeft?3.5:1.4)*dt;// 왼쪽 Shift = 뛰기
   const fwd=((k.KeyW||k.ArrowUp)?1:0)-((k.KeyS||k.ArrowDown)?1:0)+walk.hold,side=((k.KeyD||k.ArrowRight)?1:0)-((k.KeyA||k.ArrowLeft)?1:0);
   if(fwd||side)walkMove(fwd*sp,side*sp);
@@ -1955,7 +1961,9 @@ function walkStep(){const now=performance.now(),dt=Math.min(.1,(now-walk.last)/1
     // 방위 글자: 그쪽 바깥에 서서 집 가운데를 바라봄
     const C=SIDE_M/2,{x,z}=h.object.position;enterRoom({name:{N:"북",E:"동",S:"남",W:"서"}[k]+"쪽 바깥",x,z,out:true,yaw:Math.atan2(x-C,z-C)});});
   view.addEventListener("wheel",ev=>{if(!T3.walk)return;ev.preventDefault();walkMove(-Math.sign(ev.deltaY)*.4,0);},{passive:false});
-  document.addEventListener("keydown",ev=>{if(!T3.walk||isTyping(ev.target))return;if(ev.key==="Escape"){exitWalk();return;}
+  document.addEventListener("keydown",ev=>{if(!T3.on||!view.offsetWidth||isTyping(ev.target)||ev.metaKey||ev.ctrlKey||ev.altKey)return;
+    if(!T3.walk){if(/^(Key[WASD]|Arrow(Up|Down|Left|Right)|ShiftLeft)$/.test(ev.code)){walk.keys[ev.code]=true;if(ev.code!=="ShiftLeft")ev.preventDefault();}return;}// 바깥 시점: WASD로 화면 이동
+    if(ev.key==="Escape"){exitWalk();return;}
     if(/^(Key[WASD]|Arrow(Up|Down|Left|Right))$/.test(ev.code)){walk.keys[ev.code]=true;ev.preventDefault();}
     if(ev.code==="ShiftLeft")walk.keys.ShiftLeft=true;
     if(ev.code==="Space"||ev.code==="Tab"){walk.keys[ev.code]=true;ev.preventDefault();}});
