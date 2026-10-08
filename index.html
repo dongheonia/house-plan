@@ -1348,7 +1348,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008144347";// 배포할 때 바뀜
+const BUILD="20261008144743";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1616,9 +1616,9 @@ function model3D(kind,W,D,H,opt={}){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
     for(const [a,b] of [[.1,.367],[.367,.633],[.633,.9]])B(a+.005,b-.005,.3,.98,.42,.53,c.burg2,.05);legs(X(.02),X(.98),Z(.04),Z(.96),.08,c.dgray,.04);break;
   case"bench":B(0,1,0,1,.4,.45,c.lwood,.02);for(const u of [.05,.88])B(u,u+.07,.05,.95,0,.4,c.lwood);break;
   case"chair":chair(W/2,D/2,"n",c.lwood,c.burg);break;
-  case"tv":{const z0=Math.max(.13,D*.45);// 화면 앞면은 방 쪽(그림 아래쪽), 받침 기둥은 화면 뒤(벽 쪽)
-    if(opt.on){Bm(0,W,z0,z0+.05,.1,.93,c.black,.01,{r:.3});Bm(W*.47,W*.53,z0-.05,z0,.01,.3,"#2B2F2E");Bm(W*.3,W*.7,Math.max(.02,z0-.16),Math.min(D,z0+.12),0,.02,"#2B2F2E",.02);break;}// 수납장 위: 낮은 받침
-    Bm(0,W,z0,z0+.05,.72,1.55,c.black,.01,{r:.3});Bm(W*.47,W*.53,z0-.05,z0,.03,.8,"#2B2F2E");Bm(W*.3,W*.7,Math.max(.02,z0-.2),Math.min(D,z0+.15),0,.03,"#2B2F2E",.02);break;}
+  case"tv":{const z0=Math.max(.13,D*.45),sh=W*9/16;// 화면 앞면은 방 쪽(그림 아래쪽), 받침 기둥은 화면 뒤(벽 쪽) · 화면 16:9
+    if(opt.on){Bm(0,W,z0,z0+.05,.1,.1+sh,c.black,.01,{r:.3});Bm(W*.47,W*.53,z0-.05,z0,.01,.3,"#2B2F2E");Bm(W*.3,W*.7,Math.max(.02,z0-.16),Math.min(D,z0+.12),0,.02,"#2B2F2E",.02);break;}// 수납장 위: 낮은 받침
+    Bm(0,W,z0,z0+.05,.72,.72+sh,c.black,.01,{r:.3});Bm(W*.47,W*.53,z0-.05,z0,.03,.8,"#2B2F2E");Bm(W*.3,W*.7,Math.max(.02,z0-.2),Math.min(D,z0+.15),0,.03,"#2B2F2E",.02);break;}
   case"pwall":B(0,1,0,1,0,H||2.4,"#C9CECD");break;
   case"tub":B(0,1,0,1,0,.55,c.white,.12);B(.08,.92,.08,.92,.552,.553,c.water,.22,{r:.1});p.push({cy:[X(.04),Z(.5),.025,.55,.75],c:c.steel});break;
   case"shower":{B(0,1,0,1,0,.06,c.white);const g={op:.28,r:.05};B(0,1,0,.012/D,.06,2,c.glass,0,g);B(0,.012/W,0,1,.06,2,c.glass,0,g);B(1-.012/W,1,0,1,.06,2,c.glass,0,g);B(0,1,1-.012/D,1,.06,2,c.glass,0,g);
