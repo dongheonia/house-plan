@@ -898,7 +898,7 @@ const SYMS=[
   ["door","여닫이",.9,.9,"door"],["door2","양여닫이",1.8,.9,"door"],["slide","미닫이",1.8,.18,"door"],
   ["garage","차고 롤업문",2.6,.25,"door"],["window","창문",1.8,.2,"win"],["slit","슬릿",1.2,.2,"win"],["window2","미서기창",1.8,.2],// 미서기창은 예전에 놓은 것만 그림
   ["car","자동차",1.9,5,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
-  ["dining","식탁",2.1,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["kitchen2","일자 주방",2.4,.6,"icon"],["kitchen3","ㄷ자 주방",2.4,2.4,"icon"],["oven","오븐",.6,.6,"icon"],["dishwasher","식기세척기",.6,.6,"icon"],["microwave","전자레인지",.5,.4,"icon"],["purifier","정수기",.2,.45,"icon"],["ricecooker","밥솥",.28,.36,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
+  ["dining","식탁",2.1,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["kitchen2","일자 주방",2.4,.6,"icon"],["kitchen3","ㄷ자 주방",2.4,2.4,"icon"],["oven","오븐",.6,.6,"icon"],["dishwasher","식기세척기",.6,.6,"icon"],["microwave","전자레인지",.5,.4,"icon"],["purifier","정수기",.2,.45,"icon"],["ricecooker","밥솥",.28,.36,"icon"],["upper","상부수납장",1.2,.35,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["desk2","네모 책상",1.4,.7,"icon"],["deskc","책상+의자",1.2,1.1,"icon"],["storage","수납장",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
   ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["fan","환풍기",.3,.3,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
@@ -944,6 +944,8 @@ function symSVG(k,w,h){
   // 빌트인 오븐·식기세척기, 조리대 위 전자레인지 — 위에서 본 모습, 문은 아래쪽(방 쪽)
   case"oven":return R(0,0,w,h,"fl",0,"#2E3134")+R(w*.06,h*.82,w*.88,h*.16,"fl",0,"#15171A")+P(`M${w*.2} ${h*.9}H${w*.8}`,"tn","#C9CED2")+[.25,.42,.58,.75].map(x=>C(w*x,h*.12,m*.04,"fl","#9AA0A5")).join("");
   case"dishwasher":return R(0,0,w,h,"fl",0,"#C3C8CC")+R(w*.04,h*.84,w*.92,h*.14,"fl",0,"#D8DCDF")+P(`M${w*.2} ${h*.9}H${w*.8}`,"tn","#5E6B69")+R(w*.12,h*.3,w*.76,h*.4,"tn",m*.03,0,"#8E9694");
+  case"upper":{let o=R(0,0,w,h,"fl ds",0,"#EEF0F1");const n=Math.max(1,Math.round(w/(h*1.7)));// 상부수납장: 벽에 단 장 — 도면 관례대로 점선, 문 칸 구분
+    for(let i=1;i<n;i++)o+=P(`M${(w*i/n).toFixed(2)} 0V${h}`,"tn ds");return o+P(`M0 0L${w} ${h}M${w} 0L0 ${h}`,"tn ds");}
   case"ricecooker":return R(0,0,w,h,"fl",w*.35,"#E9EBEC")+C(w/2,h*.44,w*.36,"fl","#C9CED2")+R(w*.3,h*.82,w*.4,h*.12,"fl",w*.04,"#2B2F33")+R(w*.4,h*.06,w*.2,h*.08,"fl",w*.03,"#8E9694");// 밥솥: 둥근 몸통 + 뚜껑 + 앞 조작부
   case"purifier":return R(0,0,w,h,"fl",w*.2,"#F4F5F5")+R(w*.15,h*.72,w*.7,h*.24,"fl",w*.1,"#5E6B69")+C(w/2,h*.8,w*.12,"fl","#9AA0A5")+C(w/2,h*.3,w*.18,"tn",0,"#8E9694");// 정수기: 흰 몸통 + 앞쪽 받침대·출수구
   case"microwave":return R(0,0,w,h,"fl",m*.03,"#D3D7DA")+R(w*.05,h*.84,w*.66,h*.13,"fl",0,"#22282E")+R(w*.75,h*.84,w*.2,h*.13,"fl",0,"#3A3F44");
@@ -1406,7 +1408,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008231050";// 배포할 때 바뀜
+const BUILD="20261008231414";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1673,6 +1675,8 @@ function model3D(kind,W,D,H,opt={}){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
     p.push({cx:[X(.5),.64,Z(1)+.03,.012,W*.7],ax:"x",c:"#C9CED2",o:{r:.3,m:.6}});B(.03,.97,.98,1.012,.72,.84,"#3A3D40");for(const u of [.2,.35,.65,.8])p.push({cx:[X(u),.78,Z(1)+.015,.018,.02],ax:"z",c:"#9AA0A5"});break;}
   case"dishwasher":B(0,1,0,.98,0,.86,"#AEB3B7");B(.02,.98,.98,1.012,.07,.84,"#C9CED2",.006,{r:.3,m:.3});B(.02,.98,.98,1.006,0,.07,"#2B2F33");// 빌트인 식기세척기: 스테인리스 문
     p.push({cx:[X(.5),.76,Z(1)+.03,.011,W*.6],ax:"x",c:"#8E9694",o:{r:.3,m:.6}});break;
+  case"upper":{const y0=1.5,y1=2.2,n=Math.max(1,Math.round(W/.45));B(0,1,0,.96,y0,y1,c.white);// 상부수납장: 바닥에서 1.5~2.2 m, 앞쪽(그림 아래)에 문
+    for(let i=0;i<n;i++){const a=i/n+.004,b=(i+1)/n-.004;B(a,b,.96,1,y0+.01,y1-.01,"#F4F5F5");const hx=i%2?a+.06/W:b-.06/W;Bm(X(hx)-.01,X(hx)+.01,Z(1),Z(1)+.025,y0+.04,y0+.2,c.steel);}break;}
   case"ricecooker":{const cx=X(.5),cz=Z(.47),r=Math.min(W,D)*.5;// 밥솥: 둥근 몸통 + 둥근 뚜껑 + 앞 조작부·손잡이
     p.push({cy:[cx,cz,r,0,.2],sz:D/W>1?1.15:1,c:"#E9EBEC",o:{r:.35}});p.push({sp:[cx,.2,cz,r*.98],s:[1,.35,D/W>1?1.15:1],c:"#C9CED2",o:{r:.3,m:.2}});
     B(.36,.64,.9,1,.08,.15,"#2B2F33",.01);B(.4,.6,.02,.14,.22,.26,"#8E9694",.01);break;}
