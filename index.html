@@ -270,6 +270,17 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
 .layers button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .pop{position:absolute;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .pop .name{font-size:.85rem;font-weight:600;padding-inline:2px}
+/* 저장한 설계도 목록 */
+.plan-name{font-size:.8rem;font-weight:600;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-inline:4px}
+.planpop{width:300px;max-height:60vh}
+.planpop .plist{display:flex;flex-direction:column;gap:2px;overflow:auto}
+.planpop .prow{display:flex;align-items:center;gap:4px}
+.planpop .prow .pl{flex:1;flex-direction:row;justify-content:space-between;align-items:baseline;text-align:left;min-width:0;padding:8px 10px}
+.planpop .prow .pl b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.planpop .prow .pl small{color:var(--muted);font-size:.72rem;flex:none}
+.planpop .prow .pl[aria-current="true"]{border-color:var(--ink)}
+.planpop .prow .px{flex:none;width:30px;height:30px;padding:0;justify-content:center;font-size:16px;color:var(--muted)}
+.planpop .empty{color:var(--muted);font-size:.8rem;padding:6px 4px}
 .pop .opts{display:flex;gap:6px}
 .pop button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 8px;border:1.5px solid transparent;border-radius:8px;background:transparent;color:var(--ink);font:inherit;font-size:.78rem;cursor:pointer}
 .pop button:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
@@ -378,8 +389,18 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
       <button type="button" data-order="-1" title="뒤로 (⌘[ / Ctrl+[)">뒤로</button>
     </span>
     <span class="zv" id="zv">100%</span>
+    <span class="grp plan-only" role="group" aria-label="설계도 파일">
+      <span class="plan-name" id="planName" title="지금 열린 설계도"></span>
+      <button type="button" data-edit id="planSaveBtn" title="지금 설계도를 이름 붙여 저장 (모든 기기에서 불러올 수 있어요)">저장</button>
+      <button type="button" data-edit id="planOpenBtn" aria-haspopup="dialog" aria-expanded="false" title="저장한 설계도 불러오기">불러오기</button>
+      <button type="button" data-edit id="planNewBtn" title="빈 설계도로 새로 시작">새 설계도</button>
+    </span>
     <button type="button" id="exportBtn" hidden>내보내기</button>
     <label class="b" id="importLbl" hidden>가져오기<input type="file" id="importIn" accept="application/json,.json" hidden></label>
+  </div>
+  <div class="pop planpop" id="planPop" role="dialog" aria-label="저장한 설계도" hidden>
+    <div class="name">저장한 설계도</div>
+    <div class="plist" id="planList"></div>
   </div>
   <div class="pop sympop" id="doorPop" role="dialog" aria-label="문 기호" hidden>
     <div class="name">문</div>
@@ -1410,7 +1431,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261008232550";// 배포할 때 바뀜
+const BUILD="20261016001100";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1550,6 +1571,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
   // 이 기기에서 처음 열면 보드 전체가 보이게 (보드 칸이 숨겨진 휴대폰 탭이면 보드 탭을 처음 열 때)
   let fitted=hasCam;const fitOnce=()=>{if(fitted||sheet||!vis().length||!board.getBoundingClientRect().width)return;fitted=true;fit();};
   tabBtns.forEach(b=>b.addEventListener("click",()=>setTimeout(fitOnce)));
+  db.collection("plans").onSnapshot(snap=>applyPlansSnap(snap),()=>{});
   db.collection("items").onSnapshot(snap=>{applyItems(snap);arrived("i");fitOnce();},()=>note("동기화가 끊겼어요. 새로고침해 주세요."));
 })();
 
@@ -2136,6 +2158,67 @@ const fenceIn=document.getElementById("fenceH");
 fenceIn.oninput=()=>{T3.fenceH=+fenceIn.value;document.getElementById("fenceHv").textContent=T3.fenceH?T3.fenceH.toFixed(1)+" m":"없음";clearTimeout(T3.ft);T3.ft=setTimeout(build3D,120);};
 wallHIn.oninput=()=>{T3.wallH=+wallHIn.value;if(T3.walk&&T3.roomLight)T3.roomLight.position.y=Math.max(1.8,T3.wallH-.25);document.getElementById("wallHv").textContent=T3.wallH.toFixed(1)+" m";clearTimeout(T3.ht);T3.ht=setTimeout(build3D,120);};
 
+// ===== 설계도 저장 · 불러오기 · 새 설계도 =====
+// 저장본: 클라우드 plans/<id> {name,t,items,cells} (이미지는 asset id라 그대로), 파일로 연 경우 localStorage kr-plans (+이미지 data URL)
+let savedPlans=[],curPlan=null;try{curPlan=JSON.parse(localStorage.getItem("kr-plan-cur")||"null")}catch(e){}
+const planPop=document.getElementById("planPop"),planOpenBtn=document.getElementById("planOpenBtn");
+const planLocal=()=>!cloud.db;
+function planSnap(){return{items:items.filter(i=>i.sheet==="plan").map(i=>JSON.parse(JSON.stringify(i))),cells:{...cells}};}
+// 비교용: 순서·글자 크기 측정값과 상관없이 같은 내용인지
+const planKey=sn=>JSON.stringify([sn.items.map(i=>canon({...docOf(i),id:i.id})).sort(),Object.keys(sn.cells).sort().map(k=>k+"="+sn.cells[k])]);
+function planDirty(){const now=planSnap(),sv=curPlan&&savedPlans.find(p=>p.id===curPlan.id);
+  if(sv)return planKey(now)!==planKey(sv);return now.items.length>0||Object.keys(now.cells).length>0;}
+function setCurPlan(p){curPlan=p?{id:p.id,name:p.name}:null;try{localStorage.setItem("kr-plan-cur",JSON.stringify(curPlan))}catch(e){}showPlanName();}
+function showPlanName(){const el=document.getElementById("planName");el.textContent=curPlan?curPlan.name:"제목 없음";}
+function savePlansLocal(){try{localStorage.setItem("kr-plans",JSON.stringify(savedPlans))}catch(e){note("저장 공간이 모자라요. 이미지가 많은 설계도는 지워 주세요.");return false;}return true;}
+async function writePlan(p){
+  if(!planLocal()){const {id,...d}=p;put("plans/"+id,d);}
+  else{const images={};for(const it of p.items)if(!it.type){const b=await idb("blobs","readonly",s=>s.get(it.id));if(b)images[it.id]=await readAsDataURL(b);}
+    p.images=images;const i=savedPlans.findIndex(o=>o.id===p.id);if(i>=0)savedPlans[i]=p;else savedPlans.push(p);if(!savePlansLocal())return false;}
+  return true;}
+async function savePlan(){
+  const def=curPlan?curPlan.name:`설계도 ${savedPlans.length+1}`;let name=prompt("저장할 이름",def);if(name==null)return false;name=name.trim()||def;
+  let same=savedPlans.find(p=>p.name===name);
+  if(same&&!(curPlan&&curPlan.id===same.id)&&!confirm(`‘${name}’이(가) 이미 있어요. 덮어쓸까요?`))return false;
+  const p={id:same?same.id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,t:Date.now(),...planSnap()};
+  if(!(await writePlan(p)))return false;
+  if(!planLocal()){const i=savedPlans.findIndex(o=>o.id===p.id);if(i>=0)savedPlans[i]=p;else savedPlans.push(p);}
+  setCurPlan(p);drawPlanList();note(`‘${name}’으로 저장했어요.`);return true;}
+// 바꾸기 전에: 저장 안 한 내용이 있으면 먼저 물어봄
+async function planGuard(){if(!planDirty())return true;
+  if(confirm("지금 설계도에 저장하지 않은 내용이 있어요.\n먼저 저장할까요? (취소를 누르면 저장하지 않고 넘어갈지 다시 물어봐요)"))return await savePlan();
+  return confirm("저장하지 않고 계속할까요? 지금 설계도 내용은 사라져요.");}
+async function applyPlan(sn){
+  for(const it of items.filter(i=>i.sheet==="plan"))world.querySelector(`[data-iid="${it.id}"]`)?.remove();
+  items=items.filter(i=>i.sheet!=="plan");selId=null;group.clear();
+  for(const src of sn.items||[]){const it=JSON.parse(JSON.stringify(src));items.push(it);topZ=Math.max(topZ,it.z||1);
+    if(!it.type){if(it.asset&&!planLocal()){if(!urls[it.id])setAssetUrl(it.id,it.asset);}
+      else if(sn.images&&sn.images[it.id]){const b=dataUrlToBlob(sn.images[it.id]);await idb("blobs","readwrite",s=>s.put(b,it.id));if(!urls[it.id])urls[it.id]=URL.createObjectURL(b);}}}
+  cells={...(sn.cells||{})};drawCells();saveCells();renderAll();saveMeta();}
+document.getElementById("planSaveBtn").onclick=()=>savePlan();
+document.getElementById("planNewBtn").onclick=async()=>{if(!(await planGuard()))return;await applyPlan({items:[],cells:{}});setCurPlan(null);note("빈 설계도로 시작했어요.");};
+function drawPlanList(){const box=document.getElementById("planList");box.innerHTML="";
+  const list=[...savedPlans].sort((a,b)=>b.t-a.t);
+  if(!list.length){box.innerHTML='<div class="empty">아직 저장한 설계도가 없어요. ‘저장’을 누르면 여기에 생겨요.</div>';return;}
+  for(const p of list){const row=document.createElement("div");row.className="prow";
+    const b=document.createElement("button");b.type="button";b.className="pl";b.setAttribute("aria-current",!!curPlan&&curPlan.id===p.id);
+    const d=new Date(p.t);b.innerHTML=`<b></b><small>${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</small>`;b.firstChild.textContent=p.name;
+    b.onclick=async()=>{closePlanPop();if(curPlan&&curPlan.id===p.id&&!planDirty())return;if(!(await planGuard()))return;await applyPlan(p);setCurPlan(p);note(`‘${p.name}’을(를) 불러왔어요.`);};
+    const x=document.createElement("button");x.type="button";x.className="px";x.textContent="×";x.title=x.ariaLabel=`‘${p.name}’ 저장본 지우기`;
+    x.onclick=()=>{if(!confirm(`저장한 ‘${p.name}’을(를) 지울까요? (지금 열린 설계도는 그대로예요)`))return;
+      savedPlans=savedPlans.filter(o=>o!==p);if(planLocal())savePlansLocal();else del("plans/"+p.id);if(curPlan&&curPlan.id===p.id)setCurPlan(null);drawPlanList();};
+    row.append(b,x);box.append(row);}}
+function closePlanPop(){planPop.hidden=true;planOpenBtn.setAttribute("aria-expanded","false");}
+planOpenBtn.onclick=()=>{const open=planPop.hidden;closeSymPop();closePlanPop();if(!open)return;drawPlanList();planPop.hidden=false;planOpenBtn.setAttribute("aria-expanded","true");
+  const br=board.getBoundingClientRect(),r=planOpenBtn.getBoundingClientRect();
+  planPop.style.left=Math.max(8,Math.min(r.left-br.left,br.width-planPop.offsetWidth-8))+"px";planPop.style.top=(r.bottom-br.top+6)+"px";};
+document.addEventListener("pointerdown",ev=>{if(!planPop.hidden&&!planPop.contains(ev.target)&&ev.target!==planOpenBtn)closePlanPop();});
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!planPop.hidden)closePlanPop();});
+function applyPlansSnap(snap){savedPlans=snap.docs.map(d=>({id:d.id,...d.data()}));
+  if(curPlan&&!savedPlans.some(p=>p.id===curPlan.id))setCurPlan(null);else if(curPlan){const p=savedPlans.find(o=>o.id===curPlan.id);if(p.name!==curPlan.name)setCurPlan(p);}
+  if(!planPop.hidden)drawPlanList();}
+if(!(window.claude?.use)&&!/^https?:/.test(location.protocol)){try{savedPlans=JSON.parse(localStorage.getItem("kr-plans")||"[]")||[]}catch(e){savedPlans=[]}}
+showPlanName();
 // ===== 옮기기: 컴퓨터 파일에서 내보내기 → claude.ai에서 가져오기 =====
 const readAsDataURL=b=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r(null);fr.readAsDataURL(b)});
 document.getElementById("exportBtn").onclick=async()=>{
