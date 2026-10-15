@@ -91,6 +91,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .paper.on-land .sheet{fill:rgba(255,255,255,.45)}/* 토지(잔디)는 모눈종이 아래에 깔리고 비쳐 보임 */
 .paper .g{stroke:#000;stroke-width:1.5;vector-effect:non-scaling-stroke;fill:none}
 .paper .b{stroke:#000;stroke-width:2.5;vector-effect:non-scaling-stroke;fill:none}
+.paper .fn{stroke:#7C6049;stroke-width:6;vector-effect:non-scaling-stroke;fill:none}/* 1층 땅 끝 = 담장 */
 .paper .dl{stroke:#3D4A48;stroke-width:1.2;vector-effect:non-scaling-stroke;fill:none}
 .paper text{fill:#3D4A48;font-family:inherit;text-anchor:middle}
 .paper .t1{font-size:20px}
@@ -279,6 +280,9 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
 .floorbar button[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:700}
 .plan-name{font-size:.8rem;font-weight:600;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-inline:4px}
 .planpop{width:300px;max-height:60vh}
+.lotpop .lots{display:grid;grid-template-columns:auto auto auto auto;gap:6px 8px;align-items:center;font-size:.82rem}
+.lotpop .lots button{width:30px;height:30px;padding:0;justify-content:center;border:1px solid var(--line);font-size:1rem}
+.lotpop .lots b{min-width:44px;text-align:center}
 .shapepop .opts{flex-wrap:wrap;max-width:360px}
 .shapepop .opts button{width:104px}
 .shapepop svg{width:72px;height:72px;display:block}
@@ -402,6 +406,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <span class="grp plan-only floorbar" id="floorTools" role="group" aria-label="층">
       <button type="button" data-fl="1">2층</button><button type="button" data-fl="0">1층</button><button type="button" data-fl="-1">지하1층</button>
     </span>
+    <button type="button" data-edit class="plan-only" id="lotBtn" aria-haspopup="dialog" aria-expanded="false" title="1층 담장 안 땅 넓이 — 집 자리 둘레로 칸을 더 붙임">땅 넓이</button>
     <span class="grp plan-only" role="group" aria-label="설계도 파일">
       <span class="plan-name" id="planName" title="지금 열린 설계도"></span>
       <button type="button" data-edit id="planSaveBtn" title="지금 설계도를 이름 붙여 저장 (모든 기기에서 불러올 수 있어요)">저장</button>
@@ -414,6 +419,10 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   <div class="pop shapepop" id="shapePop" role="dialog" aria-label="새 설계도 건물 모양" hidden>
     <div class="name">건물 모양을 골라 주세요</div>
     <div class="opts" id="shapeOpts"></div>
+  </div>
+  <div class="pop lotpop" id="lotPop" role="dialog" aria-label="담장 안 땅 넓이" hidden>
+    <div class="name">담장 안 땅 (집 자리 둘레에 붙일 칸 수)</div>
+    <div class="lots" id="lotRows"></div>
   </div>
   <div class="pop planpop" id="planPop" role="dialog" aria-label="저장한 설계도" hidden>
     <div class="name">저장한 설계도</div>
@@ -785,7 +794,7 @@ let sheet="";const camOf={"":null,plan:null};
 const FLOORS=[[1,"2층"],[0,"1층"],[-1,"지하1층"]],flName=f=>(FLOORS.find(x=>x[0]===f)||[,f+"층"])[1];
 let floor=0;try{floor=+(localStorage.getItem("kr-floor")||0)||0}catch(e){}
 const ck=(r,c,f=floor)=>f?`${f}|${r},${c}`:`${r},${c}`;
-const parseCk=k=>{const m=k.match(/^(?:(-?\d+)\|)?(\d+),(\d+)$/);return m?{f:+(m[1]||0),r:+m[2],c:+m[3]}:null;};
+const parseCk=k=>{const m=k.match(/^(?:(-?\d+)\|)?(-?\d+),(-?\d+)$/);return m?{f:+(m[1]||0),r:+m[2],c:+m[3]}:null;};
 const onSheet=it=>(it.sheet||"")===sheet&&(sheet!=="plan"||(it.fl||0)===floor),vis=()=>items.filter(onSheet);
 const getCam=s=>s===sheet?cam:camOf[s];
 function putCam(s,c){if(!c||!c.z)return;if(s===sheet){cam=c;applyCam();}else camOf[s]=c;}
@@ -1355,51 +1364,59 @@ board.addEventListener("wheel",ev=>{ev.preventDefault();
   if(ev.ctrlKey||ev.metaKey)zoomBoard(Math.exp(-ev.deltaY*0.01),ev.clientX,ev.clientY);
   else{cam.x-=ev.deltaX;cam.y-=ev.deltaY;applyCam();saveMeta();}},{passive:false});
 function fit(){const r=board.getBoundingClientRect();
-  const B=vis().map(vbox);if(sheet==="plan")B.push(PAPER_BOX);// 설계도는 모눈종이까지 다 보이게
+  const B=vis().map(vbox);if(sheet==="plan")B.push(paperBox());// 설계도는 모눈종이까지 다 보이게
   if(!B.length){cam={x:40,y:60,z:1};applyCam();saveMeta();return;}
   const x0=Math.min(...B.map(i=>i.x)),y0=Math.min(...B.map(i=>i.y)),x1=Math.max(...B.map(i=>i.x+i.w)),y1=Math.max(...B.map(i=>i.y+i.h));
   const pad=60,z=Math.min(4,(r.width-pad*2)/(x1-x0),(r.height-pad*2-40)/(y1-y0));
   cam={z,x:(r.width-(x1-x0)*z)/2-x0*z,y:40+(r.height-40-(y1-y0)*z)/2-y0*z};applyCam();saveMeta();}
 document.getElementById("fitBtn").onclick=fit;
 // 모눈종이: 100평 정사각형 = 한 변 200/11 ≈ 18.18 m, 10×10칸이라 한 칸 ≈ 1.82 m. 보드 좌표로 한 칸 100 (종이 0~1000)
-const PAPER=1000,CELL=PAPER/10,SIDE_M=200/11,GAP=40,PAPER_BOX={x:-190,y:-190,w:PAPER+230,h:PAPER+230};// GAP: 종이와 치수선 사이를 더 띄움
-const paperEl=(()=>{const m=-210,size=PAPER-m+40,svgEl=document.createElementNS(NS,"svg");
-  svgEl.setAttribute("class","paper");svgEl.setAttribute("viewBox",`${m} ${m} ${size} ${size}`);
-  Object.assign(svgEl.style,{left:m+"px",top:m+"px",width:size+"px",height:size+"px"});
+const PAPER=1000,CELL=PAPER/10,SIDE_M=200/11,GAP=40;// GAP: 종이와 치수선 사이를 더 띄움
+// 1층 땅(담장 안): 집 자리 10×10칸 둘레로 위·아래·왼쪽·오른쪽에 칸을 더 붙임 — 담장 안은 어디든 칸. 땅 끝이 곧 담장
+let lotCfg={t:2,b:2,l:2,r:2};try{lotCfg={...lotCfg,...JSON.parse(localStorage.getItem("kr-plan-lot")||"{}")}}catch(e){}
+const gridOf=f=>f===0?{r0:-lotCfg.t,r1:9+lotCfg.b,c0:-lotCfg.l,c1:9+lotCfg.r}:{r0:0,r1:9,c0:0,c1:9};
+const inGrid=(f,r,c)=>{const G=gridOf(f);return r>=G.r0&&r<=G.r1&&c>=G.c0&&c<=G.c1;};
+const paperBox=()=>{const G=gridOf(floor),x0=G.c0*CELL,y0=G.r0*CELL;return{x:x0-190,y:y0-190,w:(G.c1+1)*CELL-x0+230,h:(G.r1+1)*CELL-y0+230};};
+const paperEl=(()=>{const svgEl=document.createElementNS(NS,"svg");svgEl.setAttribute("class","paper");svgEl.setAttribute("hidden","");world.prepend(svgEl);return svgEl;})();
+function drawPaper(init){const G=gridOf(floor),X0=G.c0*CELL,Y0=G.r0*CELL,X1=(G.c1+1)*CELL,Y1=(G.r1+1)*CELL,m=Math.min(X0,Y0)-260,size=Math.max(X1,Y1)-m+60;
+  paperEl.setAttribute("viewBox",`${m} ${m} ${size} ${size}`);Object.assign(paperEl.style,{left:m+"px",top:m+"px",width:size+"px",height:size+"px"});
   const f=v=>v.toFixed(2);let g="",dl="",tx="";
-  for(let i=1;i<10;i++)g+=`M${i*CELL} 0V${PAPER}M0 ${i*CELL}H${PAPER}`;
-  // 칸 치수 (위·왼쪽) — 눈금 + 칸마다 1.82
-  const o=v=>-(v+GAP);// 종이 바깥쪽 거리 v → 좌표
-  dl+=`M0 ${o(40)}H${PAPER}M${o(40)} 0V${PAPER}`;
-  for(let i=0;i<=10;i++){const v=i*CELL;dl+=`M${v} ${o(50)}V${o(30)}M${o(50)} ${v}H${o(30)}`;}
+  for(let x=X0+CELL;x<X1;x+=CELL)g+=`M${x} ${Y0}V${Y1}`;for(let y=Y0+CELL;y<Y1;y+=CELL)g+=`M${X0} ${y}H${X1}`;
+  // 집 자리(10×10) 치수 — 땅 바깥으로 띄워서 (위·왼쪽)
+  const ot=v=>Y0-(v+GAP),ol=v=>X0-(v+GAP);
+  dl+=`M0 ${ot(40)}H${PAPER}M${ol(40)} 0V${PAPER}`;
+  for(let i=0;i<=10;i++){const v=i*CELL;dl+=`M${v} ${ot(50)}V${ot(30)}M${ol(50)} ${v}H${ol(30)}`;}
   for(let i=0;i<10;i++){const c=i*CELL+CELL/2;
-    tx+=`<text class="t1" x="${c}" y="${o(50)}">${f(SIDE_M/10)}</text><text class="t1" transform="translate(${o(50)} ${c}) rotate(-90)">${f(SIDE_M/10)}</text>`;}
-  // 전체 치수
-  dl+=`M0 ${o(110)}H${PAPER}M0 ${o(122)}V${o(98)}M${PAPER} ${o(122)}V${o(98)}M${o(110)} 0V${PAPER}M${o(122)} 0H${o(98)}M${o(122)} ${PAPER}H${o(98)}`;
+    tx+=`<text class="t1" x="${c}" y="${ot(50)}">${f(SIDE_M/10)}</text><text class="t1" transform="translate(${ol(50)} ${c}) rotate(-90)">${f(SIDE_M/10)}</text>`;}
+  dl+=`M0 ${ot(110)}H${PAPER}M0 ${ot(122)}V${ot(98)}M${PAPER} ${ot(122)}V${ot(98)}M${ol(110)} 0V${PAPER}M${ol(122)} 0H${ol(98)}M${ol(122)} ${PAPER}H${ol(98)}`;
   const all=`${f(SIDE_M)} m · 100평 (330.6㎡)`;
-  tx+=`<text class="t2" x="${PAPER/2}" y="${o(122)}">${all}</text><text class="t2" transform="translate(${o(122)} ${PAPER/2}) rotate(-90)">${all}</text>`;
-  svgEl.innerHTML=`<rect class="sheet" width="${PAPER}" height="${PAPER}"/><g class="cells"></g><path class="g" d="${g}"/><rect class="b" width="${PAPER}" height="${PAPER}"/><path class="dl" d="${dl}"/>${tx}`;
-  svgEl.setAttribute("hidden","");world.prepend(svgEl);return svgEl;})();
+  tx+=`<text class="t2" x="${PAPER/2}" y="${ot(122)}">${all}</text><text class="t2" transform="translate(${ol(122)} ${PAPER/2}) rotate(-90)">${all}</text>`;
+  const lot=floor===0&&(X0<0||Y0<0||X1>PAPER||Y1>PAPER);
+  if(lot)tx+=`<text class="t1" x="${(X0+X1)/2}" y="${Y1+34}">담장 안 땅 ${f((X1-X0)/CELL*SIDE_M/10)} × ${f((Y1-Y0)/CELL*SIDE_M/10)} m</text>`;
+  paperEl.innerHTML=`<rect class="sheet" x="${X0}" y="${Y0}" width="${X1-X0}" height="${Y1-Y0}"/><g class="cells"></g><path class="g" d="${g}"/>`
+    +`<rect class="b" width="${PAPER}" height="${PAPER}"/>`+(floor===0?`<rect class="fn" x="${X0}" y="${Y0}" width="${X1-X0}" height="${Y1-Y0}"/>`:"")+`<path class="dl" d="${dl}"/>${tx}`;
+  if(!init)drawCells();}
+drawPaper(true);// (칸은 아래에서 cells를 읽은 뒤 그림)
 // 칸 색: 칸을 짧게 누르면 색 고르기. {"행,열": 색 이름} — 클라우드는 app/plan, 아니면 이 기기에
 let cells={};try{cells=JSON.parse(localStorage.getItem("kr-plan-cells")||"{}")||{}}catch(e){}
-const cellG=paperEl.querySelector(".cells"),cellPop=document.getElementById("cellPop"),cellOpts=document.getElementById("cellOpts");
+const cellPop=document.getElementById("cellPop"),cellOpts=document.getElementById("cellOpts");
 function drawCells(){if(typeof mark3D==="function")mark3D();
   const guide=floor>0?floor-1:floor<0?0:null;// 2층에선 1층, 지하에선 1층 칸을 흐리게 깔아 맞춰 그리기 쉽게
-  cellG.innerHTML=Object.entries(cells).map(([k,v])=>{const col=cellCol(v),q=parseCk(k);if(!col||!q)return"";
+  paperEl.querySelector(".cells").innerHTML=Object.entries(cells).map(([k,v])=>{const col=cellCol(v),q=parseCk(k);if(!col||!q||!inGrid(q.f,q.r,q.c))return"";
     if(q.f===floor){const x=q.c*CELL,y=q.r*CELL;let o=`<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" fill="${col[2]}"/>`;
       if(v==="parking")o+=`<path d="M${x+8} ${y+6}V${y+CELL-6}M${x+CELL-8} ${y+6}V${y+CELL-6}" stroke="#fff" stroke-width="3"/>`;
       if(v==="grass")o+=`<path d="${[...Array(6)].map((_,i)=>`M${x+14+(i%3)*30} ${y+22+Math.floor(i/3)*44}l4 -9l4 9`).join("")}" stroke="#5E8F45" stroke-width="2" fill="none"/>`;
       if(v==="soil")o+=`<path d="${[...Array(5)].map((_,i)=>`M${x+16+i*17} ${y+28+(i%2)*40}h6`).join("")}" stroke="#9C7A55" stroke-width="3"/>`;
       return o;}
     if(q.f===guide&&!cells[ck(q.r,q.c)])return`<rect x="${q.c*CELL}" y="${q.r*CELL}" width="${CELL}" height="${CELL}" fill="${col[2]}" opacity=".28"/>`;return"";}).join("");}
-function saveCells(){if(cloud.db)put("app/plan",{cells});else try{localStorage.setItem("kr-plan-cells",JSON.stringify(cells))}catch(e){}}
+function saveCells(){if(cloud.db)put("app/plan",{cells,lot:lotCfg});else try{localStorage.setItem("kr-plan-cells",JSON.stringify(cells));localStorage.setItem("kr-plan-lot",JSON.stringify(lotCfg))}catch(e){}}
 let cellCur=null;
 [...RECT_COLORS.filter(c=>c[0]!=="black"),...OUTDOOR,["none","지우기","transparent"]].forEach(([k,n,c])=>{const b=document.createElement("button");b.type="button";b.dataset.c=k;
   b.innerHTML=`<span class="sw" style="--c:${c}"></span>${n}`;
   b.onclick=()=>{if(!cellCur)return;if(k==="none")delete cells[cellCur];else cells[cellCur]=k;drawCells();saveCells();closeCellPop();board.focus({preventScroll:true});};
   cellOpts.append(b);});
 function openCellPop(cx,cy){const p=boardPoint(cx,cy),c=Math.floor(p.x/CELL),r=Math.floor(p.y/CELL);
-  if(c<0||r<0||c>9||r>9)return false;cellCur=ck(r,c);
+  if(!inGrid(floor,r,c))return false;cellCur=ck(r,c);
   document.getElementById("cellName").textContent=`칸 ${r+1}행 ${c+1}열`;
   cellOpts.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",(cells[cellCur]||"none")===b.dataset.c));
   cellPop.hidden=false;const br=board.getBoundingClientRect(),pw=cellPop.offsetWidth,ph=cellPop.offsetHeight;
@@ -1477,7 +1494,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261016005313";// 배포할 때 바뀜
+const BUILD="20261016005927";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1616,7 +1633,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
     db.collection("notes").onSnapshot(snap=>{applyNotes(snap);nf=1;tryMig();},()=>note("동기화가 끊겼어요. 새로고침해 주세요."));
     subscribe("app/notesmig",snap=>{mig=!!snap.exists;tryMig();});
     subscribe("app/memo",()=>{memoOK=true;setTimeout(tryMig);});}
-  subscribe("app/plan",snap=>{cells={...(snap.exists?snap.data().cells||{}:{})};drawCells();});
+  subscribe("app/plan",snap=>{const d=snap.exists?snap.data():{};cells={...(d.cells||{})};lotCfg={t:2,b:2,l:2,r:2,...(d.lot||{})};drawPaper();showLot();});
   // 이 기기에서 처음 열면 보드 전체가 보이게 (보드 칸이 숨겨진 휴대폰 탭이면 보드 탭을 처음 열 때)
   let fitted=hasCam;const fitOnce=()=>{if(fitted||sheet||!vis().length||!board.getBoundingClientRect().width)return;fitted=true;fit();};
   tabBtns.forEach(b=>b.addEventListener("click",()=>setTimeout(fitOnce)));
@@ -1878,13 +1895,13 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
   if(!under)addR(new THREE.BoxGeometry(S,.02,S),mat3("#FFFFFF"),S/2,-.01,S/2,false);
   for(const fl of shown){const g=new THREE.Group(),base=flBase(fl);g.position.y=base;ROOT.add(g);
   const P=PALL.filter(i=>(i.fl||0)===fl),cells=flCells(fl),add=mk(g);
-  const colOf=(r,cl)=>cells[r+","+cl]||"";
+  const G=gridOf(fl),colOf=(r,cl)=>r>=G.r0&&r<=G.r1&&cl>=G.c0&&cl<=G.c1?cells[r+","+cl]||"":"";// 1층은 담장 안 땅까지
   // (칸 바닥은 회랑·중정 색을 알아낸 뒤에 — 중정은 잔디)
   // 이름표 글자로 회랑(복도)·중정 칸 색 찾기
   const labelled=re=>{const it=P.find(i=>(i.type==="tbox"||i.type==="text")&&re.test(i.text||""));if(!it)return null;
     const b=vbox(it),cl=Math.floor((b.x+b.w/2)/CELL),r=Math.floor((b.y+b.h/2)/CELL);return colOf(r,cl)||null;};
   const corridor=labelled(/회랑|복도/),court=labelled(/중정|정원|마당/);
-  for(const [k,v] of Object.entries(cells)){const col=cellCol(v);if(!col)continue;const [rw,cl]=k.split(",").map(Number);
+  for(const [k,v] of Object.entries(cells)){const col=cellCol(v);if(!col)continue;const [rw,cl]=k.split(",").map(Number);if(!colOf(rw,cl))continue;
     const tm=v===court||v==="grass"?grassMat(c,c):v==="paved"?mat3("#C8CBCA",{r:.95}):v==="soil"?mat3("#9C7E5E",{r:1}):v==="parking"?mat3("#55595C",{r:.9}):mat3(col[2]);
     add(new THREE.BoxGeometry(c,.01,c),tm,cl*c+c/2,.005,rw*c+c/2,false);
     if(v==="parking")for(const x of [cl*c+.06,cl*c+c-.06])add(new THREE.BoxGeometry(.08,.004,c-.3),mat3("#F2F2EE"),x,.012,rw*c+c/2,false);// 주차 칸 흰 선
@@ -1908,11 +1925,11 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
     for(const [horiz,line,a,bb] of [[1,z0,x0,x1],[1,z1,x0,x1],[0,x0,z0,z1],[0,x1,z0,z1]])pushRun(horiz,line,a,bb,"wall");}
   const solid=v=>!!v&&!isOut(v);// 잔디·흙·주차장은 바깥 바닥 — 방과 맞닿은 곳에만 벽
   const kindAt=(a,b)=>a===b||(!solid(a)&&!solid(b))?null:isArcade(a,b)?"arc":(corridor&&(a===corridor||b===corridor)&&a!==court&&b!==court)?"cr":"wall";
-  for(let i=0;i<=10;i++){let ra=null,rk=null,ca=null,ck=null;
-    for(let j=0;j<=10;j++){
-      const kh=j<10?(i===0?(solid(colOf(0,j))?"wall":null):i===10?(solid(colOf(9,j))?"wall":null):kindAt(colOf(i-1,j),colOf(i,j))):null;// 가로 선 y=i
-      if(kh!==rk){if(rk)pushRun(1,i*c,ra*c,j*c,rk==="arc"?"arc":"wall",rk==="cr");ra=j;rk=kh;}
-      const kv=j<10?(i===0?(solid(colOf(j,0))?"wall":null):i===10?(solid(colOf(j,9))?"wall":null):kindAt(colOf(j,i-1),colOf(j,i))):null;// 세로 선 x=i
+  for(let i=G.r0;i<=G.r1+1;i++){let ra=null,rk=null;// 가로 선 y=i
+    for(let j=G.c0;j<=G.c1+1;j++){const kh=j<=G.c1?kindAt(colOf(i-1,j),colOf(i,j)):null;
+      if(kh!==rk){if(rk)pushRun(1,i*c,ra*c,j*c,rk==="arc"?"arc":"wall",rk==="cr");ra=j;rk=kh;}}}
+  for(let i=G.c0;i<=G.c1+1;i++){let ca=null,ck=null;// 세로 선 x=i
+    for(let j=G.r0;j<=G.r1+1;j++){const kv=j<=G.r1?kindAt(colOf(j,i-1),colOf(j,i)):null;
       if(kv!==ck){if(ck)pushRun(0,i*c,ca*c,j*c,ck==="arc"?"arc":"wall",ck==="cr");ca=j;ck=kv;}}}
   // ② 문·창을 벽 줄에 붙이기 — 차례대로 찾음
   //  외여닫이: 문짝 직선(그림의 왼쪽 변, 좌우 뒤집으면 오른쪽) → 호의 밑변 / 양여닫이: 밑변 / 미닫이·창: 가운데 선
@@ -2018,7 +2035,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
   // 보이지 않는 천장: 지붕을 걷어도 방 안 그림자·햇빛은 천장이 있는 것처럼 (중정은 열림)
   
   if(T3.walls&&H>0){const inv=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false});
-    for(let r=0;r<10;r++){let st=null;for(let q=0;q<=10;q++){const on=q<10&&solid(colOf(r,q))&&colOf(r,q)!==court;
+    for(let r=G.r0;r<=G.r1;r++){let st=null;for(let q=G.c0;q<=G.c1+1;q++){const on=q<=G.c1&&solid(colOf(r,q))&&colOf(r,q)!==court;
       if(on&&st===null)st=q;if(!on&&st!==null){const o=new THREE.Mesh(new THREE.BoxGeometry((q-st)*c,.05,c),inv);o.position.set((st+q)/2*c,H+.03,r*c+c/2);o.castShadow=true;g.add(o);blockers.push(o);ceils.push(o);st=null;}}}}
   // 방: 이름표 자리의 네모(있으면) 또는 같은 색으로 이어진 칸들 — 바닥 위 점들에서 해 쪽으로 광선을 쏴 햇빛을 잼
   
@@ -2038,17 +2055,16 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
     for(const i of P.filter(i=>i.type==="sym"&&i.kind==="car")){const x=u2m(i.x+i.w/2),z=u2m(i.y+i.h/2),dd={top:z,bottom:S-z,left:x,right:S-x};score[sides.reduce((m,k)=>dd[k]<dd[m]?k:m,"top")]+=3;}
     const front=sides.reduce((m,k)=>score[k]>score[m]?k:m,"top");
     if(T3.front!==front){const first=!T3.front;T3.front=front;if(first)view3D("tilt");}// 처음 그릴 때 앞쪽에서 보이게
-    // 1층 담장: 마당 칸(잔디·흙·주차장·포장)이 빈 칸이나 땅 끝(모눈 가장자리)과 맞닿는 선. 대문 아이콘이 걸친 곳은 비움
-    const F=T3.fenceH,c0=flCells(0),co=(r,q)=>r<0||q<0||r>9||q>9?"":c0[r+","+q]||"",yardEdge=(a,b)=>(isOut(a)&&!b)||(isOut(b)&&!a);
+    // 1층 담장: 담장 안 땅(칸 전체)의 가장자리. 집 벽이 땅 끝에 붙은 곳과 대문 아이콘이 걸친 곳은 비움
+    const F=T3.fenceH,c0=flCells(0),LG=gridOf(0),co=(r,q)=>c0[r+","+q]||"",onEdge=v=>!(v&&!isOut(v));
     const gates=P.filter(i=>i.type==="sym"&&i.kind==="gate").map(i=>{const b=vbox(i);return{x0:u2m(b.x),x1:u2m(b.x+b.w),z0:u2m(b.y),z1:u2m(b.y+b.h)};});
     const cutRun=(hz,line,a,b)=>{let segs=[[a,b]];
       for(const g of gates){const near=hz?line>=g.z0-.3&&line<=g.z1+.3:line>=g.x0-.3&&line<=g.x1+.3,[ga,gb]=hz?[g.x0,g.x1]:[g.z0,g.z1];if(!near)continue;
         segs=segs.flatMap(([p,q])=>gb<=p||ga>=q?[[p,q]]:[[p,ga],[gb,q]].filter(([u,v])=>v-u>.05));}
       for(const [p,q] of segs)hz?fenceRun(p,line,q,line,F):fenceRun(line,p,line,q,F);};
-    if(F>0)for(let i=0;i<=10;i++){let ra=null,ca=null;
-      for(let j=0;j<=10;j++){const h=j<10&&yardEdge(co(i-1,j),co(i,j)),v=j<10&&yardEdge(co(j,i-1),co(j,i));
-        if(h&&ra===null)ra=j;if(!h&&ra!==null){cutRun(1,i*c,ra*c,j*c);ra=null;}
-        if(v&&ca===null)ca=j;if(!v&&ca!==null){cutRun(0,i*c,ca*c,j*c);ca=null;}}}}
+    const edge=(hz,line,a0,a1,at)=>{let st=null;for(let j=a0;j<=a1+1;j++){const on=j<=a1&&onEdge(at(j));if(on&&st===null)st=j;if(!on&&st!==null){cutRun(hz,line,st*c,j*c);st=null;}}};
+    if(F>0){edge(1,LG.r0*c,LG.c0,LG.c1,j=>co(LG.r0,j));edge(1,(LG.r1+1)*c,LG.c0,LG.c1,j=>co(LG.r1,j));
+      edge(0,LG.c0*c,LG.r0,LG.r1,j=>co(j,LG.c0));edge(0,(LG.c1+1)*c,LG.r0,LG.r1,j=>co(j,LG.c1));}}
   // 박공지붕: 한 높이로 끊김 없이. 중정이 있으면 바깥 처마 ↔ 용마루(사각 고리) ↔ 안쪽 처마(중정)로 이어진 정사각형 고리 지붕
   let roofTop=0;
   if(T3.roof&&(view==null||view===top)){const g=new THREE.Group();g.position.y=flBase(top);ROOT.add(g);const cells=flCells(top),court=courts[top];const cl=[],cc=[],oo=[];for(const [k,v] of Object.entries(cells)){if(!v)continue;const [r,q]=k.split(",").map(Number);(isOut(v)?oo:v===court?cc:cl).push([r,q]);}
@@ -2246,18 +2262,32 @@ wallHIn.oninput=()=>{T3.wallH=+wallHIn.value;if(T3.walk&&T3.roomLight)T3.roomLig
 
 // ===== 층 바꾸기 =====
 function setFloor(f){if(f===floor)return;stopEditing();penEnd(true);select(null);group.clear();closeCellPop();floor=f;try{localStorage.setItem("kr-floor",f)}catch(e){}
-  showFloor();renderAll();drawCells();}
+  showFloor();renderAll();drawPaper();}
 function showFloor(){document.querySelectorAll("#floorTools button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.fl===floor));}
 document.querySelectorAll("#floorTools button").forEach(b=>b.onclick=()=>{setFloor(+b.dataset.fl);board.focus({preventScroll:true});});
 showFloor();
+// ===== 담장 안 땅 넓이 =====
+const lotPop=document.getElementById("lotPop"),lotBtn=document.getElementById("lotBtn");
+function showLot(){const box=document.getElementById("lotRows");if(!box)return;box.innerHTML="";
+  for(const [k,n] of [["t","위쪽"],["b","아래쪽"],["l","왼쪽"],["r","오른쪽"]]){const lb=document.createElement("span");lb.textContent=n;
+    const dn=document.createElement("button"),up=document.createElement("button"),v=document.createElement("b");dn.type=up.type="button";dn.textContent="−";up.textContent="+";
+    dn.ariaLabel=n+" 줄이기";up.ariaLabel=n+" 늘리기";v.textContent=`${lotCfg[k]}칸 · ${(lotCfg[k]*SIDE_M/10).toFixed(1)} m`;
+    const set=d=>{lotCfg[k]=Math.max(0,Math.min(10,lotCfg[k]+d));drawPaper();saveCells();showLot();};dn.onclick=()=>set(-1);up.onclick=()=>set(1);
+    box.append(lb,dn,v,up);}}
+function closeLotPop(){lotPop.hidden=true;lotBtn.setAttribute("aria-expanded","false");}
+lotBtn.onclick=()=>{const open=lotPop.hidden;closeSymPop();closeLotPop();if(!open)return;if(floor!==0)setFloor(0);showLot();lotPop.hidden=false;lotBtn.setAttribute("aria-expanded","true");
+  const br=board.getBoundingClientRect(),r=lotBtn.getBoundingClientRect();lotPop.style.left=Math.max(8,Math.min(r.left-br.left,br.width-lotPop.offsetWidth-8))+"px";lotPop.style.top=(r.bottom-br.top+6)+"px";};
+document.addEventListener("pointerdown",ev=>{if(!lotPop.hidden&&!lotPop.contains(ev.target)&&ev.target!==lotBtn)closeLotPop();});
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!lotPop.hidden)closeLotPop();});
+showLot();
 // ===== 설계도 저장 · 불러오기 · 새 설계도 =====
 // 저장본: 클라우드 plans/<id> {name,t,items,cells} (이미지는 asset id라 그대로), 파일로 연 경우 localStorage kr-plans (+이미지 data URL)
 let savedPlans=[],curPlan=null;try{curPlan=JSON.parse(localStorage.getItem("kr-plan-cur")||"null")}catch(e){}
 const planPop=document.getElementById("planPop"),planOpenBtn=document.getElementById("planOpenBtn");
 const planLocal=()=>!cloud.db;
-function planSnap(){return{items:items.filter(i=>i.sheet==="plan").map(i=>JSON.parse(JSON.stringify(i))),cells:{...cells}};}
+function planSnap(){return{items:items.filter(i=>i.sheet==="plan").map(i=>JSON.parse(JSON.stringify(i))),cells:{...cells},lot:{...lotCfg}};}
 // 비교용: 순서·글자 크기 측정값과 상관없이 같은 내용인지
-const planKey=sn=>JSON.stringify([sn.items.map(i=>canon({...docOf(i),id:i.id})).sort(),Object.keys(sn.cells).sort().map(k=>k+"="+sn.cells[k])]);
+const planKey=sn=>JSON.stringify([sn.items.map(i=>canon({...docOf(i),id:i.id})).sort(),Object.keys(sn.cells).sort().map(k=>k+"="+sn.cells[k]),sn.lot?[sn.lot.t,sn.lot.b,sn.lot.l,sn.lot.r].join():""]);
 function planDirty(){const now=planSnap(),sv=curPlan&&savedPlans.find(p=>p.id===curPlan.id);
   if(sv)return planKey(now)!==planKey(sv);if(planBase&&planKey(now)===planBase)return false;// 고른 건물 모양 그대로면 바뀐 것 없음
   return now.items.length>0||Object.keys(now.cells).length>0;}
@@ -2297,16 +2327,16 @@ async function applyPlan(sn){await planBackup();
   for(const src of sn.items||[]){const it=JSON.parse(JSON.stringify(src));items.push(it);topZ=Math.max(topZ,it.z||1);
     if(!it.type){if(it.asset&&!planLocal()){if(!urls[it.id])setAssetUrl(it.id,it.asset);}
       else if(sn.images&&sn.images[it.id]){const b=dataUrlToBlob(sn.images[it.id]);await idb("blobs","readwrite",s=>s.put(b,it.id));if(!urls[it.id])urls[it.id]=URL.createObjectURL(b);}}}
-  cells={...(sn.cells||{})};drawCells();saveCells();renderAll();saveMeta();}
+  cells={...(sn.cells||{})};lotCfg={t:2,b:2,l:2,r:2,...(sn.lot||{})};drawPaper();showLot();saveCells();renderAll();saveMeta();}
 document.getElementById("planSaveBtn").onclick=()=>savePlan();
 // 새 설계도: 건물 모양부터 고름 (100평 땅 10×10칸 중 건물 칸은 연아이보리, 나머지는 잔디 마당, ㅁ자는 가운데 중정도 잔디 + '중정' 이름표)
 const SHAPES=[["none","빈 모눈",()=>false],["rect","일자",(r,c)=>r>=3&&r<=6&&c>=1&&c<=8],["sq","정사각형",(r,c)=>r>=2&&r<=7&&c>=2&&c<=7],
   ["L","ㄱ자",(r,c)=>(r>=1&&r<=3&&c>=1&&c<=8)||(r>=4&&r<=8&&c>=6&&c<=8)],["U","ㄷ자",(r,c)=>(r>=1&&r<=3&&c>=1&&c<=8)||(r>=4&&r<=8&&((c>=1&&c<=3)||(c>=6&&c<=8)))],
   ["O","ㅁ자 (중정)",(r,c)=>r>=1&&r<=8&&c>=1&&c<=8]];
 function shapePlan(k){const f=SHAPES.find(x=>x[0]===k)[2],cl={},its=[];
-  for(let r=0;r<10;r++)for(let c=0;c<10;c++){if(f(r,c))cl[r+","+c]=k==="O"&&r>=3&&r<=6&&c>=3&&c<=6?"grass":"ivory";else if(k!=="none")cl[r+","+c]="grass";}// 건물 밖은 잔디 마당 (땅 끝에 담장)
+  const G=gridOf(0);for(let r=G.r0;r<=G.r1;r++)for(let c=G.c0;c<=G.c1;c++){if(r>=0&&r<=9&&c>=0&&c<=9&&f(r,c))cl[r+","+c]=k==="O"&&r>=3&&r<=6&&c>=3&&c<=6?"grass":"ivory";else if(k!=="none")cl[r+","+c]="grass";}// 건물 밖(담장 안 땅 전체)은 잔디 마당
   if(k==="O")its.push({id:Date.now().toString(36)+"ct",sheet:"plan",type:"tbox",x:CELL*5-130,y:CELL*5-30,w:260,h:60,z:++topZ,text:"중정",fs:30});
-  return{items:its,cells:cl};}
+  return{items:its,cells:cl,lot:{...lotCfg}};}
 const shapePop=document.getElementById("shapePop"),planNewBtn=document.getElementById("planNewBtn");
 for(const [k,n] of SHAPES){const b=document.createElement("button");b.type="button";const sn=shapePlan(k);let r="";
   for(const [key,v] of Object.entries(sn.cells)){const [rr,cc]=key.split(",").map(Number);r+=`<rect x="${cc*7}" y="${rr*7}" width="7" height="7" fill="${cellCol(v)[2]}"/>`;}
