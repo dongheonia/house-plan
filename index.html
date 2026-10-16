@@ -1494,7 +1494,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261016010720";// 배포할 때 바뀜
+const BUILD="20261016010907";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -2287,7 +2287,7 @@ function showLot(){const box=document.getElementById("lotRows");if(!box)return;b
   for(const [k,n] of [["t","위쪽"],["b","아래쪽"],["l","왼쪽"],["r","오른쪽"]]){const lb=document.createElement("span");lb.textContent=n;
     const dn=document.createElement("button"),up=document.createElement("button"),v=document.createElement("b");dn.type=up.type="button";dn.textContent="−";up.textContent="+";
     dn.ariaLabel=n+" 줄이기";up.ariaLabel=n+" 늘리기";v.textContent=`${lotCfg[k]}칸 · ${(lotCfg[k]*SIDE_M/10).toFixed(1)} m`;
-    const set=d=>{lotCfg[k]=Math.max(0,Math.min(10,lotCfg[k]+d));drawPaper();saveCells();showLot();cleanLot();};// 대문도 새 땅 끝으로dn.onclick=()=>set(-1);up.onclick=()=>set(1);
+    const set=d=>{lotCfg[k]=Math.max(0,Math.min(10,lotCfg[k]+d));drawPaper();saveCells();showLot();cleanLot();};dn.onclick=()=>set(-1);up.onclick=()=>set(1);// 대문도 새 땅 끝으로
     box.append(lb,dn,v,up);}}
 function closeLotPop(){lotPop.hidden=true;lotBtn.setAttribute("aria-expanded","false");}
 lotBtn.onclick=()=>{const open=lotPop.hidden;closeSymPop();closeLotPop();if(!open)return;if(floor!==0)setFloor(0);showLot();lotPop.hidden=false;lotBtn.setAttribute("aria-expanded","true");
