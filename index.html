@@ -1494,7 +1494,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261016005927";// 배포할 때 바뀜
+const BUILD="20261016010319";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1880,6 +1880,10 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
   T3.floorsAll=floorsAll;updateFlView();
   const flBase=f=>f*(H+SLAB),flCells=f=>{const o={};for(const [k,v] of Object.entries(cells)){const q=parseCk(k);if(q&&q.f===f)o[q.r+","+q.c]=v;}return o;};
   const blockers=[],ceils=[],rooms=[],courts={},fl0={doorPanels:[],P:[]};
+  // 대문: 1층 땅 끝(담장 줄)에서 0.9 m 안이면 그 줄 위로 붙임 — 칸과 대문 사이가 뜨지 않게
+  const gateSnap=it=>{const b=vbox(it),LG=gridOf(0),hz=b.w>=b.h,x0=u2m(b.x),x1=u2m(b.x+b.w),z0=u2m(b.y),z1=u2m(b.y+b.h),cx=(x0+x1)/2,cz=(z0+z1)/2;
+    const lines=hz?[LG.r0*c,(LG.r1+1)*c]:[LG.c0*c,(LG.c1+1)*c],m=hz?cz:cx,ln=lines.find(v=>Math.abs(v-m)<.9);
+    return{hz,x0,x1,z0,z1,cx:!hz&&ln!=null?ln:cx,cz:hz&&ln!=null?ln:cz,line:ln};};
   const lands=PALL.filter(i=>i.type==="sym"&&i.kind==="land"&&!(i.fl||0));// (예전 토지 아이콘 — 평평한 잔디)
   // 바닥에 깔리는 판 (마당 포장·길·토지)
   const surf=(x0,x1,z0,z1,m,yo=.006)=>{const w=x1-x0,d=z1-z0;if(w<.05||d<.05)return;
@@ -2030,7 +2034,8 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
       parts=model3D(it.kind,W,D,H,opt);}
     if(!parts)continue;
     const inner=partsGroup(parts,W,D,!!it.fx,!!it.fy);inner.position.set(-W/2,0,-D/2);
-    const grp=new THREE.Group();grp.add(inner);grp.position.set(u2m(it.x+it.w/2),lift,u2m(it.y+it.h/2));grp.rotation.y=-(it.rot||0)*Math.PI/180;g.add(grp);}
+    const sn=fl===0&&it.kind==="gate"?gateSnap(it):null;
+    const grp=new THREE.Group();grp.add(inner);grp.position.set(sn?sn.cx:u2m(it.x+it.w/2),lift,sn?sn.cz:u2m(it.y+it.h/2));grp.rotation.y=-(it.rot||0)*Math.PI/180;g.add(grp);}
   if(fl===0){fl0.doorPanels=doorPanels;fl0.P=P;}
   // 보이지 않는 천장: 지붕을 걷어도 방 안 그림자·햇빛은 천장이 있는 것처럼 (중정은 열림)
   
@@ -2057,9 +2062,9 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
     if(T3.front!==front){const first=!T3.front;T3.front=front;if(first)view3D("tilt");}// 처음 그릴 때 앞쪽에서 보이게
     // 1층 담장: 담장 안 땅(칸 전체)의 가장자리. 집 벽이 땅 끝에 붙은 곳과 대문 아이콘이 걸친 곳은 비움
     const F=T3.fenceH,c0=flCells(0),LG=gridOf(0),co=(r,q)=>c0[r+","+q]||"",onEdge=v=>!(v&&!isOut(v));
-    const gates=P.filter(i=>i.type==="sym"&&i.kind==="gate").map(i=>{const b=vbox(i);return{x0:u2m(b.x),x1:u2m(b.x+b.w),z0:u2m(b.y),z1:u2m(b.y+b.h)};});
+    const gates=P.filter(i=>i.type==="sym"&&i.kind==="gate").map(gateSnap);
     const cutRun=(hz,line,a,b)=>{let segs=[[a,b]];
-      for(const g of gates){const near=hz?line>=g.z0-.3&&line<=g.z1+.3:line>=g.x0-.3&&line<=g.x1+.3,[ga,gb]=hz?[g.x0,g.x1]:[g.z0,g.z1];if(!near)continue;
+      for(const g of gates){const near=!!g.hz===!!hz&&g.line!=null&&Math.abs(g.line-line)<.01,[ga,gb]=hz?[g.x0,g.x1]:[g.z0,g.z1];if(!near)continue;
         segs=segs.flatMap(([p,q])=>gb<=p||ga>=q?[[p,q]]:[[p,ga],[gb,q]].filter(([u,v])=>v-u>.05));}
       for(const [p,q] of segs)hz?fenceRun(p,line,q,line,F):fenceRun(line,p,line,q,F);};
     const edge=(hz,line,a0,a1,at)=>{let st=null;for(let j=a0;j<=a1+1;j++){const on=j<=a1&&onEdge(at(j));if(on&&st===null)st=j;if(!on&&st!==null){cutRun(hz,line,st*c,j*c);st=null;}}};
