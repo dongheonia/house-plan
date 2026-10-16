@@ -286,6 +286,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
 .areas .r small{color:var(--muted);font-weight:400}
 .areas .sub{color:var(--muted);font-size:.72rem;margin:-2px 0 4px}
 .areas hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+.cellsel{position:absolute;z-index:-999999;pointer-events:none;background:rgba(43,108,204,.18);outline:3px solid #2B6CCC;outline-offset:-1px}
 .plan-name{font-size:.8rem;font-weight:600;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-inline:4px}
 .planpop{width:300px;max-height:60vh}
 .lotpop .lots{display:grid;grid-template-columns:auto auto auto auto;gap:6px 8px;align-items:center;font-size:.82rem}
@@ -1288,6 +1289,8 @@ board.addEventListener("pointerdown",ev=>{
     act={type:ev.target.classList.contains("h")?"resize":"move",it,sx:ev.clientX,sy:ev.clientY,ox:it.x,oy:it.y,ow:it.w,oh:it.h,ofs:it.fs};}
   else if(!sheet&&!readOnly&&ev.pointerType!=="touch"&&ev.button===0&&!spaceDown){select(null);// 프리폼: 범위 선택
     act={type:"marq",sx:ev.clientX,sy:ev.clientY};drawMarq(ev);marqEl.hidden=false;}
+  else if(sheet==="plan"&&!readOnly&&ev.pointerType==="mouse"&&ev.button===0&&!spaceDown&&cellAt(ev.clientX,ev.clientY)){select(null);closeCellPop();// 설계도: 칸 위에서 끌면 여러 칸 고르기
+    const q=cellAt(ev.clientX,ev.clientY);act={type:"cells",sx:ev.clientX,sy:ev.clientY,r0:q.r,c0:q.c,r1:q.r,c1:q.c};showCellSel(act);}
   else{select(null);act={type:"pan",sx:ev.clientX,sy:ev.clientY,ox:cam.x,oy:cam.y};board.classList.add("panning");}
   board.setPointerCapture(ev.pointerId);
 });
@@ -1298,6 +1301,7 @@ board.addEventListener("pointermove",ev=>{
   if(erasing){eraseAt(ev);return;}
   if(!act)return;let dx=ev.clientX-act.sx,dy=ev.clientY-act.sy;
   if(act.type==="marq"){drawMarq(ev);return;}
+  if(act.type==="cells"){const q=cellAt(ev.clientX,ev.clientY,true);if(q){act.r1=q.r;act.c1=q.c;showCellSel(act);}return;}
   if(act.type==="gmove"){for(const [o,ox,oy] of act.orig){o.x=ox+dx/cam.z;o.y=oy+dy/cam.z;render(o);}return;}
   if(act.type==="resize"&&act.it.rot){const a=act.it.rot*Math.PI/180,c=Math.cos(a),s=Math.sin(a);[dx,dy]=[dx*c+dy*s,-dx*s+dy*c];}
   if(act.type==="pan"){cam.x=act.ox+dx;cam.y=act.oy+dy;applyCam();}
@@ -1355,6 +1359,7 @@ function endPtr(ev){bp.delete(ev.pointerId);if(bp.size<2)pinch=null;guide.hidden
   if(stroke){penEnd(ev.type==="pointercancel");tap=null;return;}
   if(erasing){erasing=false;tap=null;saveMeta();return;}
   if(act&&act.type==="marq")endMarq(ev);
+  if(act&&act.type==="cells"){const a=act;act=null;if(ev.type!=="pointerup"){showCellSel(null);return;}openCellPop(ev.clientX,ev.clientY,a);return;}
   const wasPan=act&&act.type==="pan";
   if(act){if(act.it&&snapGate(act.it))render(act.it);saveMeta();act=null;board.classList.remove("panning");}
   // 설계도: 빈 곳(모눈종이 칸)을 짧게 누르면 칸 색 고르기
@@ -1410,19 +1415,28 @@ function drawCells(){if(typeof mark3D==="function")mark3D();
       return o;}
     if(q.f===guide&&!cells[ck(q.r,q.c)])return`<rect x="${q.c*CELL}" y="${q.r*CELL}" width="${CELL}" height="${CELL}" fill="${col[2]}" opacity=".28"/>`;return"";}).join("");}
 function saveCells(){if(cloud.db)put("app/plan",{cells,lot:lotCfg,edgePaved});else try{localStorage.setItem("kr-plan-cells",JSON.stringify(cells));localStorage.setItem("kr-plan-lot",JSON.stringify(lotCfg));if(edgePaved)localStorage.setItem("kr-plan-pv","1")}catch(e){}}
-let cellCur=null;
+let cellCur=null;// 고른 칸 키들 (한 칸이어도 배열)
+// 화면 좌표 → 지금 층의 칸 (clamp: 끌다가 땅 밖으로 나가면 가장자리 칸)
+function cellAt(cx,cy,clamp){const p=boardPoint(cx,cy),G=gridOf(floor);let c=Math.floor(p.x/CELL),r=Math.floor(p.y/CELL);
+  if(clamp){r=Math.max(G.r0,Math.min(G.r1,r));c=Math.max(G.c0,Math.min(G.c1,c));}return inGrid(floor,r,c)?{r,c}:null;}
+const cellSelEl=(()=>{const d=document.createElement("div");d.className="cellsel";d.hidden=true;world.append(d);return d;})();
+function showCellSel(a){if(!a){cellSelEl.hidden=true;return;}const r0=Math.min(a.r0,a.r1),r1=Math.max(a.r0,a.r1),c0=Math.min(a.c0,a.c1),c1=Math.max(a.c0,a.c1);
+  Object.assign(cellSelEl.style,{left:c0*CELL+"px",top:r0*CELL+"px",width:(c1-c0+1)*CELL+"px",height:(r1-r0+1)*CELL+"px"});cellSelEl.hidden=false;}
 [...RECT_COLORS.filter(c=>c[0]!=="black"),...OUTDOOR,["none","지우기","transparent"]].forEach(([k,n,c])=>{const b=document.createElement("button");b.type="button";b.dataset.c=k;
   b.innerHTML=`<span class="sw" style="--c:${c}"></span>${n}`;
-  b.onclick=()=>{if(!cellCur)return;if(k==="none")delete cells[cellCur];else cells[cellCur]=k;drawCells();saveCells();closeCellPop();board.focus({preventScroll:true});};
+  b.onclick=()=>{if(!cellCur)return;for(const key of cellCur){if(k==="none")delete cells[key];else cells[key]=k;}drawCells();saveCells();closeCellPop();board.focus({preventScroll:true});};
   cellOpts.append(b);});
-function openCellPop(cx,cy){const p=boardPoint(cx,cy),c=Math.floor(p.x/CELL),r=Math.floor(p.y/CELL);
-  if(!inGrid(floor,r,c))return false;cellCur=ck(r,c);
-  document.getElementById("cellName").textContent=`칸 ${r+1}행 ${c+1}열`;
-  cellOpts.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",(cells[cellCur]||"none")===b.dataset.c));
+function openCellPop(cx,cy,rng){const p=boardPoint(cx,cy),c=Math.floor(p.x/CELL),r=Math.floor(p.y/CELL);
+  if(!rng&&!inGrid(floor,r,c))return false;
+  const a=rng||{r0:r,r1:r,c0:c,c1:c},r0=Math.min(a.r0,a.r1),r1=Math.max(a.r0,a.r1),c0=Math.min(a.c0,a.c1),c1=Math.max(a.c0,a.c1);
+  cellCur=[];for(let i=r0;i<=r1;i++)for(let j=c0;j<=c1;j++)cellCur.push(ck(i,j));showCellSel({r0,r1,c0,c1});
+  document.getElementById("cellName").textContent=cellCur.length>1?`칸 ${cellCur.length}개 (${r1-r0+1}×${c1-c0+1})`:`칸 ${r+1}행 ${c+1}열`;
+  const vals=new Set(cellCur.map(k=>cells[k]||"none")),one=vals.size===1?[...vals][0]:null;
+  cellOpts.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",one===b.dataset.c));
   cellPop.hidden=false;const br=board.getBoundingClientRect(),pw=cellPop.offsetWidth,ph=cellPop.offsetHeight;
   let x=cx-br.left+14,y=cy-br.top+14;if(x+pw>br.width-8)x=Math.max(8,cx-br.left-pw-14);if(y+ph>br.height-8)y=Math.max(8,cy-br.top-ph-14);
   cellPop.style.left=x+"px";cellPop.style.top=y+"px";return true;}
-function closeCellPop(){cellPop.hidden=true;cellCur=null;if(typeof closeSymPop==="function")closeSymPop();}
+function closeCellPop(){cellPop.hidden=true;cellCur=null;showCellSel(null);if(typeof closeSymPop==="function")closeSymPop();}
 drawCells();
 function setSheet(s){if(s===sheet)return;
   stopEditing();penEnd(true);select(null);closeCellPop();
@@ -1494,7 +1508,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261016012207";// 배포할 때 바뀜
+const BUILD="20261016013640";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
