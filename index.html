@@ -1167,8 +1167,9 @@ function updateOrderTools(){orderTools.hidden=!(selId&&items.some(i=>i.id===selI
 // [이름, 표시, 색, 진한 색이면 1 (흰 글자)]
 const RECT_COLORS=[["red","연빨강","#F5CBC6"],["orange","연주황","#F8D9B6"],["green","연초록","#C9E7C3"],["blue","연파랑","#C3DDF5"],["dblue","진파랑","#3F6E9C",1],["purple","연보라","#DACDEE"],
   ["gray","연회색","#DEE1E0"],["dgray","진회색","#6F7876",1],["black","연검정","#3E4443",1],["brown","연갈색","#DCC9B3"],["dbrown","진갈색","#7C6049",1],["ivory","연아이보리","#FBF4DC"],["divory","진아이보리","#E8DBAE"]];
-// 칸 바닥 종류: 색 외에 바깥 바닥(잔디·흙·주차장) — 지붕·천장 없음, 방과 맞닿은 곳에만 벽
+// 칸 바닥 종류: 색 외에 바깥 바닥(잔디·흙·주차장·포장) — 방과 맞닿은 곳에만 벽. 지붕·천장은 잔디·포장만 없음
 const OUTDOOR=[["grass","잔디","#A8D08D"],["soil","흙","#C9A57E"],["parking","주차장","#8E9397"],["paved","포장","#D3D6D4"]],isOut=v=>OUTDOOR.some(o=>o[0]===v);
+const openSky=v=>v==="grass"||v==="paved";// 지붕·천장 없는 바깥 바닥 (주차장·흙은 지붕 있음)
 const CELL_COLORS=[...RECT_COLORS,...OUTDOOR],cellCol=v=>CELL_COLORS.find(c=>c[0]===v);
 const rectColors=document.getElementById("rectColors");
 RECT_COLORS.forEach(([k,n,c])=>{const b=document.createElement("button");b.type="button";b.dataset.rc=k;b.title=b.ariaLabel=n;
@@ -1508,7 +1509,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261016013640";// 배포할 때 바뀜
+const BUILD="20261016014451";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -2056,7 +2057,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
   // 보이지 않는 천장: 지붕을 걷어도 방 안 그림자·햇빛은 천장이 있는 것처럼 (중정은 열림)
   
   if(T3.walls&&H>0){const inv=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false});
-    for(let r=G.r0;r<=G.r1;r++){let st=null;for(let q=G.c0;q<=G.c1+1;q++){const on=q<=G.c1&&solid(colOf(r,q))&&colOf(r,q)!==court;
+    for(let r=G.r0;r<=G.r1;r++){let st=null;for(let q=G.c0;q<=G.c1+1;q++){const on=q<=G.c1&&colOf(r,q)&&!openSky(colOf(r,q))&&colOf(r,q)!==court;
       if(on&&st===null)st=q;if(!on&&st!==null){const o=new THREE.Mesh(new THREE.BoxGeometry((q-st)*c,.05,c),inv);o.position.set((st+q)/2*c,H+.03,r*c+c/2);o.castShadow=true;g.add(o);blockers.push(o);ceils.push(o);st=null;}}}}
   // 방: 이름표 자리의 네모(있으면) 또는 같은 색으로 이어진 칸들 — 바닥 위 점들에서 해 쪽으로 광선을 쏴 햇빛을 잼
   
@@ -2088,7 +2089,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
       edge(0,LG.c0*c,LG.r0,LG.r1,j=>co(j,LG.c0));edge(0,(LG.c1+1)*c,LG.r0,LG.r1,j=>co(j,LG.c1));}}
   // 박공지붕: 한 높이로 끊김 없이. 중정이 있으면 바깥 처마 ↔ 용마루(사각 고리) ↔ 안쪽 처마(중정)로 이어진 정사각형 고리 지붕
   let roofTop=0;
-  if(T3.roof&&(view==null||view===top)){const g=new THREE.Group();g.position.y=flBase(top);ROOT.add(g);const cells=flCells(top),court=courts[top];const cl=[],cc=[],oo=[];for(const [k,v] of Object.entries(cells)){if(!v)continue;const [r,q]=k.split(",").map(Number);(isOut(v)?oo:v===court?cc:cl).push([r,q]);}
+  if(T3.roof&&(view==null||view===top)){const g=new THREE.Group();g.position.y=flBase(top);ROOT.add(g);const cells=flCells(top),court=courts[top];const cl=[],cc=[],oo=[];for(const [k,v] of Object.entries(cells)){if(!v)continue;const [r,q]=k.split(",").map(Number);(openSky(v)?oo:v===court?cc:cl).push([r,q]);}
     {const r0=Math.min(...cl.map(p=>p[0])),r1=Math.max(...cl.map(p=>p[0])),q0=Math.min(...cl.map(p=>p[1])),q1=Math.max(...cl.map(p=>p[1]));
       for(const p of oo)if(p[0]>r0&&p[0]<r1&&p[1]>q0&&p[1]<q1)cc.push(p);}// 건물에 둘러싸인 바깥 칸은 중정처럼 지붕을 엶
     const bb=a=>a.length?{x0:Math.min(...a.map(p=>p[1]))*c,x1:(Math.max(...a.map(p=>p[1]))+1)*c,z0:Math.min(...a.map(p=>p[0]))*c,z1:(Math.max(...a.map(p=>p[0]))+1)*c}:null;
