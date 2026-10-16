@@ -394,7 +394,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
     <button type="button" data-edit id="rectBtn" aria-label="네모 추가" title="네모 (맨 뒤에 놓여요)">□</button>
     <button type="button" data-edit id="frameBtn" class="frame-btn" title="테두리만 있는 네모 (안쪽은 비어 있어요)">테두리</button>
     <button type="button" data-edit id="tboxBtn" class="tbox-btn" title="테두리 안에 글을 써요"><span class="free-only">글상자</span><span class="plan-only">텍스트</span></button>
-    <button type="button" data-edit id="doorBtn" class="plan-only" aria-haspopup="dialog" aria-expanded="false" title="문 기호: 여닫이·양여닫이·미닫이">문</button>
+    <button type="button" data-edit id="doorBtn" class="plan-only" aria-haspopup="dialog" aria-expanded="false" title="문 기호: 여닫이·양여닫이·미닫이·차고문·담장 출입구·차량 문">문</button>
     <button type="button" data-edit id="winBtn" class="plan-only" aria-haspopup="dialog" aria-expanded="false" title="창 기호: 창문·슬릿">창</button>
     <button type="button" data-edit id="iconBtn" class="plan-only" aria-haspopup="dialog" aria-expanded="false" title="가구·설비 아이콘 (실제 크기)">아이콘</button>
     <button type="button" data-edit class="free-only" data-arw="180" aria-label="왼쪽 화살표 추가">←</button>
@@ -959,11 +959,11 @@ const M=55;// = 100 ÷ 1.818 m
 // [이름, 표시, 가로 m, 세로 m, 메뉴]
 const SYMS=[
   ["door","여닫이",.9,.9,"door"],["door2","양여닫이",1.8,.9,"door"],["slide","미닫이",1.8,.18,"door"],
-  ["garage","차고 롤업문",2.6,.25,"door"],["window","창문",1.8,.2,"win"],["slit","슬릿",1.2,.2,"win"],["window2","미서기창",1.8,.2],// 미서기창은 예전에 놓은 것만 그림
+  ["garage","차고 롤업문",2.6,.25,"door"],["gate","담장 출입구",1.2,.35,"door"],["cargate","차량 문",3.8,.35,"door"],["window","창문",1.8,.2,"win"],["slit","슬릿",1.2,.2,"win"],["window2","미서기창",1.8,.2],// 미서기창은 예전에 놓은 것만 그림
   ["car","자동차",1.9,5,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
   ["dining","식탁",2.1,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["kitchen2","일자 주방",2.4,.6,"icon"],["kitchen3","ㄷ자 주방",2.4,2.4,"icon"],["oven","오븐",.6,.6,"icon"],["dishwasher","식기세척기",.6,.6,"icon"],["microwave","전자레인지",.5,.4,"icon"],["purifier","정수기",.2,.45,"icon"],["ricecooker","밥솥",.28,.36,"icon"],["upper","상부수납장",1.2,.35,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["desk2","네모 책상",1.4,.7,"icon"],["deskc","책상+의자",1.2,1.1,"icon"],["storage","수납장",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
-  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["amp","앰프",.55,.28,"icon"],["stairs","계단",1,3,"icon"],["fence","담장",3.2,.25,"hidden"],["land","토지",12,10,"hidden"],["yard","마당",10,6,"hidden"],["gate","대문",1.5,.35,"icon"],["road","도로",20,7,"hidden"],["fan","환풍기",.3,.3,"icon"]];
+  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["amp","앰프",.55,.28,"icon"],["stairs","계단",1,3,"icon"],["fence","담장",3.2,.25,"hidden"],["land","토지",12,10,"hidden"],["yard","마당",10,6,"hidden"],["road","도로",20,7,"hidden"],["fan","환풍기",.3,.3,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
 // 기타 몸통 윤곽 (앞에서 본 모양): u -1~1 = 좌우, v 0~1 = 아래→위
 const MAJ=[[0,0],[.5,.02],[.85,.12],[1,.3],[.95,.45],[.78,.56],[.8,.67],[.88,.8],[.86,.93],[.72,.9],[.46,.76],[.2,.78],[-.2,.78],[-.42,.8],[-.6,.94],[-.73,1.04],[-.87,.96],[-.87,.79],[-.8,.62],[-.95,.48],[-1,.3],[-.87,.12],[-.5,.02]];// 스트라토캐스터 몸통 (위 왼쪽 뿔이 더 길게)
@@ -972,7 +972,9 @@ const STRAT_PG=[[-.6,.8],[-.2,.76],[.22,.74],[.45,.68],[.56,.52],[.5,.34],[.3,.2
 function smoothPath(pts){const n=pts.length,f=v=>v.toFixed(2);let d=`M${f(pts[0][0])} ${f(pts[0][1])}`;
   for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
     d+=`C${f(p1[0]+(p2[0]-p0[0])/6)} ${f(p1[1]+(p2[1]-p0[1])/6)} ${f(p2[0]-(p3[0]-p1[0])/6)} ${f(p2[1]-(p3[1]-p1[1])/6)} ${f(p2[0])} ${f(p2[1])}`;}return d+"Z";}
-const BACK_KINDS=new Set(["land","yard","road"]);// 모눈종이 아래에 깔리고 가장자리로만 고르는 바닥 아이콘
+const BACK_KINDS=new Set(["land","yard","road"]);// 모눈종이 아래 바닥 아이콘
+const GATES=new Set(["gate","cargate"]);// 담장 출입구·차량 문: 1층 땅 끝 담장 줄에 붙고 담장을 그만큼 비움
+// 바닥 아이콘은 모눈종이 아래에 깔리고 가장자리로만 고름
 const BACK_HIT=(w,h)=>`<rect x="0" y="0" width="${w}" height="${h}" style="fill:none;stroke:transparent;stroke-width:18;vector-effect:non-scaling-stroke;pointer-events:stroke"/>`;
 function symSVG(k,w,h){
   // f: 채움색, st: 선색 (짙은 바탕 위 선은 밝게)
@@ -1057,6 +1059,8 @@ function symSVG(k,w,h){
     return R(0,0,w,h,"fl",0,"#D5D8D6")+`<path d="${d}" style="fill:none;stroke:#BFC3C1;stroke-width:.6;vector-effect:non-scaling-stroke"/>`+BACK_HIT(w,h);}
   case"road":{let d="";for(let x=M;x<w;x+=M*3)d+=`M${x.toFixed(1)} ${h/2}h${(M*1.4).toFixed(1)}`;// 도로: 아스팔트 + 가운데 점선
     return R(0,0,w,h,"fl",0,"#55595C")+`<path d="${d}" style="fill:none;stroke:#E8E3C8;stroke-width:2;vector-effect:non-scaling-stroke"/>`+BACK_HIT(w,h);}
+  case"cargate":{const p=Math.min(h*1.3,w*.1);let d="";for(let x=p+w*.02;x<w-p;x+=w*.025)d+=`M${x.toFixed(1)} ${h*.32}V${h*.68}`;// 차량 문: 넓은 미닫이 철문 + 바닥 레일
+    return P(`M${p} ${h*.82}H${w-p}`,"tn ds")+R(p,h*.3,w-2*p,h*.4,"fl",0,"#3A3F44")+`<path d="${d}" style="fill:none;stroke:#8E9694;stroke-width:1;vector-effect:non-scaling-stroke"/>`+R(0,0,p,h,"fl",0,"#C9CCCB")+R(w-p,0,p,h,"fl",0,"#C9CCCB");}
   case"gate":{const p=Math.min(h*1.3,w*.2);let d="";for(let x=p+w*.05;x<w-p;x+=w*.06)d+=`M${x.toFixed(1)} ${h*.3}V${h*.7}`;// 대문: 굵은 기둥 두 개 + 철문 살
     return R(p,h*.3,w-2*p,h*.4,"fl",0,"#3A3F44")+`<path d="${d}" style="fill:none;stroke:#8E9694;stroke-width:1;vector-effect:non-scaling-stroke"/>`+R(0,0,p,h,"fl",0,"#C9CCCB")+R(w-p,0,p,h,"fl",0,"#C9CCCB");}
   case"land":return R(0,0,w,h,"fl ds",0,"#BFDDA4")+`<rect x="0" y="0" width="${w}" height="${h}" style="fill:none;stroke:transparent;stroke-width:18;vector-effect:non-scaling-stroke;pointer-events:stroke"/>`;// 토지(잔디밭) — 기울기 화살표는 그림 위에 따로
@@ -1095,7 +1099,7 @@ for(const [grp,btn,pop] of symPops){
     pop.style.left=Math.max(8,Math.min(r.left-br.left,br.width-pop.offsetWidth-8))+"px";pop.style.top=(r.bottom-br.top+6)+"px";};}
 function addSym(k){const [,,wm,hm]=SYMS.find(s=>s[0]===k),r=board.getBoundingClientRect(),c=boardPoint(r.left+r.width/2,r.top+r.height/2);
   const w=wm*M,h=hm*M,id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-  items.push(tagSheet({id,type:"sym",kind:k,x:c.x-w/2,y:c.y-h/2,w,h,z:BACK_KINDS.has(k)?backZ():++topZ,rot:0}));selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}// 토지는 맨 뒤에
+  const it=tagSheet({id,type:"sym",kind:k,x:c.x-w/2,y:c.y-h/2,w,h,z:BACK_KINDS.has(k)?backZ():++topZ,rot:0});items.push(it);if(GATES.has(k))snapGate(it);selId=id;renderAll();saveMeta();board.focus({preventScroll:true});}// 토지는 맨 뒤에
 function flipSym(it,ax){if(ax==="fx")it.fx=!it.fx;else it.fy=!it.fy;if(!it[ax])delete it[ax];render(it);saveMeta();}
 const symTools=document.getElementById("symTools");
 symTools.querySelectorAll("button").forEach(b=>b.onclick=()=>{const it=items.find(i=>i.id===selId);if(!it||(b.dataset.symAct!=="rot"&&it.type!=="sym"))return;
@@ -1509,7 +1513,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261016014451";// 배포할 때 바뀜
+const BUILD="20261016015203";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1839,6 +1843,11 @@ function model3D(kind,W,D,H,opt={}){const X=f=>f*W,Z=f=>f*D,c=C3,p=[];
     p.push({cy:[cx,cz-.1,.012,0,1.02],c:st});Bm(cx-.05,cx+.05,cz-.11,cz-.012,.99,1.03,st);break;}// 뒤 기둥 + 목 걸이
   case"yard":B(0,1,0,1,0,.014,"#C8CBCA",0,{r:.95});break;// 마당 포장
   case"road":{B(0,1,0,1,0,.012,"#45484B",0,{r:.9});const along=W>=D,L=along?W:D;for(let t=1;t<L-1;t+=3){const a=t/L,b=Math.min(1,(t+1.4)/L);along?B(a,b,.49,.51,.012,.016,"#E8E3C8"):B(.49,.51,a,b,.012,.016,"#E8E3C8");}break;}
+  case"cargate":{const fh=opt.fh||1.8,pw=Math.min(.5,W*.12),pz=D/2;// 차량 문: 문기둥 + 넓은 미닫이 철문(가로대 셋) + 바닥 레일
+    for(const x of [pw/2,W-pw/2]){Bm(x-pw/2,x+pw/2,pz-pw/2,pz+pw/2,0,fh+.45,"#B9BDBC");Bm(x-pw/2-.04,x+pw/2+.04,pz-pw/2-.04,pz+pw/2+.04,fh+.45,fh+.51,"#D3D6D5");}
+    const g0=pw+.03,g1=W-pw-.03,gh=fh*.8;Bm(g0,g1,pz-.03,pz+.03,0,.03,"#6F7876");
+    for(const y of [.08,gh/2,gh])Bm(g0,g1,pz-.025,pz+.025,y-.05,y,"#3A3F44");for(let x=g0+.05;x<g1-.02;x+=.1)Bm(x-.012,x+.012,pz-.012,pz+.012,.08,gh,"#3A3F44");
+    for(const x of [g0+.25,g1-.25])p.push({cx:[x,.05,pz,.05,.06],ax:"x",c:"#2B2F33"});break;}
   case"gate":{const fh=opt.fh||1.8,pw=Math.min(.48,W*.2),pz=D/2;// 대문: 문기둥 두 개 + 철문 살
     for(const x of [pw/2,W-pw/2]){Bm(x-pw/2,x+pw/2,pz-pw/2,pz+pw/2,0,fh+.45,"#B9BDBC");Bm(x-pw/2-.04,x+pw/2+.04,pz-pw/2-.04,pz+pw/2+.04,fh+.45,fh+.51,"#D3D6D5");}
     const g0=pw+.03,g1=W-pw-.03;Bm(g0,g1,pz-.02,pz+.02,.1,.16,"#3A3F44");Bm(g0,g1,pz-.02,pz+.02,fh*.85-.06,fh*.85,"#3A3F44");
@@ -2039,7 +2048,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
       if(it.kind==="storage"&&syms.some(o=>o.kind==="tv"&&ov(o,it)))opt.low=CAB_H;// TV와 겹친 수납장은 낮게
       if(it.kind==="tv"&&syms.some(o=>o.kind==="storage"&&ov(o,it))){opt.on=1;lift=CAB_H;}// 그 위에 TV
       if((it.kind==="microwave"||it.kind==="purifier"||it.kind==="ricecooker")&&syms.some(o=>KITCH.has(o.kind)&&ov(o,it)))lift=.9;// 조리대 위 전자레인지
-      if(it.kind==="gate")opt.fh=T3.fenceH>0?T3.fenceH:1.8;
+      if(GATES.has(it.kind))opt.fh=T3.fenceH>0?T3.fenceH:1.8;
       if(fl===0&&(it.kind==="yard"||it.kind==="road"||it.kind==="fence")){const b=vbox(it),x0=u2m(b.x),x1=u2m(b.x+b.w),z0=u2m(b.y),z1=u2m(b.y+b.h);// 땅을 따라
         if(it.kind==="yard")surf(x0,x1,z0,z1,mat3("#C8CBCA",{r:.95}),.004);
         else if(it.kind==="road"){surf(x0,x1,z0,z1,mat3("#45484B",{r:.9}),.006);const al=x1-x0>=z1-z0,L=al?x1-x0:z1-z0;
@@ -2051,7 +2060,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
       parts=model3D(it.kind,W,D,H,opt);}
     if(!parts)continue;
     const inner=partsGroup(parts,W,D,!!it.fx,!!it.fy);inner.position.set(-W/2,0,-D/2);
-    const sn=fl===0&&it.kind==="gate"?gateSnap(it):null;
+    const sn=fl===0&&GATES.has(it.kind)?gateSnap(it):null;
     const grp=new THREE.Group();grp.add(inner);grp.position.set(sn?sn.cx:u2m(it.x+it.w/2),lift,sn?sn.cz:u2m(it.y+it.h/2));grp.rotation.y=-(it.rot||0)*Math.PI/180;g.add(grp);}
   if(fl===0){fl0.doorPanels=doorPanels;fl0.P=P;}
   // 보이지 않는 천장: 지붕을 걷어도 방 안 그림자·햇빛은 천장이 있는 것처럼 (중정은 열림)
@@ -2079,7 +2088,7 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
     if(T3.front!==front){const first=!T3.front;T3.front=front;if(first)view3D("tilt");}// 처음 그릴 때 앞쪽에서 보이게
     // 1층 담장: 담장 안 땅(칸 전체)의 가장자리. 집 벽이 땅 끝에 붙은 곳과 대문 아이콘이 걸친 곳은 비움
     const F=T3.fenceH,c0=flCells(0),LG=gridOf(0),co=(r,q)=>c0[r+","+q]||"",onEdge=v=>!(v&&!isOut(v));
-    const gates=P.filter(i=>i.type==="sym"&&i.kind==="gate").map(gateSnap);
+    const gates=P.filter(i=>i.type==="sym"&&GATES.has(i.kind)).map(gateSnap);
     const cutRun=(hz,line,a,b)=>{let segs=[[a,b]];
       for(const g of gates){const near=!!g.hz===!!hz&&g.line!=null&&Math.abs(g.line-line)<.01,[ga,gb]=hz?[g.x0,g.x1]:[g.z0,g.z1];if(!near)continue;
         segs=segs.flatMap(([p,q])=>gb<=p||ga>=q?[[p,q]]:[[p,ga],[gb,q]].filter(([u,v])=>v-u>.05));}
@@ -2289,7 +2298,7 @@ function showFloor(){document.querySelectorAll("#floorTools button").forEach(b=>
 document.querySelectorAll("#floorTools button").forEach(b=>b.onclick=()=>{setFloor(+b.dataset.fl);board.focus({preventScroll:true});});
 showFloor();
 // 대문은 늘 1층 땅 끝(담장 줄) 위에: 같은 방향의 가장 가까운 땅 끝으로 옮김
-function snapGate(it){if(it.sheet!=="plan"||(it.fl||0)||it.kind!=="gate")return false;const b=vbox(it),G=gridOf(0),hz=b.w>=b.h;
+function snapGate(it){if(it.sheet!=="plan"||(it.fl||0)||!GATES.has(it.kind))return false;const b=vbox(it),G=gridOf(0),hz=b.w>=b.h;
   const lines=hz?[G.r0*CELL,(G.r1+1)*CELL]:[G.c0*CELL,(G.c1+1)*CELL],m=hz?b.y+b.h/2:b.x+b.w/2,ln=lines.reduce((p,q)=>Math.abs(q-m)<Math.abs(p-m)?q:p);
   if(Math.abs(ln-m)<.5)return false;if(hz)it.y+=ln-m;else it.x+=ln-m;return true;}
 // 예전 '마당·담장'으로 꺼낸 마당·담장·길 항목은 정리 (이제 마당은 칸, 담장은 땅 끝에 자동). 대문은 땅 끝으로
