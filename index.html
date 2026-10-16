@@ -953,7 +953,7 @@ const SYMS=[
   ["car","자동차",1.9,5,"icon"],["shelf","책장",1.2,.35,"icon"],["washer","세탁기",.6,.6,"icon"],["toilet","변기",.4,.7,"icon"],
   ["dining","식탁",2.1,1.6,"icon"],["kitchen","주방",2.4,2.4,"icon"],["kitchen2","일자 주방",2.4,.6,"icon"],["kitchen3","ㄷ자 주방",2.4,2.4,"icon"],["oven","오븐",.6,.6,"icon"],["dishwasher","식기세척기",.6,.6,"icon"],["microwave","전자레인지",.5,.4,"icon"],["purifier","정수기",.2,.45,"icon"],["ricecooker","밥솥",.28,.36,"icon"],["upper","상부수납장",1.2,.35,"icon"],["cooktop","인덕션",.6,.52,"icon"],["fridge","냉장고",.9,.75,"icon"],["sink","싱크대",1,.6,"icon"],
   ["bed","침대",1.5,2,"icon"],["desk","책상",1.6,1.6,"icon"],["desk2","네모 책상",1.4,.7,"icon"],["deskc","책상+의자",1.2,1.1,"icon"],["storage","수납장",1.2,.6,"icon"],["sofa","쇼파",2,.9,"icon"],
-  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["amp","앰프",.55,.28,"icon"],["stairs","계단",1,3,"icon"],["fence","담장",3.2,.25,"icon"],["land","토지",12,10,"hidden"],["yard","마당",10,6,"icon"],["gate","대문",1.5,.35,"icon"],["road","도로",20,7,"icon"],["fan","환풍기",.3,.3,"icon"]];
+  ["bench","벤치",1.5,.4,"icon"],["chair","의자",.45,.45,"icon"],["tv","TV",1.45,.3,"icon"],["closet","옷장",1.2,.6,"icon"],["pwall","가벽",1.8,.12,"icon"],["tub","욕조",1.7,1.5,"icon"],["shower","샤워부스",.9,.9,"icon"],["utility","보일러실",1,1,"icon"],["bust","인테리어 소품",.5,.5,"icon"],["guitar","악기",.38,1.02,"icon"],["piano","피아노",1.5,.6,"icon"],["amp","앰프",.55,.28,"icon"],["stairs","계단",1,3,"icon"],["fence","담장",3.2,.25,"hidden"],["land","토지",12,10,"hidden"],["yard","마당",10,6,"hidden"],["gate","대문",1.5,.35,"icon"],["road","도로",20,7,"hidden"],["fan","환풍기",.3,.3,"icon"]];
 const ICON_COL={dgray:"#4B5150",gray:"#AEB4B3",brown:"#9A7350",wood:"#C39A68",burg:"#7A1F2E",water:"#A9DBF5",lite:"#E4E8E7",black:"#111",ivory:"#F3E8C6"};
 // 기타 몸통 윤곽 (앞에서 본 모양): u -1~1 = 좌우, v 0~1 = 아래→위
 const MAJ=[[0,0],[.5,.02],[.85,.12],[1,.3],[.95,.45],[.78,.56],[.8,.67],[.88,.8],[.86,.93],[.72,.9],[.46,.76],[.2,.78],[-.2,.78],[-.42,.8],[-.6,.94],[-.73,1.04],[-.87,.96],[-.87,.79],[-.8,.62],[-.95,.48],[-1,.3],[-.87,.12],[-.5,.02]];// 스트라토캐스터 몸통 (위 왼쪽 뿔이 더 길게)
@@ -1347,7 +1347,7 @@ function endPtr(ev){bp.delete(ev.pointerId);if(bp.size<2)pinch=null;guide.hidden
   if(erasing){erasing=false;tap=null;saveMeta();return;}
   if(act&&act.type==="marq")endMarq(ev);
   const wasPan=act&&act.type==="pan";
-  if(act){saveMeta();act=null;board.classList.remove("panning");}
+  if(act){if(act.it&&snapGate(act.it))render(act.it);saveMeta();act=null;board.classList.remove("panning");}
   // 설계도: 빈 곳(모눈종이 칸)을 짧게 누르면 칸 색 고르기
   if(wasPan&&sheet==="plan"&&!readOnly&&ev.type==="pointerup"&&tap&&Date.now()-tap.t<400&&Math.hypot(ev.clientX-tap.x,ev.clientY-tap.y)<6)
     openCellPop(ev.clientX,ev.clientY);
@@ -1486,7 +1486,7 @@ document.addEventListener("keydown",ev=>{
       if(it.type){items.push(it);topZ=Math.max(topZ,it.z||1);continue;}
       const b=await idb("blobs","readonly",s=>s.get(it.id));
       if(b){urls[it.id]=URL.createObjectURL(b);items.push(it);topZ=Math.max(topZ,it.z||1);}}}
-  applyCam();renderAll();
+  applyCam();renderAll();cleanLot();
 })();
 applyCam();renderAll();
 
@@ -1494,7 +1494,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261016010319";// 배포할 때 바뀜
+const BUILD="20261016010720";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1603,7 +1603,7 @@ function applyItems(snap){const seen=new Set();
     if(Date.now()-(recent[id]||0)<4000)continue;// 방금 내가 쓴 것 — 아직 반영 전
     delete synced[id];const it=items.find(i=>i.id===id);
     if(it&&editingId!==id){items=items.filter(i=>i!==it);world.querySelector(`[data-iid="${id}"]`)?.remove();if(selId===id)selId=null;}}
-  renderAll();}
+  renderAll();if(typeof cleanLot==="function"&&!act)cleanLot();}
 function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화가 끊겼어요. 새로고침해 주세요."));}
 (async()=>{
   let db=null,assets=null;
@@ -1633,7 +1633,7 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
     db.collection("notes").onSnapshot(snap=>{applyNotes(snap);nf=1;tryMig();},()=>note("동기화가 끊겼어요. 새로고침해 주세요."));
     subscribe("app/notesmig",snap=>{mig=!!snap.exists;tryMig();});
     subscribe("app/memo",()=>{memoOK=true;setTimeout(tryMig);});}
-  subscribe("app/plan",snap=>{const d=snap.exists?snap.data():{};cells={...(d.cells||{})};lotCfg={t:2,b:2,l:2,r:2,...(d.lot||{})};drawPaper();showLot();});
+  subscribe("app/plan",snap=>{const d=snap.exists?snap.data():{};cells={...(d.cells||{})};lotCfg={t:2,b:2,l:2,r:2,...(d.lot||{})};drawPaper();showLot();if(first.i)cleanLot();});
   // 이 기기에서 처음 열면 보드 전체가 보이게 (보드 칸이 숨겨진 휴대폰 탭이면 보드 탭을 처음 열 때)
   let fitted=hasCam;const fitOnce=()=>{if(fitted||sheet||!vis().length||!board.getBoundingClientRect().width)return;fitted=true;fit();};
   tabBtns.forEach(b=>b.addEventListener("click",()=>setTimeout(fitOnce)));
@@ -1880,9 +1880,9 @@ function build3D(){if(!T3.ready||!T3.root)return;T3.dirty=false;const ROOT=T3.ro
   T3.floorsAll=floorsAll;updateFlView();
   const flBase=f=>f*(H+SLAB),flCells=f=>{const o={};for(const [k,v] of Object.entries(cells)){const q=parseCk(k);if(q&&q.f===f)o[q.r+","+q.c]=v;}return o;};
   const blockers=[],ceils=[],rooms=[],courts={},fl0={doorPanels:[],P:[]};
-  // 대문: 1층 땅 끝(담장 줄)에서 0.9 m 안이면 그 줄 위로 붙임 — 칸과 대문 사이가 뜨지 않게
+  // 대문: 1층 땅 끝(담장 줄) 중 가장 가까운 줄 위로 — 칸과 대문 사이가 뜨지 않게
   const gateSnap=it=>{const b=vbox(it),LG=gridOf(0),hz=b.w>=b.h,x0=u2m(b.x),x1=u2m(b.x+b.w),z0=u2m(b.y),z1=u2m(b.y+b.h),cx=(x0+x1)/2,cz=(z0+z1)/2;
-    const lines=hz?[LG.r0*c,(LG.r1+1)*c]:[LG.c0*c,(LG.c1+1)*c],m=hz?cz:cx,ln=lines.find(v=>Math.abs(v-m)<.9);
+    const lines=hz?[LG.r0*c,(LG.r1+1)*c]:[LG.c0*c,(LG.c1+1)*c],m=hz?cz:cx,ln=lines.reduce((p,q)=>Math.abs(q-m)<Math.abs(p-m)?q:p);
     return{hz,x0,x1,z0,z1,cx:!hz&&ln!=null?ln:cx,cz:hz&&ln!=null?ln:cz,line:ln};};
   const lands=PALL.filter(i=>i.type==="sym"&&i.kind==="land"&&!(i.fl||0));// (예전 토지 아이콘 — 평평한 잔디)
   // 바닥에 깔리는 판 (마당 포장·길·토지)
@@ -2271,13 +2271,23 @@ function setFloor(f){if(f===floor)return;stopEditing();penEnd(true);select(null)
 function showFloor(){document.querySelectorAll("#floorTools button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.fl===floor));}
 document.querySelectorAll("#floorTools button").forEach(b=>b.onclick=()=>{setFloor(+b.dataset.fl);board.focus({preventScroll:true});});
 showFloor();
+// 대문은 늘 1층 땅 끝(담장 줄) 위에: 같은 방향의 가장 가까운 땅 끝으로 옮김
+function snapGate(it){if(it.sheet!=="plan"||(it.fl||0)||it.kind!=="gate")return false;const b=vbox(it),G=gridOf(0),hz=b.w>=b.h;
+  const lines=hz?[G.r0*CELL,(G.r1+1)*CELL]:[G.c0*CELL,(G.c1+1)*CELL],m=hz?b.y+b.h/2:b.x+b.w/2,ln=lines.reduce((p,q)=>Math.abs(q-m)<Math.abs(p-m)?q:p);
+  if(Math.abs(ln-m)<.5)return false;if(hz)it.y+=ln-m;else it.x+=ln-m;return true;}
+// 예전 '마당·담장'으로 꺼낸 마당·담장·길 항목은 정리 (이제 마당은 칸, 담장은 땅 끝에 자동). 대문은 땅 끝으로
+function cleanLot(){let ch=false;
+  for(const it of [...items])if(it.sheet==="plan"&&!(it.fl||0)&&it.type==="sym"){
+    if(it.kind==="fence"||it.kind==="yard"||it.kind==="road"){items=items.filter(i=>i!==it);world.querySelector(`[data-iid="${it.id}"]`)?.remove();if(selId===it.id)selId=null;ch=true;}
+    else if(snapGate(it))ch=true;}
+  if(ch){renderAll();saveMeta();}}
 // ===== 담장 안 땅 넓이 =====
 const lotPop=document.getElementById("lotPop"),lotBtn=document.getElementById("lotBtn");
 function showLot(){const box=document.getElementById("lotRows");if(!box)return;box.innerHTML="";
   for(const [k,n] of [["t","위쪽"],["b","아래쪽"],["l","왼쪽"],["r","오른쪽"]]){const lb=document.createElement("span");lb.textContent=n;
     const dn=document.createElement("button"),up=document.createElement("button"),v=document.createElement("b");dn.type=up.type="button";dn.textContent="−";up.textContent="+";
     dn.ariaLabel=n+" 줄이기";up.ariaLabel=n+" 늘리기";v.textContent=`${lotCfg[k]}칸 · ${(lotCfg[k]*SIDE_M/10).toFixed(1)} m`;
-    const set=d=>{lotCfg[k]=Math.max(0,Math.min(10,lotCfg[k]+d));drawPaper();saveCells();showLot();};dn.onclick=()=>set(-1);up.onclick=()=>set(1);
+    const set=d=>{lotCfg[k]=Math.max(0,Math.min(10,lotCfg[k]+d));drawPaper();saveCells();showLot();cleanLot();};// 대문도 새 땅 끝으로dn.onclick=()=>set(-1);up.onclick=()=>set(1);
     box.append(lb,dn,v,up);}}
 function closeLotPop(){lotPop.hidden=true;lotBtn.setAttribute("aria-expanded","false");}
 lotBtn.onclick=()=>{const open=lotPop.hidden;closeSymPop();closeLotPop();if(!open)return;if(floor!==0)setFloor(0);showLot();lotPop.hidden=false;lotBtn.setAttribute("aria-expanded","true");
@@ -2332,7 +2342,7 @@ async function applyPlan(sn){await planBackup();
   for(const src of sn.items||[]){const it=JSON.parse(JSON.stringify(src));items.push(it);topZ=Math.max(topZ,it.z||1);
     if(!it.type){if(it.asset&&!planLocal()){if(!urls[it.id])setAssetUrl(it.id,it.asset);}
       else if(sn.images&&sn.images[it.id]){const b=dataUrlToBlob(sn.images[it.id]);await idb("blobs","readwrite",s=>s.put(b,it.id));if(!urls[it.id])urls[it.id]=URL.createObjectURL(b);}}}
-  cells={...(sn.cells||{})};lotCfg={t:2,b:2,l:2,r:2,...(sn.lot||{})};drawPaper();showLot();saveCells();renderAll();saveMeta();}
+  cells={...(sn.cells||{})};lotCfg={t:2,b:2,l:2,r:2,...(sn.lot||{})};drawPaper();showLot();saveCells();renderAll();saveMeta();cleanLot();}
 document.getElementById("planSaveBtn").onclick=()=>savePlan();
 // 새 설계도: 건물 모양부터 고름 (100평 땅 10×10칸 중 건물 칸은 연아이보리, 나머지는 잔디 마당, ㅁ자는 가운데 중정도 잔디 + '중정' 이름표)
 const SHAPES=[["none","빈 모눈",()=>false],["rect","일자",(r,c)=>r>=3&&r<=6&&c>=1&&c<=8],["sq","정사각형",(r,c)=>r>=2&&r<=7&&c>=2&&c<=7],
