@@ -37,6 +37,7 @@ body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans KR",system
 .viewbar{grid-column:1;grid-row:1;display:flex;background:var(--panel);border-bottom:1px solid var(--line)}
 .viewbar button{flex:1 1 0;height:40px;border:0;background:none;color:var(--muted);font:inherit;font-size:.88rem;font-weight:600;cursor:pointer}
 .viewbar button+button{border-left:1px solid var(--line)}
+.viewbar .lang{flex:0 0 auto;padding:0 16px;font-size:.8rem}
 .viewbar button[aria-selected="true"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--focus)}
 .viewbar button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
 @media (min-width:761px){.layout:not([data-view="map"])>.mapbox,.layout:not([data-view="board"]):not([data-view="plan"])>.content,.layout:not([data-view="three"])>.three,.layout:not([data-view="memo"])>.memo{display:none}}
@@ -321,6 +322,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
   <button type="button" role="tab" data-tab="board" aria-selected="false">프리폼</button>
   <button type="button" role="tab" data-tab="plan" aria-selected="false">설계도</button>
   <button type="button" role="tab" data-tab="three" aria-selected="false">3D</button>
+  <button type="button" class="lang" id="langBtn">English</button>
 </nav>
 <section class="three" data-pane="three" aria-label="설계도 3D">
   <div id="threeView"></div>
@@ -1513,7 +1515,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261026230002";// 배포할 때 바뀜
+const BUILD="20261026230407";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -2490,5 +2492,110 @@ document.getElementById("importIn").addEventListener("change",async ev=>{
   renderAll();saveMeta();
   note(fail?`가져왔어요. 이미지 ${fail}개는 옮기지 못했어요.`:"모두 가져왔어요. 이제 모든 기기에서 같은 내용이 보여요.");
 });
+// ===== 언어: 한국어 / English (화면 글자만 바꿈 — 메모·방 이름처럼 직접 쓴 글은 그대로) =====
+const LANG=(()=>{try{return localStorage.getItem("kr-lang")==="en"?"en":"ko"}catch(e){return"ko"}})();
+const EN_DICT={
+"메모":"Memo","위치":"Map","프리폼":"Freeform","설계도":"Plan","화면":"Views","주택 설계":"House Plan","+ 새 메모":"+ New note","스티커 메모":"Sticky notes",
+"여기에 메모를 적으세요":"Write a memo here","메모를 적으세요":"Write a note","글자 작게":"Smaller text","글자 크게":"Larger text","글자 크기":"Text size",
+"형광펜":"Highlighter","형광펜: 고른 글자에 칠하기·지우기 (⌘⇧H)":"Highlighter: mark or unmark the selected text (⌘⇧H)","메모에서 칠할 글자를 먼저 고르세요.":"Select some text in a note first.",
+"이 메모 지우기":"Delete this note","이 메모를 지울까요?":"Delete this note?","저장됨":"Saved","저장됨 · 모든 기기":"Saved · all devices","저장 안 됨":"Not saved",
+"대한민국 시군 지도":"Map of Korean cities and counties","지도":"Map","지도 레이어":"Map layers","고속도로":"Expressways","고속철도":"High-speed rail","국제공항":"International airports","색 선택":"Pick a color",
+"빨강":"Red","초록":"Green","파랑":"Blue","검정":"Black","갈색":"Brown","지우기":"Clear","없음":"None",
+"보드":"Board","설계도 보드":"Plan board","프리폼 보드":"Freeform board","편집 중":"Editing","읽기 전용":"Read only","읽기 전용이면 보드를 바꿀 수 없어요":"In read-only mode the board can't be changed",
+"전체 보기":"Fit all","펜":"Pen","펜 (P)":"Pen (P)","지우개":"Eraser","지우개: 문지른 펜 선을 지워요 (E)":"Eraser: rub out pen lines (E)",
+"네모 추가":"Add rectangle","네모 (맨 뒤에 놓여요)":"Rectangle (sits at the back)","네모 색":"Rectangle color","테두리":"Outline","테두리 색":"Outline color","테두리만 있는 네모 (안쪽은 비어 있어요)":"Outline-only rectangle (empty inside)",
+"텍스트":"Text","글상자":"Text box","테두리 안에 글을 써요":"Write text inside a box","문":"Door","창":"Window","아이콘":"Icons","문 기호":"Door symbols","창 기호":"Window symbols",
+"문 기호: 여닫이·양여닫이·미닫이·차고문·담장 출입구·차량 문":"Doors: hinged, double, sliding, garage, fence gate, vehicle gate","창 기호: 창문·슬릿":"Windows: window, slit",
+"가구·설비 아이콘 (실제 크기)":"Furniture and fixtures (real size)","아이콘 (실제 크기)":"Icons (real size)",
+"왼쪽 화살표 추가":"Add left arrow","위쪽 화살표 추가":"Add up arrow","오른쪽 화살표 추가":"Add right arrow","아래쪽 화살표 추가":"Add down arrow",
+"기호 돌리기·뒤집기":"Rotate / flip","90° 돌리기 (R, 반대로 ⇧R)":"Rotate 90° (R, reverse ⇧R)","90° 회전 (R)":"Rotate 90° (R)","⇋ 좌우":"⇋ Flip H","⇅ 상하":"⇅ Flip V","좌우 뒤집기 (H)":"Flip horizontally (H)","상하 뒤집기 (V)":"Flip vertically (V)",
+"겹침 순서":"Stacking order","앞으로":"Forward","뒤로":"Backward","앞으로 (⌘] / Ctrl+])":"Bring forward (⌘] / Ctrl+])","뒤로 (⌘[ / Ctrl+[)":"Send backward (⌘[ / Ctrl+[)","이미 맨 앞이에요.":"Already at the front.","이미 맨 뒤예요.":"Already at the back.","삭제":"Delete",
+"이미지를 붙여넣거나(⌘V / Ctrl+V)":"Paste an image (⌘V / Ctrl+V)","파일을 끌어다 놓으세요":"or drop a file here","빈 곳을 더블클릭하면 글자를 넣을 수 있어요":"Double-click empty space to add text",
+"내보내기":"Export","가져오기":"Import","모든 내용(메모·지도 색·보드·설계도·저장한 설계도·이미지)을 파일 하나로 받기":"Download everything (memo, map colors, boards, plans, saved plans, images) as one file",
+"층":"Floor","1층":"1F","2층":"2F","지하1층":"B1","땅 넓이":"Lot size","1층 담장 안 땅 넓이 — 집 자리 둘레로 칸을 더 붙임":"Lot inside the 1F fence — add cells around the house",
+"담장 안 땅 넓이":"Lot inside the fence","담장 안 땅 (집 자리 둘레에 붙일 칸 수)":"Lot inside the fence (cells added around the house)","위쪽":"Top","아래쪽":"Bottom","왼쪽":"Left","오른쪽":"Right"," 늘리기":" more"," 줄이기":" less",
+"설계도 파일":"Plan files","지금 열린 설계도":"Plan that's open now","제목 없음":"Untitled","저장":"Save","불러오기":"Open","새 설계도":"New plan",
+"지금 설계도를 이름 붙여 저장 (모든 기기에서 불러올 수 있어요)":"Save this plan under a name (open it on any device)","저장한 설계도 불러오기":"Open a saved plan","빈 설계도로 새로 시작":"Start a new blank plan",
+"저장한 설계도":"Saved plans","새 설계도 건물 모양":"Building shape for the new plan","건물 모양을 골라 주세요":"Pick a building shape",
+"빈 모눈":"Empty grid","일자":"Bar","정사각형":"Square","ㄱ자":"L-shape","ㄷ자":"U-shape","ㅁ자 (중정)":"Ring (courtyard)",
+"빈 설계도로 시작했어요.":"Started a blank plan.","저장할 이름":"Name to save as","자동 백업":"Auto backup",
+"저장하지 않고 계속할까요? 지금 설계도 내용은 사라져요.":"Continue without saving? The current plan will be lost.",
+"지금 설계도에 저장하지 않은 내용이 있어요.\n먼저 저장할까요? (취소를 누르면 저장하지 않고 넘어갈지 다시 물어봐요)":"This plan has unsaved changes.\nSave it first? (Cancel asks whether to continue without saving)",
+"저장 공간이 모자라요. 이미지가 많은 설계도는 지워 주세요.":"Out of storage space. Delete plans with many images.",
+"칸 색 선택":"Cell color",
+"연빨강":"Light red","연주황":"Light orange","연초록":"Light green","연파랑":"Light blue","진파랑":"Dark blue","연보라":"Light purple","연회색":"Light gray","진회색":"Dark gray","연검정":"Soft black",
+"연갈색":"Light brown","진갈색":"Dark brown","연아이보리":"Light ivory","진아이보리":"Dark ivory","잔디":"Grass","흙":"Soil","주차장":"Parking","포장":"Paving",
+"여닫이":"Hinged door","양여닫이":"Double door","미닫이":"Sliding door","차고 롤업문":"Garage roll-up door","담장 출입구":"Fence gate","차량 문":"Vehicle gate","창문":"Window","미서기창":"Sliding window","슬릿":"Slit",
+"자동차":"Car","책장":"Bookshelf","세탁기":"Washer","변기":"Toilet","식탁":"Dining table","주방":"Kitchen","일자 주방":"Straight kitchen","ㄷ자 주방":"U-shaped kitchen","오븐":"Oven","식기세척기":"Dishwasher",
+"전자레인지":"Microwave","정수기":"Water purifier","밥솥":"Rice cooker","상부수납장":"Wall cabinet","인덕션":"Induction hob","냉장고":"Fridge","싱크대":"Sink","침대":"Bed","책상":"Desk","네모 책상":"Rectangular desk",
+"책상+의자":"Desk + chair","수납장":"Storage","쇼파":"Sofa","벤치":"Bench","의자":"Chair","TV":"TV","옷장":"Wardrobe","가벽":"Partition","욕조":"Bathtub","샤워부스":"Shower","보일러실":"Utility room",
+"인테리어 소품":"Decor","악기":"Guitar","피아노":"Piano","앰프":"Amp","계단":"Stairs","환풍기":"Vent fan","담장":"Fence","토지":"Land","마당":"Yard","도로":"Road","마당·담장":"Yard & fence",
+"설계도 3D":"Plan 3D","비스듬히":"Angled","위에서":"Top","벽":"Walls","네모(방) 둘레에 벽 세우기":"Put up walls around rooms","벽 높이":"Wall height","이름표":"Labels",
+"텍스트를 방 이름표로 띄우기 — 이름표를 누르면 그 방에 들어가 사람 눈높이로 둘러봐요":"Float text as room labels — click one to step into that room at eye level",
+"지붕":"Roof","박공지붕 씌우기 (중정은 열어 둠)":"Add a gable roof (courtyards stay open)","☀ 일조량":"☀ Sunlight","날짜·시각에 따른 해와 방별 햇빛":"Sun position and sunlight per room by date and time",
+"보이는 층":"Visible floors","전체":"All","날짜":"Date","시각":"Time","▶ 하루":"▶ Day","❚❚ 멈춤":"❚❚ Pause","하루 동안 해 움직이기":"Animate the sun over a day",
+"설계도에서 북쪽이 어느 쪽인지":"Which way is north on the plan","북쪽: 정문 쪽(자동)":"North: main entrance (auto)","북쪽: 위":"North: up","북쪽: 아래":"North: down","북쪽: 왼쪽":"North: left","북쪽: 오른쪽":"North: right",
+"방별 햇빛":"Sunlight by room","동지":"Winter solstice","하지":"Summer solstice","춘분":"Spring equinox","추분":"Autumn equinox","해가 졌어요 — 시각을 낮으로 옮겨 보세요":"The sun has set — move the time to daytime",
+"끌어서 돌리기 · 휠/두 손가락으로 확대 · 오른쪽 버튼(두 손가락 끌기)으로 이동 — 설계도를 바꾸면 자동으로 다시 그려요":"Drag to rotate · wheel/pinch to zoom · right-drag (two-finger drag) to pan — redraws when the plan changes",
+"← 나가기":"← Exit","끌어서 둘러보기 · W/S·↑↓ 앞뒤 · A/D·←→ 옆으로 · 왼쪽 Shift 빨리 · Space/Tab 위아래 · 휠":"Drag to look · W/S·↑↓ forward/back · A/D·←→ sideways · Left Shift faster · Space/Tab up/down · wheel",
+"3D를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.":"Couldn't load 3D. Check the internet connection.",
+"로그인":"Log in","이메일":"Email","비밀번호":"Password","한 번 로그인하면 이 기기에서는 계속 유지돼요.":"Once you log in, this device stays logged in.",
+"이메일이나 비밀번호가 맞지 않아요. 다시 확인해 주세요.":"Wrong email or password. Please check and try again.",
+"동기화가 끊겼어요. 새로고침해 주세요.":"Sync was interrupted. Please refresh.","서버에 연결하지 못했어요. 새로고침해 주세요.":"Couldn't connect to the server. Please refresh.",
+"저장하지 못했어요. 인터넷 연결을 확인해 주세요.":"Couldn't save. Check the internet connection.",
+"이 기기에서는 이미지를 올릴 수 없어요. 이 화면에만 보여요.":"Images can't be uploaded from this device. It only shows on this screen.",
+"이미지가 너무 커요 (20MB까지). 이 화면에만 보여요.":"Image too large (max 20 MB). It only shows on this screen.","이미지를 올리지 못했어요. 이 화면에만 보여요.":"Couldn't upload the image. It only shows on this screen.",
+"내보낼 파일을 만드는 중…":"Preparing the export file…","가져오는 중…":"Importing…","이 컴퓨터에 있던 내용을 가져온 파일의 내용으로 바꿀까요?":"Replace what's on this computer with the imported file?",
+"이 파일은 읽을 수 없어요. ‘내보내기’로 받은 파일을 골라 주세요.":"Can't read this file. Pick a file downloaded with ‘Export’.",
+"모두 가져왔어요. 이제 모든 기기에서 같은 내용이 보여요.":"All imported. Every device now shows the same content.","모두 가져왔어요. 이제 이 컴퓨터에서 인터넷 없이 쓸 수 있어요.":"All imported. You can now use it on this computer without internet.",
+"면적 (한 칸 = 1평)":"Area (1 cell = 1 pyeong)","대지면적":"Site area","건축면적":"Building area","연면적":"Total floor area","건폐율":"Coverage ratio","용적률":"Floor area ratio","지하 제외":"excl. basement",
+"벽을 켜야 방별 햇빛을 잴 수 있어요.":"Turn walls on to measure sunlight per room.","설계도에 방 이름(텍스트)을 넣으면 방마다 햇빛을 보여줘요.":"Add room names (text) to the plan to see sunlight per room.",
+"아직 저장한 설계도가 없어요. ‘저장’을 누르면 여기에 생겨요.":"No saved plans yet. Press ‘Save’ and they appear here.","중정":"Courtyard",
+"북":"N","남":"S","동":"E","서":"W","북동":"NE","북서":"NW","남동":"SE","남서":"SW","한국어":"한국어"};
+const DIRS_EN={"북":"N","남":"S","동":"E","서":"W","북동":"NE","북서":"NW","남동":"SE","남서":"SW"};
+const flEn=s=>s.replace(/지하1층/g,"B1").replace(/(\d)층/g,"$1F");
+const tEN=s=>EN_DICT[s]??s;
+// 숫자·이름이 들어간 문장
+const EN_RULES=[
+ [/^‘(.+)’으로 저장했어요\.$/,(m,a)=>`Saved as ‘${a}’.`],
+ [/^‘(.+)’이\(가\) 이미 있어요\. 덮어쓸까요\?$/,(m,a)=>`‘${a}’ already exists. Overwrite it?`],
+ [/^‘(.+)’ 건물로 새 설계도를 시작했어요\.$/,(m,a)=>`Started a new plan with the ${tEN(a)} building.`],
+ [/^‘(.+)’ 저장본 지우기$/,(m,a)=>`Delete saved ‘${a}’`],
+ [/^‘(.+)’을\(를\) 불러왔어요\.$/,(m,a)=>`Opened ‘${a}’.`],
+ [/^저장한 ‘(.+)’을\(를\) 지울까요\? \(지금 열린 설계도는 그대로예요\)$/,(m,a)=>`Delete the saved ‘${a}’? (The open plan stays as it is.)`],
+ [/^지금 설계도는 비어 있어요\. 저장된 ‘(.+)’을\(를\) 빈 설계도로 덮어쓸까요\?$/,(m,a)=>`This plan is empty. Overwrite the saved ‘${a}’ with an empty plan?`],
+ [/^‘(.+)’ 파일을 받았어요\.(?: \(이미지 (\d+)개는 담지 못했어요\))? 내 컴퓨터의 주택 설계 파일에서 ‘가져오기’로 넣으면 돼요\.$/,(m,a,n)=>`Downloaded ‘${a}’.${n?` (${n} images couldn't be included)`:""} Load it with ‘Import’ in the House Plan file on your computer.`],
+ [/^가져오는 중… \((\d+)개\)$/,(m,n)=>`Importing… (${n})`],[/^가져왔어요\. 이미지 (\d+)개는 옮기지 못했어요\.$/,(m,n)=>`Imported. ${n} images couldn't be moved.`],
+ [/^자동 백업 (.+)$/,(m,a)=>`Auto backup ${a}`],[/^자동 · (.+)$/,(m,a)=>`Auto · ${a}`],[/^설계도 (\d+)$/,(m,n)=>`Plan ${n}`],
+ [/^칸 (-?\d+)행 (-?\d+)열$/,(m,r,c)=>`Cell row ${r}, column ${c}`],[/^칸 (\d+)개 \((\d+)×(\d+)\)$/,(m,n,a,b)=>`${n} cells (${a}×${b})`],
+ [/^(\d+)칸 · ([\d.]+) m$/,(m,n,v)=>`${n} cells · ${v} m`],[/^(.+)까지$/,(m,a)=>`Up to ${flEn(a)}`],
+ [/^(북|남|동|서)쪽 바깥(.*)$/,(m,d,r)=>`Outside, ${DIRS_EN[d]} side${r.replace(/ · 눈높이 ([\d.]+) m/," · eye height $1 m")}`],
+ [/^(.*) · 눈높이 ([\d.]+) m$/,(m,a,v)=>`${flEn(a)} · eye height ${v} m`],
+ [/^해 높이 (-?\d+)° · (\S+)쪽 \(방위 (\d+)°\)$/,(m,e,d,a)=>`Sun altitude ${e}° · ${DIRS_EN[d]||d} (azimuth ${a}°)`],
+ [/^지금 (\d+)% · 하루 (.+)$/,(m,p,h)=>`Now ${p}% · ${h.replace(/([\d.]+)시간/,"$1 h")} per day`],
+ [/^(\d+)월 (\d+)일$/,(m,mo,d)=>["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mo-1]+" "+d],
+ [/^(오전|오후) (\d+):(\d+)$/,(m,ap,h,mi)=>`${h}:${mi} ${ap==="오전"?"AM":"PM"}`],
+ [/^(\d+)평\s*$/,(m,n)=>`${n} pyeong `],[/^(.*\d층.*\d+평.*)$/,(m,a)=>flEn(a).replace(/(\d+)평/g,"$1 py")],
+ [/^색: (.+)$/,(m,a)=>`Color: ${tEN(a)}`],[/^(.+) (늘리기|줄이기)$/,(m,a,b)=>`${tEN(a)} ${b==="늘리기"?"more":"less"}`]];
+function trEN(s){if(!s||!/[가-힣]/.test(s))return s;const k=s.trim();if(EN_DICT[k]!=null)return s.replace(k,EN_DICT[k]);
+  for(const [re,f] of EN_RULES){const m=k.match(re);if(m)return s.replace(k,f(...m));}return s;}
+if(LANG==="en"){
+  document.documentElement.lang="en";document.title="House Plan";
+  // 직접 쓴 글(메모·스티커·보드 항목·지도 이름·저장한 설계도 이름)은 건드리지 않음
+  const SKIP=".nbody,.memo .text,#memo,.item,.mapbox svg,.planpop .pl b,[contenteditable]";
+  const skip=n=>{const e=n.nodeType===1?n:n.parentElement;return !e||!!e.closest(SKIP);};
+  const ATTRS=["title","aria-label","placeholder"];
+  const doEl=el=>{if(skip(el))return;for(const a of ATTRS){const v=el.getAttribute(a);if(v&&/[가-힣]/.test(v)){const t=trEN(v);if(t!==v)el.setAttribute(a,t);}}};
+  const doText=n=>{if(skip(n))return;const v=n.nodeValue,t=trEN(v);if(t!==v)n.nodeValue=t;};
+  const walk=root=>{if(root.nodeType===3)return doText(root);if(root.nodeType!==1)return;doEl(root);
+    const tw=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT);let n;while((n=tw.nextNode()))n.nodeType===3?doText(n):doEl(n);};
+  walk(document.body);
+  new MutationObserver(ms=>{for(const m of ms){if(m.type==="characterData")doText(m.target);else if(m.type==="attributes")doEl(m.target);else m.addedNodes.forEach(walk);}})
+    .observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:ATTRS});
+  const c0=window.confirm.bind(window),p0=window.prompt.bind(window),a0=window.alert.bind(window);
+  window.confirm=m=>c0(trEN(m));window.alert=m=>a0(trEN(m));window.prompt=(m,d)=>p0(trEN(m),d==null?d:trEN(String(d)));}
+// 언어 바꾸기 (다시 불러옴 — 내용은 그대로)
+{const b=document.getElementById("langBtn");if(b){b.textContent=LANG==="en"?"한국어":"English";b.title=LANG==="en"?"한국어로 보기":"View in English";
+  b.onclick=()=>{try{localStorage.setItem("kr-lang",LANG==="en"?"ko":"en")}catch(e){}location.reload();};}}
 </script>
 </body></html>
