@@ -423,7 +423,7 @@ svg#map{width:100%;height:100%;display:block;cursor:pointer;user-select:none}
       <button type="button" data-edit id="planOpenBtn" aria-haspopup="dialog" aria-expanded="false" title="저장한 설계도 불러오기">불러오기</button>
       <button type="button" data-edit id="planNewBtn" title="빈 설계도로 새로 시작">새 설계도</button>
     </span>
-    <button type="button" id="exportBtn" hidden>내보내기</button>
+    <button type="button" id="exportBtn" hidden title="모든 내용(메모·지도 색·보드·설계도·저장한 설계도·이미지)을 파일 하나로 받기">내보내기</button>
     <label class="b" id="importLbl" hidden>가져오기<input type="file" id="importIn" accept="application/json,.json" hidden></label>
   </div>
   <div class="pop shapepop" id="shapePop" role="dialog" aria-label="새 설계도 건물 모양" hidden>
@@ -1513,7 +1513,7 @@ try{if(localStorage.getItem("kr-readonly"))setReadOnly(true);}catch(e){}
 
 // ===== 새 버전 자동 반영 =====
 // GitHub Pages는 페이지를 최대 10분 캐시하고 홈 화면 앱은 더 오래 쥐고 있어서, 열 때·돌아올 때 최신 버전인지 확인
-const BUILD="20261016015203";// 배포할 때 바뀜
+const BUILD="20261026230002";// 배포할 때 바뀜
 async function checkUpdate(){
   if(BUILD==="dev"||!/^https?:/.test(location.protocol)||document.hidden)return;
   if(editingId||act||stroke||document.activeElement===memo)return;// 쓰는 중에는 건드리지 않음
@@ -1630,9 +1630,9 @@ function subscribe(path,fn){cloud.db.doc(path).onSnapshot(fn,()=>note("동기화
   else if(SB.url&&/^https?:/.test(location.protocol)){// 웹사이트
     try{cloud.site=await siteStore();db=cloud.site.db;assets=cloud.site.assets;}
     catch(e){note("서버에 연결하지 못했어요. 새로고침해 주세요.");return;}}
-  else{document.getElementById("exportBtn").hidden=false;return;}// 파일로 연 경우
+  else{document.getElementById("exportBtn").hidden=false;document.getElementById("importLbl").hidden=false;return;}// 파일로 연 경우: 내보내기·가져오기 둘 다
   if(!db)return;
-  cloud.db=db;cloud.assets=assets;
+  cloud.db=db;cloud.assets=assets;document.getElementById("exportBtn").hidden=false;// 웹사이트에서도: 내 컴퓨터로 옮길 파일 받기
   let hasCam=false;try{const c=JSON.parse(localStorage.getItem("kr-board-cam")||"null");if(c&&c.z){putCam("",c);hasCam=true;}
     putCam("plan",JSON.parse(localStorage.getItem("kr-plan-cam")||"null"));}catch(e){}
   world.querySelectorAll(".item").forEach(e=>e.remove());items=[];selId=null;applyCam();renderAll();
@@ -1676,8 +1676,10 @@ function show3D(on){if(!T3)return;T3.on=on;if(on)open3D();}
 function mark3D(){if(!T3)return;T3.dirty=true;if(T3.on&&T3.ready)clearTimeout(T3.t),T3.t=setTimeout(build3D,300);}
 async function open3D(){
   if(!T3.ready)T3.ready=(async()=>{
-    await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js");
-    await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js");
+    // 파일로 열면 옆에 둔 three.min.js·OrbitControls.js를 먼저 (인터넷 없이도 3D), 없으면 인터넷에서
+    const local=!/^https?:/.test(location.protocol)&&await loadScript("three.min.js").then(()=>loadScript("OrbitControls.js")).then(()=>true,()=>false);
+    if(!local){await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js");}
     const box=document.getElementById("threeView");
     const r=new THREE.WebGLRenderer({antialias:true});r.setPixelRatio(Math.min(2,devicePixelRatio));
     r.shadowMap.enabled=true;r.shadowMap.type=THREE.PCFSoftShadowMap;box.append(r.domElement);
@@ -2389,7 +2391,8 @@ async function applyPlan(sn){await planBackup();
   items=items.filter(i=>i.sheet!=="plan");selId=null;group.clear();
   for(const src of sn.items||[]){const it=JSON.parse(JSON.stringify(src));items.push(it);topZ=Math.max(topZ,it.z||1);
     if(!it.type){if(it.asset&&!planLocal()){if(!urls[it.id])setAssetUrl(it.id,it.asset);}
-      else if(sn.images&&sn.images[it.id]){const b=dataUrlToBlob(sn.images[it.id]);await idb("blobs","readwrite",s=>s.put(b,it.id));if(!urls[it.id])urls[it.id]=URL.createObjectURL(b);}}}
+      else if(sn.images&&sn.images[it.id]){const b=dataUrlToBlob(sn.images[it.id]);await idb("blobs","readwrite",s=>s.put(b,it.id));if(!urls[it.id])urls[it.id]=URL.createObjectURL(b);}
+      else if(!urls[it.id]){const b=await idb("blobs","readonly",s=>s.get(it.id));if(b)urls[it.id]=URL.createObjectURL(b);}}}
   cells={...(sn.cells||{})};lotCfg={t:2,b:2,l:2,r:2,...(sn.lot||{})};drawPaper();showLot();saveCells();renderAll();saveMeta();cleanLot();}
 document.getElementById("planSaveBtn").onclick=()=>savePlan();
 // 새 설계도: 건물 모양부터 고름 (100평 땅 10×10칸 중 건물 칸은 연아이보리, 나머지는 잔디 마당, ㅁ자는 가운데 중정도 잔디 + '중정' 이름표)
@@ -2435,20 +2438,42 @@ function applyPlansSnap(snap){savedPlans=snap.docs.map(d=>({id:d.id,...d.data()}
   if(!planPop.hidden)drawPlanList();}
 if(!(window.claude?.use)&&!/^https?:/.test(location.protocol)){try{savedPlans=JSON.parse(localStorage.getItem("kr-plans")||"[]")||[]}catch(e){savedPlans=[]}}
 showPlanName();
-// ===== 옮기기: 컴퓨터 파일에서 내보내기 → claude.ai에서 가져오기 =====
+// ===== 옮기기: 내보내기(웹사이트·파일 어디서나) → 가져오기 (내 컴퓨터 파일 또는 클라우드) =====
 const readAsDataURL=b=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r(null);fr.readAsDataURL(b)});
-document.getElementById("exportBtn").onclick=async()=>{
-  const images={};
-  for(const it of items)if(!it.type){const b=await idb("blobs","readonly",s=>s.get(it.id));if(b)images[it.id]=await readAsDataURL(b);}
-  const out={v:1,colors:state,memo:memo.value,memoHtml:memoHTML(),memoFs:fsz,cam,items,images,cells,notes};
+async function imageBlob(it){if(!cloud.db)return await idb("blobs","readonly",s=>s.get(it.id));
+  try{const u=urls[it.id]||(it.asset&&cloud.site?await cloud.site.imageUrl(it.asset):null);return u?await fetch(u).then(r=>r.ok?r.blob():null):null;}catch(e){return null;}}
+document.getElementById("exportBtn").onclick=async()=>{note("내보낼 파일을 만드는 중…");
+  const images={},imgItems=[...items,...savedPlans.flatMap(p=>p.items||[])].filter(it=>!it.type);
+  for(const it of imgItems)if(!images[it.id]){const b=await imageBlob(it);if(b)images[it.id]=await readAsDataURL(b);}
+  const plans=savedPlans.map(({images,...p})=>p);
+  const out={v:2,colors:state,memo:memo.value,memoHtml:memoHTML(),memoFs:fsz,cam:getCam(""),camPlan:getCam("plan"),items,images,cells,lot:lotCfg,edgePaved,notes,plans};
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:"application/json"}));
-  a.download="주택설계-옮기기.json";document.body.append(a);a.click();a.remove();
-  note("‘주택설계-옮기기.json’ 파일을 받았어요. claude.ai 페이지의 보드에서 ‘가져오기’로 넣어 주세요.");};
+  const d=new Date();a.download=`주택설계-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}.json`;document.body.append(a);a.click();a.remove();
+  const miss=imgItems.filter(it=>!images[it.id]).length;
+  note(`‘${a.download}’ 파일을 받았어요.${miss?` (이미지 ${miss}개는 담지 못했어요)`:""} 내 컴퓨터의 주택 설계 파일에서 ‘가져오기’로 넣으면 돼요.`);};
+// 파일로 연 경우: 가져온 파일로 이 컴퓨터의 내용을 통째로 바꿈
+async function importLocal(d){
+  if((items.length||notes.length||Object.keys(cells).length)&&!confirm("이 컴퓨터에 있던 내용을 가져온 파일의 내용으로 바꿀까요?"))return;
+  note("가져오는 중…");
+  state={...(d.colors||{})};Object.keys(els).forEach(paint);save();
+  if(typeof d.memoHtml==="string")setMemoHTML(d.memoHtml);else memo.value=d.memo||"";if(d.memoFs)setFs(d.memoFs,true);saveMemo();
+  notes=Array.isArray(d.notes)?d.notes:[];saveNotesLocal();drawNotes();try{localStorage.setItem("kr-notes-migrated","1")}catch(e){}
+  cells={...(d.cells||{})};lotCfg={t:2,b:2,l:2,r:2,...(d.lot||{})};edgePaved=true;saveCells();drawPaper();showLot();
+  for(const [id,du] of Object.entries(d.images||{})){try{await idb("blobs","readwrite",s=>s.put(dataUrlToBlob(du),id));}catch(e){}}
+  world.querySelectorAll(".item").forEach(e=>e.remove());items=[];selId=null;group.clear();let fail=0;
+  for(const src of d.items||[]){const it={...src};
+    if(!it.type){const b=await idb("blobs","readonly",s=>s.get(it.id));if(!b){fail++;continue;}urls[it.id]=URL.createObjectURL(b);}
+    items.push(it);topZ=Math.max(topZ,it.z||1);}
+  savedPlans=(d.plans||[]).map(({images,...p})=>p);savePlansLocal();
+  if(d.cam&&d.cam.z)putCam("",d.cam);if(d.camPlan&&d.camPlan.z)putCam("plan",d.camPlan);
+  renderAll();saveMeta();cleanLot();
+  note(fail?`가져왔어요. 이미지 ${fail}개는 옮기지 못했어요.`:"모두 가져왔어요. 이제 이 컴퓨터에서 인터넷 없이 쓸 수 있어요.");}
 function dataUrlToBlob(du){const [h,b64]=du.split(",");const type=(h.match(/data:([^;]+)/)||[])[1]||"image/png";
   const bin=atob(b64),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type});}
 document.getElementById("importIn").addEventListener("change",async ev=>{
-  const f=ev.target.files[0];ev.target.value="";if(!f||!cloud.db)return;
-  let d;try{d=JSON.parse(await f.text());}catch(e){note("이 파일은 읽을 수 없어요. 컴퓨터에서 ‘내보내기’로 받은 파일을 골라 주세요.");return;}
+  const f=ev.target.files[0];ev.target.value="";if(!f)return;
+  let d;try{d=JSON.parse(await f.text());}catch(e){note("이 파일은 읽을 수 없어요. ‘내보내기’로 받은 파일을 골라 주세요.");return;}
+  if(!cloud.db)return importLocal(d);
   document.getElementById("importLbl").hidden=true;note("가져오는 중…");
   if(d.colors){state={...d.colors};Object.keys(els).forEach(paint);save();}
   if(Array.isArray(d.notes)){for(const n of d.notes)if(!notes.some(o=>o.id===n.id)){notes.push(n);saveNote(n);}drawNotes();}
